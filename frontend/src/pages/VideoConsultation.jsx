@@ -31,7 +31,20 @@ const ICE_SERVERS = {
   ],
 }
 
-const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:3001'
+// Определяем URL signaling сервера в зависимости от окружения
+const getSignalingUrl = () => {
+  // В продакшн режиме используем домен с префиксом /server-signaling
+  if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
+    return (
+      import.meta.env.VITE_SIGNALING_SERVER ||
+      'https://medconnect.nnmc.kz/server-signaling'
+    );
+  }
+  // В режиме разработки используем переменную окружения или localhost
+  return import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:1341';
+};
+
+const SIGNALING_SERVER = getSignalingUrl();
 
 function VideoConsultation() {
   const { roomId } = useParams()

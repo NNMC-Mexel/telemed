@@ -221,7 +221,7 @@ function LoginPage() {
             {userType === 'doctor' ? (
               <Stethoscope className="w-10 h-10 text-white" />
             ) : (
-              <Activity className="w-10 h-10 text-white" />
+            <Activity className="w-10 h-10 text-white" />
             )}
           </div>
           <h2 className="text-3xl font-bold mb-4">
@@ -253,20 +253,20 @@ function LoginPage() {
               </>
             ) : (
               <>
-                <div>
-                  <div className="text-2xl font-bold text-white">500+</div>
-                  <div>Врачей</div>
-                </div>
-                <div className="w-px h-12 bg-white/20" />
-                <div>
-                  <div className="text-2xl font-bold text-white">50K+</div>
-                  <div>Консультаций</div>
-                </div>
-                <div className="w-px h-12 bg-white/20" />
-                <div>
-                  <div className="text-2xl font-bold text-white">4.9</div>
-                  <div>Рейтинг</div>
-                </div>
+            <div>
+              <div className="text-2xl font-bold text-white">500+</div>
+              <div>Врачей</div>
+            </div>
+            <div className="w-px h-12 bg-white/20" />
+            <div>
+              <div className="text-2xl font-bold text-white">50K+</div>
+              <div>Консультаций</div>
+            </div>
+            <div className="w-px h-12 bg-white/20" />
+            <div>
+              <div className="text-2xl font-bold text-white">4.9</div>
+              <div>Рейтинг</div>
+            </div>
               </>
             )}
           </div>

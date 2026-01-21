@@ -166,7 +166,7 @@ function PublicLayout() {
                             <p className="font-medium text-slate-900">Врач</p>
                             <p className="text-xs text-slate-500">Личный кабинет врача</p>
                           </div>
-                        </Link>
+                  </Link>
                       </div>
                     )}
                   </div>

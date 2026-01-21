@@ -8,8 +8,20 @@ const app = express()
 const server = http.createServer(app)
 
 // CORS настройки
+const getCorsOrigin = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return [
+      'https://medconnect.nnmc.kz',
+      'https://www.medconnect.nnmc.kz',
+    ];
+  }
+  return process.env.FRONTEND_URL 
+    ? [process.env.FRONTEND_URL]
+    : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:1342'];
+};
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: getCorsOrigin(),
   methods: ['GET', 'POST'],
   credentials: true,
 }
@@ -212,7 +224,8 @@ app.get('/room/:roomId', (req, res) => {
   })
 })
 
-const PORT = process.env.PORT || 3001
+// Локально signaling-сервер работает на 1341, в продакшене за прокси по пути /server-signaling
+const PORT = process.env.PORT || 1341
 
 server.listen(PORT, () => {
   console.log(`Signaling server running on port ${PORT}`)

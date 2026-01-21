@@ -1,6 +1,16 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:1337";
+// Определяем URL API в зависимости от окружения
+const getApiUrl = () => {
+  // В продакшн режиме используем домен с префиксом /servers
+  if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
+    return import.meta.env.VITE_API_URL || "https://medconnect.nnmc.kz/servers";
+  }
+  // В режиме разработки используем переменную окружения или localhost
+  return import.meta.env.VITE_API_URL || "http://localhost:1340";
+};
+
+const API_URL = getApiUrl();
 
 const api = axios.create({
     baseURL: API_URL,

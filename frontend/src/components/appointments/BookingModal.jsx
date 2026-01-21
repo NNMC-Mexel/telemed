@@ -163,12 +163,12 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
     useEffect(() => {
         const loadSlots = async () => {
-            if (selectedDate && doctor?.id) {
+        if (selectedDate && doctor?.id) {
                 setIsLoadingSlots(true);
                 try {
-                    const dateStr = format(selectedDate, "yyyy-MM-dd");
+            const dateStr = format(selectedDate, "yyyy-MM-dd");
                     // Загружаем временные слоты из базы (если есть)
-                    fetchTimeSlots(doctor.id, dateStr);
+            fetchTimeSlots(doctor.id, dateStr);
                     // Загружаем уже занятые слоты из записей
                     const booked = await getBookedSlots(doctor.id, dateStr);
                     setBookedSlots(booked);
@@ -187,12 +187,12 @@ function BookingModal({ isOpen, onClose, doctor }) {
         if (!selectedDate) return [];
 
         let slots = [];
-        
+
         // Если есть слоты из Strapi TimeSlot коллекции - используем их
         if (timeSlots && timeSlots.length > 0) {
             slots = timeSlots.map((slot) => slot.startTime || slot.time);
         } else {
-            // Иначе генерируем слоты на основе настроек врача
+        // Иначе генерируем слоты на основе настроек врача
             slots = generateTimeSlots(doctor);
         }
 
@@ -421,8 +421,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                                 key={date.toISOString()}
                                                 onClick={() => {
                                                     if (!isDisabled) {
-                                                        setSelectedDate(date);
-                                                        setSelectedTime(null);
+                                                    setSelectedDate(date);
+                                                    setSelectedTime(null);
                                                         setBookedSlots([]); // Сбрасываем занятые слоты при смене даты
                                                     }
                                                 }}
@@ -472,8 +472,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                     ) : availableSlots.length === 0 ? (
                                         <div className='text-center py-4'>
                                             <p className='text-slate-500'>
-                                                Нет доступных слотов на эту дату
-                                            </p>
+                                            Нет доступных слотов на эту дату
+                                        </p>
                                             <p className='text-xs text-slate-400 mt-1'>
                                                 Попробуйте выбрать другой день
                                             </p>

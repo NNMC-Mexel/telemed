@@ -397,21 +397,21 @@ function PatientAppointments() {
         {(() => {
           const refund = calculateRefund(selectedAppointment)
           return (
-            <div className="text-center py-4">
+        <div className="text-center py-4">
               <AlertCircle className={`w-12 h-12 mx-auto mb-4 ${refund.refundable ? 'text-amber-500' : 'text-rose-500'}`} />
-              <p className="text-slate-600">
-                Вы уверены, что хотите отменить запись к врачу{' '}
-                <span className="font-semibold">{selectedAppointment?.doctor?.fullName}</span>?
-              </p>
-              {selectedAppointment && (
-                <p className="text-sm text-slate-500 mt-2">
-                  {formatDate(selectedAppointment.dateTime)} в{' '}
-                  {new Date(selectedAppointment.dateTime).toLocaleTimeString('ru-RU', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
-                </p>
-              )}
+          <p className="text-slate-600">
+            Вы уверены, что хотите отменить запись к врачу{' '}
+            <span className="font-semibold">{selectedAppointment?.doctor?.fullName}</span>?
+          </p>
+          {selectedAppointment && (
+            <p className="text-sm text-slate-500 mt-2">
+              {formatDate(selectedAppointment.dateTime)} в{' '}
+              {new Date(selectedAppointment.dateTime).toLocaleTimeString('ru-RU', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </p>
+          )}
               
               {/* Информация о возврате */}
               <div className={`mt-4 p-4 rounded-xl ${refund.refundable ? 'bg-green-50 border border-green-200' : 'bg-rose-50 border border-rose-200'}`}>
@@ -432,7 +432,7 @@ function PatientAppointments() {
               <p className="text-xs text-slate-400 mt-4">
                 Политика отмены: при отмене за 12+ часов до приёма — полный возврат, менее 12 часов — без возврата.
               </p>
-            </div>
+        </div>
           )
         })()}
       </Modal>
