@@ -1,0 +1,122 @@
+{
+  "kind": "collectionType",
+  "collectionName": "doctors",
+  "info": {
+    "singularName": "doctor",
+    "pluralName": "doctors",
+    "displayName": "Doctor"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "fullName": {
+      "type": "string"
+    },
+    "specialization": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::specialization.specialization",
+      "inversedBy": "doctors"
+    },
+    "experience": {
+      "type": "integer"
+    },
+    "bio": {
+      "type": "richtext"
+    },
+    "education": {
+      "type": "text"
+    },
+    "languages": {
+      "type": "json"
+    },
+    "consultationDuration": {
+      "type": "integer",
+      "default": 30
+    },
+    "photo": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    },
+    "price": {
+      "type": "integer",
+      "required": true,
+      "min": 0
+    },
+    "rating": {
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 10
+    },
+    "reviewsCount": {
+      "type": "integer",
+      "default": 0
+    },
+    "users_permissions_user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "userId": {
+      "type": "integer"
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    },
+    "workingHours": {
+      "type": "json"
+    },
+    "appointments": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::appointment.appointment",
+      "mappedBy": "doctor"
+    },
+    "time_slots": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::time-slot.time-slot",
+      "mappedBy": "doctor"
+    },
+    "medical_documents": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::medical-document.medical-document",
+      "mappedBy": "doctor"
+    },
+    "reviews": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::review.review",
+      "mappedBy": "doctor"
+    },
+    "workStartTime": {
+      "type": "string"
+    },
+    "workEndTime": {
+      "type": "string"
+    },
+    "slotDuration": {
+      "type": "integer"
+    },
+    "breakStart": {
+      "type": "string"
+    },
+    "breakEnd": {
+      "type": "string"
+    },
+    "workingDays": {
+      "type": "string"
+    }
+  }
+}
