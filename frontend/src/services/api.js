@@ -2,15 +2,36 @@ import axios from "axios";
 
 // Определяем URL API в зависимости от окружения
 const getApiUrl = () => {
-  // В продакшн режиме используем отдельный домен для сервера
-  if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
-    return import.meta.env.VITE_API_URL || "https://medconnectserver.nnmc.kz";
+  // Проверяем, есть ли явно заданная переменная окружения
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
   }
-  // В режиме разработки используем переменную окружения или localhost
-  return import.meta.env.VITE_API_URL || "http://localhost:1340";
+  
+  // В продакшн режиме используем отдельный домен для сервера
+  // Проверяем несколько способов определения продакшна
+  const isProduction = 
+    import.meta.env.MODE === 'production' || 
+    import.meta.env.PROD === true ||
+    window.location.hostname === 'medconnect.nnmc.kz' ||
+    window.location.hostname === 'www.medconnect.nnmc.kz';
+  
+  if (isProduction) {
+    return "https://medconnectserver.nnmc.kz";
+  }
+  
+  // В режиме разработки используем localhost
+  return "http://localhost:1340";
 };
 
 const API_URL = getApiUrl();
+
+// Логируем для отладки (только в браузере)
+if (typeof window !== 'undefined') {
+  console.log('[API] API_URL:', API_URL);
+  console.log('[API] Mode:', import.meta.env.MODE);
+  console.log('[API] PROD:', import.meta.env.PROD);
+  console.log('[API] Hostname:', window.location.hostname);
+}
 
 const api = axios.create({
     baseURL: API_URL,
