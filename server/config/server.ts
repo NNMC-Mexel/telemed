@@ -14,7 +14,7 @@ export default ({ env }) => {
     url: env(
       'SERVER_URL',
       isProduction
-        ? 'https://medconnect.nnmc.kz/servers'
+        ? 'https://medconnectserver.nnmc.kz'
         : `http://localhost:${localPort}`
     ),
   };

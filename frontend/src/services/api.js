@@ -2,9 +2,9 @@ import axios from "axios";
 
 // Определяем URL API в зависимости от окружения
 const getApiUrl = () => {
-  // В продакшн режиме используем домен с префиксом /servers
+  // В продакшн режиме используем отдельный домен для сервера
   if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
-    return import.meta.env.VITE_API_URL || "https://medconnect.nnmc.kz/servers";
+    return import.meta.env.VITE_API_URL || "https://medconnectserver.nnmc.kz";
   }
   // В режиме разработки используем переменную окружения или localhost
   return import.meta.env.VITE_API_URL || "http://localhost:1340";

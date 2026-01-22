@@ -6,9 +6,9 @@ export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production'
   // API Strapi:
   //   - локально: http://localhost:1340
-  //   - продакшен: https://medconnect.nnmc.kz/servers
+  //   - продакшен: https://medconnectserver.nnmc.kz
   const API_URL = isProduction
-    ? 'https://medconnect.nnmc.kz/servers'
+    ? 'https://medconnectserver.nnmc.kz'
     : (process.env.VITE_API_URL || 'http://localhost:1340')
 
   // Signaling server:
