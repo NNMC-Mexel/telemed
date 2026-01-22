@@ -9,7 +9,7 @@ const getApiUrl = () => {
     
     // Если мы на продакшн домене фронтенда - используем продакшн API домен
     if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
-      return "https://medconnectserver.nnmc.kz";
+      return "https://medconnect.nnmc.kz/servers/strapi";
     }
   }
   
@@ -24,7 +24,7 @@ const getApiUrl = () => {
     import.meta.env.PROD === true;
   
   if (isProduction) {
-    return "https://medconnectserver.nnmc.kz";
+    return "https://medconnect.nnmc.kz/servers/strapi";
   }
   
   // В режиме разработки используем localhost
@@ -39,7 +39,7 @@ let API_URL = getApiUrl();
 if (typeof window !== 'undefined') {
   const hostname = window.location.hostname;
   if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
-    API_URL = "https://medconnectserver.nnmc.kz";
+    API_URL = "https://medconnect.nnmc.kz/servers/strapi";
   }
 }
 
@@ -63,9 +63,9 @@ const api = axios.create({
 if (typeof window !== 'undefined') {
   const hostname = window.location.hostname;
   if ((hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') && 
-      api.defaults.baseURL !== "https://medconnectserver.nnmc.kz") {
+      api.defaults.baseURL !== "https://medconnect.nnmc.kz/servers/strapi") {
     console.warn('[API] WARNING: baseURL is incorrect! Fixing...');
-    api.defaults.baseURL = "https://medconnectserver.nnmc.kz";
+    api.defaults.baseURL = "https://medconnect.nnmc.kz/servers/strapi";
   }
 }
 
@@ -76,7 +76,7 @@ api.interceptors.request.use(
         if (typeof window !== 'undefined') {
             const hostname = window.location.hostname;
             if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
-                const correctBaseURL = "https://medconnectserver.nnmc.kz";
+                const correctBaseURL = "https://medconnect.nnmc.kz/servers/strapi";
                 // Принудительно устанавливаем правильный baseURL
                 config.baseURL = correctBaseURL;
                 api.defaults.baseURL = correctBaseURL;

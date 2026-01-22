@@ -10,7 +10,7 @@
 
 В продакшн режиме сервисы автоматически переключаются на следующие домены:
 
-- **Server (Strapi)**: `https://medconnectserver.nnmc.kz`
+- **Server (Strapi)**: `https://medconnect.nnmc.kz/servers/strapi`
 - **Signaling Server**: `https://medconnect.nnmc.kz/server-signaling`
 - **Frontend**: `https://medconnect.nnmc.kz`
 
@@ -26,7 +26,7 @@
 NODE_ENV=production
 HOST=0.0.0.0
 PORT=1340
-SERVER_URL=https://medconnectserver.nnmc.kz
+SERVER_URL=https://medconnect.nnmc.kz/servers/strapi
 
 # Database (настройте под вашу БД)
 DATABASE_CLIENT=sqlite
@@ -72,7 +72,7 @@ VITE_SIGNALING_SERVER=http://localhost:1341
 ### 1. Server (Strapi)
 
 - **Port**: `1340` (локально)
-- **Domain (production)**: `https://medconnectserver.nnmc.kz`
+- **Domain (production)**: `https://medconnect.nnmc.kz/servers/strapi`
 - **Build Command**: `npm run build`
 - **Start Command**: `npm start`
 - **Environment**: Установите переменные из `server/.env`
@@ -100,7 +100,7 @@ VITE_SIGNALING_SERVER=http://localhost:1341
 
 1. **Server (Strapi)**:
    - В локальной разработке: порт `1340`, URL `http://localhost:1340`
-   - В продакшне: используется домен `https://medconnectserver.nnmc.kz`
+   - В продакшне: используется домен `https://medconnect.nnmc.kz/servers/strapi`
    - CORS настраивается для основного домена `https://medconnect.nnmc.kz` в продакшн режиме
 
 2. **Signaling Server**:
@@ -110,7 +110,7 @@ VITE_SIGNALING_SERVER=http://localhost:1341
 
 3. **Frontend**:
    - В локальной разработке: порт `1342`, API URL `http://localhost:1340`
-   - В продакшне: API URL автоматически становится `https://medconnectserver.nnmc.kz`
+   - В продакшне: API URL автоматически становится `https://medconnect.nnmc.kz/servers/strapi`
    - Signaling Server URL автоматически становится `https://medconnect.nnmc.kz/server-signaling`
 
 ## Проверка после деплоя
@@ -124,7 +124,7 @@ VITE_SIGNALING_SERVER=http://localhost:1341
 
 - В режиме разработки (`NODE_ENV=development` или без установки `NODE_ENV`) используются порты 1340, 1341, 1342 и localhost
 - Все домены должны быть настроены в Coolify для проксирования на соответствующие порты:
-  - `https://medconnectserver.nnmc.kz` → Strapi сервер (порт 1340)
+  - `https://medconnect.nnmc.kz/servers/strapi` → Strapi сервер (порт 1340)
   - `https://medconnect.nnmc.kz/server-signaling` → Signaling сервер (порт 1341)
   - `https://medconnect.nnmc.kz` → Frontend (порт 1342)
-- Убедитесь, что SSL сертификаты настроены для доменов `medconnect.nnmc.kz` и `medconnectserver.nnmc.kz`
+- Убедитесь, что SSL сертификаты настроены для домена `medconnect.nnmc.kz`

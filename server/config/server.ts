@@ -14,7 +14,7 @@ export default ({ env }) => {
     url: env(
       'SERVER_URL',
       isProduction
-        ? 'https://medconnectserver.nnmc.kz'
+        ? 'https://medconnect.nnmc.kz/servers/strapi'
         : `http://localhost:${localPort}`
     ),
   };
