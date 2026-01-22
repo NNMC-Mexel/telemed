@@ -2,18 +2,26 @@ import axios from "axios";
 
 // Определяем URL API в зависимости от окружения
 const getApiUrl = () => {
-  // Проверяем, есть ли явно заданная переменная окружения
+  // ВАЖНО: Проверяем hostname в первую очередь - это самый надежный способ
+  // для определения продакшна, так как работает в runtime
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    
+    // Если мы на продакшн домене фронтенда - используем продакшн API домен
+    if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
+      return "https://medconnectserver.nnmc.kz";
+    }
+  }
+  
+  // Проверяем переменную окружения (может быть задана через vite.config.js)
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
   
-  // В продакшн режиме используем отдельный домен для сервера
-  // Проверяем несколько способов определения продакшна
+  // Проверяем другие способы определения продакшна
   const isProduction = 
     import.meta.env.MODE === 'production' || 
-    import.meta.env.PROD === true ||
-    window.location.hostname === 'medconnect.nnmc.kz' ||
-    window.location.hostname === 'www.medconnect.nnmc.kz';
+    import.meta.env.PROD === true;
   
   if (isProduction) {
     return "https://medconnectserver.nnmc.kz";
@@ -23,7 +31,17 @@ const getApiUrl = () => {
   return "http://localhost:1340";
 };
 
-const API_URL = getApiUrl();
+let API_URL = getApiUrl();
+
+// ВАЖНО: Переопределяем API_URL в runtime, если мы на продакшн домене
+// Это гарантирует, что даже если сборка была сделана неправильно,
+// мы все равно используем правильный домен
+if (typeof window !== 'undefined') {
+  const hostname = window.location.hostname;
+  if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
+    API_URL = "https://medconnectserver.nnmc.kz";
+  }
+}
 
 // Логируем для отладки (только в браузере)
 if (typeof window !== 'undefined') {
@@ -31,6 +49,7 @@ if (typeof window !== 'undefined') {
   console.log('[API] Mode:', import.meta.env.MODE);
   console.log('[API] PROD:', import.meta.env.PROD);
   console.log('[API] Hostname:', window.location.hostname);
+  console.log('[API] Final API URL:', API_URL);
 }
 
 const api = axios.create({
@@ -40,9 +59,46 @@ const api = axios.create({
     },
 });
 
-// Request interceptor - добавляем токен
+// Дополнительная проверка: убеждаемся, что baseURL правильный
+if (typeof window !== 'undefined') {
+  const hostname = window.location.hostname;
+  if ((hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') && 
+      api.defaults.baseURL !== "https://medconnectserver.nnmc.kz") {
+    console.warn('[API] WARNING: baseURL is incorrect! Fixing...');
+    api.defaults.baseURL = "https://medconnectserver.nnmc.kz";
+  }
+}
+
+// Request interceptor - добавляем токен и проверяем URL
 api.interceptors.request.use(
     (config) => {
+        // ВАЖНО: В продакшне принудительно устанавливаем правильный baseURL
+        if (typeof window !== 'undefined') {
+            const hostname = window.location.hostname;
+            if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
+                const correctBaseURL = "https://medconnectserver.nnmc.kz";
+                // Принудительно устанавливаем правильный baseURL
+                config.baseURL = correctBaseURL;
+                api.defaults.baseURL = correctBaseURL;
+            }
+        }
+        
+        // Если baseURL не установлен, используем текущий API_URL
+        if (!config.baseURL) {
+            config.baseURL = api.defaults.baseURL || API_URL;
+        }
+        
+        // Логируем для отладки в продакшне
+        if (typeof window !== 'undefined' && window.location.hostname === 'medconnect.nnmc.kz') {
+            if (config.url && config.url.startsWith('/api')) {
+                console.log('[API Request]', {
+                    baseURL: config.baseURL,
+                    url: config.url,
+                    finalURL: config.baseURL + config.url
+                });
+            }
+        }
+        
         const authStorage = localStorage.getItem("auth-storage");
         if (authStorage) {
             try {
