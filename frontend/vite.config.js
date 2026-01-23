@@ -6,14 +6,15 @@ export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production'
   // API Strapi:
   //   - локально: http://localhost:1340
-  //   - продакшен: https://medconnect.nnmc.kz/servers/strapi
+  //   - продакшен: https://medconnectserver.nnmc.kz
   const API_URL = isProduction
-    ? 'https://medconnect.nnmc.kz/servers/strapi'
+    ? 'https://medconnectserver.nnmc.kz'
     : (process.env.VITE_API_URL || 'http://localhost:1340')
 
   // Signaling server:
   //   - локально: http://localhost:1341
-  const SIGNALING_URL = isProduction
+  //   - продакшен: https://medconnect.nnmc.kz/server-signaling
+  const SIGNALING_SERVER = isProduction
     ? 'https://medconnect.nnmc.kz/server-signaling'
     : (process.env.VITE_SIGNALING_SERVER || 'http://localhost:1341')
 
@@ -36,7 +37,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(API_URL),
-      'import.meta.env.VITE_SIGNALING_URL': JSON.stringify(SIGNALING_URL),
+      'import.meta.env.VITE_SIGNALING_SERVER': JSON.stringify(SIGNALING_SERVER),
     },
   }
 })
