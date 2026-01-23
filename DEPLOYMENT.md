@@ -11,8 +11,8 @@
 │                                                              │
 │  Strapi API:        https://medconnectserver.nnmc.kz         │
 │                                                              │
-│  Signaling:         https://medconnect.nnmc.kz/server-signaling │
-│                     (через nginx proxy на порт 1341)         │
+│  Signaling:         https://medconnectrtc.nnmc.kz            │
+│                     (отдельный домен для WebRTC)             │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -27,7 +27,7 @@
 
 - **Frontend**: `https://medconnect.nnmc.kz`
 - **Server (Strapi)**: `https://medconnectserver.nnmc.kz`
-- **Signaling Server**: `https://medconnect.nnmc.kz/server-signaling`
+- **Signaling Server**: `https://medconnectrtc.nnmc.kz`
 
 ## Настройка переменных окружения
 
@@ -69,29 +69,36 @@ FRONTEND_URL=https://medconnect.nnmc.kz
 
 ```env
 VITE_API_URL=https://medconnectserver.nnmc.kz
-VITE_SIGNALING_SERVER=https://medconnect.nnmc.kz/server-signaling
+VITE_SIGNALING_SERVER=https://medconnectrtc.nnmc.kz
 VITE_APP_NAME=MedConnect
 VITE_APP_VERSION=1.0.0
 ```
 
-## Nginx конфигурация для Signaling Proxy
+## Nginx конфигурация для Signaling Server
 
-Если signaling-server на том же сервере, настройте nginx proxy:
+Для отдельного домена `medconnectrtc.nnmc.kz`:
 
 ```nginx
-# В конфигурации medconnect.nnmc.kz
-location /server-signaling {
-    proxy_pass http://localhost:1341;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    
-    # WebSocket timeout
-    proxy_read_timeout 86400;
+server {
+    listen 443 ssl http2;
+    server_name medconnectrtc.nnmc.kz;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://localhost:1341;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket timeout
+        proxy_read_timeout 86400;
+    }
 }
 ```
 
@@ -107,10 +114,11 @@ location /server-signaling {
 
 ### 2. Signaling Server
 
-- **Domain**: `medconnect.nnmc.kz` (через proxy path `/server-signaling`)
+- **Domain**: `medconnectrtc.nnmc.kz`
 - **Port**: `1341`
 - **Start Command**: `npm start`
 - **Environment**: См. выше
+- **ВАЖНО**: Включите поддержку WebSocket в настройках Coolify
 
 ### 3. Frontend
 
@@ -127,7 +135,7 @@ location /server-signaling {
 // Frontend: если hostname === 'medconnect.nnmc.kz'
 // автоматически используется:
 // - API: https://medconnectserver.nnmc.kz
-// - Signaling: https://medconnect.nnmc.kz/server-signaling
+// - Signaling: https://medconnectrtc.nnmc.kz
 ```
 
 ## Проверка после деплоя
@@ -135,7 +143,7 @@ location /server-signaling {
 1. ✅ Frontend загружается: `https://medconnect.nnmc.kz`
 2. ✅ API работает: `https://medconnectserver.nnmc.kz/api/doctors`
 3. ✅ Strapi Admin: `https://medconnectserver.nnmc.kz/admin`
-4. ✅ Signaling health: `https://medconnect.nnmc.kz/server-signaling/health`
+4. ✅ Signaling health: `https://medconnectrtc.nnmc.kz/health`
 5. ✅ Нет CORS ошибок в консоли браузера
 6. ✅ Видеозвонки работают (WebRTC через signaling)
 
@@ -150,7 +158,8 @@ location /server-signaling {
 - Проверьте SSL сертификаты
 
 ### WebRTC не работает
-- Проверьте nginx proxy для `/server-signaling`
-- Проверьте WebSocket upgrade в nginx
+- Проверьте, что домен `medconnectrtc.nnmc.kz` настроен
+- Проверьте WebSocket upgrade в nginx/Coolify
 - Проверьте STUN/TURN серверы
+- Убедитесь, что в настройках Coolify включена поддержка WebSocket
 

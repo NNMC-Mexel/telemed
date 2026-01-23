@@ -34,11 +34,11 @@ const ICE_SERVERS = {
 // =====================================================
 // КОНФИГУРАЦИЯ SIGNALING СЕРВЕРА
 // =====================================================
-// В продакшн режиме:   https://medconnect.nnmc.kz/server-signaling
+// В продакшн режиме:   https://medconnectrtc.nnmc.kz
 // В режиме разработки: http://localhost:1341
 // =====================================================
 
-const PRODUCTION_SIGNALING_URL = 'https://medconnect.nnmc.kz/server-signaling';
+const PRODUCTION_SIGNALING_URL = 'https://medconnectrtc.nnmc.kz';
 const DEVELOPMENT_SIGNALING_URL = 'http://localhost:1341';
 
 // Определяем URL signaling сервера в зависимости от окружения

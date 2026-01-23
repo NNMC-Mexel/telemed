@@ -13,9 +13,9 @@ export default defineConfig(({ mode }) => {
 
   // Signaling server:
   //   - локально: http://localhost:1341
-  //   - продакшен: https://medconnect.nnmc.kz/server-signaling
+  //   - продакшен: https://medconnectrtc.nnmc.kz
   const SIGNALING_SERVER = isProduction
-    ? 'https://medconnect.nnmc.kz/server-signaling'
+    ? 'https://medconnectrtc.nnmc.kz'
     : (process.env.VITE_SIGNALING_SERVER || 'http://localhost:1341')
 
   return {

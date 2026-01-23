@@ -226,7 +226,8 @@ app.get('/room/:roomId', (req, res) => {
   })
 })
 
-// Локально signaling-сервер работает на 1341, в продакшене за прокси по пути /server-signaling
+// Локально signaling-сервер работает на 1341
+// В продакшене на отдельном домене: https://medconnectrtc.nnmc.kz
 const PORT = process.env.PORT || 1341
 
 server.listen(PORT, () => {

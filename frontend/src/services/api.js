@@ -4,8 +4,8 @@ import axios from "axios";
 // КОНФИГУРАЦИЯ ДОМЕНОВ ДЛЯ ПРОДАКШНА
 // =====================================================
 // Frontend:        https://medconnect.nnmc.kz
-// Strapi API:      https://medconnect.nnmc.kz/server-signaling (через прокси)
-// Signaling:       https://medconnectserver.nnmc.kz
+// Strapi API:      https://medconnectserver.nnmc.kz
+// Signaling:       https://medconnectrtc.nnmc.kz
 // =====================================================
 
 // URL для Strapi API
