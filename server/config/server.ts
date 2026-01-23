@@ -2,7 +2,7 @@ export default ({ env }) => {
   const isProduction =
     process.env.NODE_ENV === 'production' || env('NODE_ENV') === 'production';
 
-  // Локально Strapi работает на 1340, в продакшене за прокси по пути /servers
+  // Локально Strapi работает на 1340, в продакшене на отдельном домене
   const localPort = 1340;
 
   return {
@@ -11,10 +11,12 @@ export default ({ env }) => {
     app: {
       keys: env.array('APP_KEYS'),
     },
+    // Production: https://medconnectserver.nnmc.kz
+    // Development: http://localhost:1340
     url: env(
       'SERVER_URL',
       isProduction
-        ? 'https://medconnect.nnmc.kz/servers/strapi'
+        ? 'https://medconnectserver.nnmc.kz'
         : `http://localhost:${localPort}`
     ),
   };

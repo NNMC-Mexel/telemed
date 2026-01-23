@@ -1,32 +1,43 @@
 # Deployment Guide для Coolify
 
+## Архитектура доменов
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    PRODUCTION SETUP                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Frontend:          https://medconnect.nnmc.kz               │
+│                                                              │
+│  Strapi API:        https://medconnectserver.nnmc.kz         │
+│                                                              │
+│  Signaling:         https://medconnect.nnmc.kz/server-signaling │
+│                     (через nginx proxy на порт 1341)         │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ## Порты для локальной разработки
 
 - **Server (Strapi)**: `1340`
 - **Signaling Server**: `1341`
-- **Frontend**: `1342`
+- **Frontend**: `5173` (Vite dev) или `1342` (preview)
 
 ## Домены для продакшна
 
-В продакшн режиме сервисы автоматически переключаются на следующие домены:
-
-- **Server (Strapi)**: `https://medconnect.nnmc.kz/servers/strapi`
-- **Signaling Server**: `https://medconnect.nnmc.kz/server-signaling`
 - **Frontend**: `https://medconnect.nnmc.kz`
-
-**Важно**: В продакшне порты не указываются, так как домены будут проксировать запросы через Coolify.
+- **Server (Strapi)**: `https://medconnectserver.nnmc.kz`
+- **Signaling Server**: `https://medconnect.nnmc.kz/server-signaling`
 
 ## Настройка переменных окружения
 
-### Server (Strapi)
-
-Создайте файл `.env` в папке `server/`:
+### Server (Strapi) - .env
 
 ```env
 NODE_ENV=production
 HOST=0.0.0.0
 PORT=1340
-SERVER_URL=https://medconnect.nnmc.kz/servers/strapi
+SERVER_URL=https://medconnectserver.nnmc.kz
 
 # Database (настройте под вашу БД)
 DATABASE_CLIENT=sqlite
@@ -46,9 +57,7 @@ TRANSFER_TOKEN_SALT=your-transfer-token-salt-here
 ENCRYPTION_KEY=your-encryption-key-here
 ```
 
-### Signaling Server
-
-Создайте файл `.env` в папке `signaling-server/`:
+### Signaling Server - .env
 
 ```env
 NODE_ENV=production
@@ -56,75 +65,92 @@ PORT=1341
 FRONTEND_URL=https://medconnect.nnmc.kz
 ```
 
-### Frontend
-
-Создайте файл `.env` в папке `frontend/` (опционально, в продакшн режиме автоматически используется домен):
+### Frontend - .env.production
 
 ```env
-# В продакшн режиме эти переменные не нужны - автоматически используется домен
-# Для разработки можно указать:
-VITE_API_URL=http://localhost:1340
-VITE_SIGNALING_SERVER=http://localhost:1341
+VITE_API_URL=https://medconnectserver.nnmc.kz
+VITE_SIGNALING_SERVER=https://medconnect.nnmc.kz/server-signaling
+VITE_APP_NAME=MedConnect
+VITE_APP_VERSION=1.0.0
+```
+
+## Nginx конфигурация для Signaling Proxy
+
+Если signaling-server на том же сервере, настройте nginx proxy:
+
+```nginx
+# В конфигурации medconnect.nnmc.kz
+location /server-signaling {
+    proxy_pass http://localhost:1341;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    
+    # WebSocket timeout
+    proxy_read_timeout 86400;
+}
 ```
 
 ## Настройка Coolify
 
 ### 1. Server (Strapi)
 
-- **Port**: `1340` (локально)
-- **Domain (production)**: `https://medconnect.nnmc.kz/servers/strapi`
+- **Domain**: `medconnectserver.nnmc.kz`
+- **Port**: `1340`
 - **Build Command**: `npm run build`
 - **Start Command**: `npm start`
-- **Environment**: Установите переменные из `server/.env`
+- **Environment**: См. выше
 
 ### 2. Signaling Server
 
-- **Port**: `1341` (локально)
-- **Domain (production)**: `https://medconnect.nnmc.kz/server-signaling`
+- **Domain**: `medconnect.nnmc.kz` (через proxy path `/server-signaling`)
+- **Port**: `1341`
 - **Start Command**: `npm start`
-- **Environment**: Установите переменные из `signaling-server/.env`
+- **Environment**: См. выше
 
 ### 3. Frontend
 
-- **Port**: `1342` (локально)
-- **Domain (production)**: `https://medconnect.nnmc.kz`
+- **Domain**: `medconnect.nnmc.kz`
 - **Build Command**: `npm run build`
-- **Start Command**: `npm run preview` (или используйте nginx для статики)
-- **Environment**: В продакшн режиме переменные не обязательны
+- **Output Directory**: `dist`
+- Статический сайт - используйте nginx или Coolify static hosting
 
-## Автоматическое переключение на домены
+## Автоматическое определение окружения
 
-Все сервисы автоматически определяют продакшн режим по переменной `NODE_ENV=production` и переключаются на соответствующие домены.
+Код автоматически определяет production по hostname:
 
-### Что происходит автоматически:
-
-1. **Server (Strapi)**:
-   - В локальной разработке: порт `1340`, URL `http://localhost:1340`
-   - В продакшне: используется домен `https://medconnect.nnmc.kz/servers/strapi`
-   - CORS настраивается для основного домена `https://medconnect.nnmc.kz` в продакшн режиме
-
-2. **Signaling Server**:
-   - В локальной разработке: порт `1341`, URL `http://localhost:1341`
-   - В продакшне: используется домен `https://medconnect.nnmc.kz/server-signaling`
-   - CORS настраивается для основного домена `https://medconnect.nnmc.kz` в продакшн режиме
-
-3. **Frontend**:
-   - В локальной разработке: порт `1342`, API URL `http://localhost:1340`
-   - В продакшне: API URL автоматически становится `https://medconnect.nnmc.kz/servers/strapi`
-   - Signaling Server URL автоматически становится `https://medconnect.nnmc.kz/server-signaling`
+```javascript
+// Frontend: если hostname === 'medconnect.nnmc.kz'
+// автоматически используется:
+// - API: https://medconnectserver.nnmc.kz
+// - Signaling: https://medconnect.nnmc.kz/server-signaling
+```
 
 ## Проверка после деплоя
 
-1. Убедитесь, что все три сервиса запущены на правильных портах
-2. Проверьте, что CORS настроен правильно (в консоли браузера не должно быть ошибок CORS)
-3. Проверьте, что API запросы идут на правильный домен
-4. Проверьте, что WebRTC соединения работают (signaling server)
+1. ✅ Frontend загружается: `https://medconnect.nnmc.kz`
+2. ✅ API работает: `https://medconnectserver.nnmc.kz/api/doctors`
+3. ✅ Strapi Admin: `https://medconnectserver.nnmc.kz/admin`
+4. ✅ Signaling health: `https://medconnect.nnmc.kz/server-signaling/health`
+5. ✅ Нет CORS ошибок в консоли браузера
+6. ✅ Видеозвонки работают (WebRTC через signaling)
 
-## Примечания
+## Частые проблемы
 
-- В режиме разработки (`NODE_ENV=development` или без установки `NODE_ENV`) используются порты 1340, 1341, 1342 и localhost
-- Все домены должны быть настроены в Coolify для проксирования на соответствующие порты:
-  - `https://medconnect.nnmc.kz/servers/strapi` → Strapi сервер (порт 1340)
-  - `https://medconnect.nnmc.kz/server-signaling` → Signaling сервер (порт 1341)
-  - `https://medconnect.nnmc.kz` → Frontend (порт 1342)
-- Убедитесь, что SSL сертификаты настроены для домена `medconnect.nnmc.kz`
+### CORS ошибки
+- Проверьте, что в `server/config/middlewares.ts` указаны правильные домены
+- Проверьте, что в `signaling-server/server.js` указаны правильные домены
+
+### API недоступен
+- Проверьте, что Strapi запущен и доступен
+- Проверьте SSL сертификаты
+
+### WebRTC не работает
+- Проверьте nginx proxy для `/server-signaling`
+- Проверьте WebSocket upgrade в nginx
+- Проверьте STUN/TURN серверы
+

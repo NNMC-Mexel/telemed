@@ -8,6 +8,8 @@ const app = express()
 const server = http.createServer(app)
 
 // CORS настройки
+// Production: medconnect.nnmc.kz (frontend)
+// Development: localhost ports
 const getCorsOrigin = () => {
   if (process.env.NODE_ENV === 'production') {
     return [

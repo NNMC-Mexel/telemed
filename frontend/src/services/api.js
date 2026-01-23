@@ -1,5 +1,17 @@
 import axios from "axios";
 
+// =====================================================
+// КОНФИГУРАЦИЯ ДОМЕНОВ ДЛЯ ПРОДАКШНА
+// =====================================================
+// Frontend:        https://medconnect.nnmc.kz
+// Strapi API:      https://medconnect.nnmc.kz/server-signaling (через прокси)
+// Signaling:       https://medconnectserver.nnmc.kz
+// =====================================================
+
+// URL для Strapi API
+const PRODUCTION_API_URL = "https://medconnectserver.nnmc.kz";
+const DEVELOPMENT_API_URL = "http://localhost:1340";
+
 // Определяем URL API в зависимости от окружения
 const getApiUrl = () => {
   // ВАЖНО: Проверяем hostname в первую очередь - это самый надежный способ
@@ -9,7 +21,7 @@ const getApiUrl = () => {
     
     // Если мы на продакшн домене фронтенда - используем продакшн API домен
     if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
-      return "https://medconnect.nnmc.kz/servers/strapi";
+      return PRODUCTION_API_URL;
     }
   }
   
@@ -24,11 +36,11 @@ const getApiUrl = () => {
     import.meta.env.PROD === true;
   
   if (isProduction) {
-    return "https://medconnect.nnmc.kz/servers/strapi";
+    return PRODUCTION_API_URL;
   }
   
   // В режиме разработки используем localhost
-  return "http://localhost:1340";
+  return DEVELOPMENT_API_URL;
 };
 
 let API_URL = getApiUrl();
@@ -39,7 +51,7 @@ let API_URL = getApiUrl();
 if (typeof window !== 'undefined') {
   const hostname = window.location.hostname;
   if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
-    API_URL = "https://medconnect.nnmc.kz/servers/strapi";
+    API_URL = PRODUCTION_API_URL;
   }
 }
 
@@ -63,9 +75,9 @@ const api = axios.create({
 if (typeof window !== 'undefined') {
   const hostname = window.location.hostname;
   if ((hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') && 
-      api.defaults.baseURL !== "https://medconnect.nnmc.kz/servers/strapi") {
+      api.defaults.baseURL !== PRODUCTION_API_URL) {
     console.warn('[API] WARNING: baseURL is incorrect! Fixing...');
-    api.defaults.baseURL = "https://medconnect.nnmc.kz/servers/strapi";
+    api.defaults.baseURL = PRODUCTION_API_URL;
   }
 }
 
@@ -76,10 +88,9 @@ api.interceptors.request.use(
         if (typeof window !== 'undefined') {
             const hostname = window.location.hostname;
             if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
-                const correctBaseURL = "https://medconnect.nnmc.kz/servers/strapi";
                 // Принудительно устанавливаем правильный baseURL
-                config.baseURL = correctBaseURL;
-                api.defaults.baseURL = correctBaseURL;
+                config.baseURL = PRODUCTION_API_URL;
+                api.defaults.baseURL = PRODUCTION_API_URL;
             }
         }
         

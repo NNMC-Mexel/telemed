@@ -10,15 +10,19 @@ export default ({ env }) => {
       config: {
         enabled: true,
         headers: '*',
+        // Production: medconnect.nnmc.kz (frontend)
+        // Development: localhost ports
         origin: isProduction
           ? [
               'https://medconnect.nnmc.kz',
               'https://www.medconnect.nnmc.kz',
+              'https://medconnectserver.nnmc.kz',
             ]
           : [
               'http://localhost:5173',
               'http://localhost:3000',
               'http://localhost:1342',
+              'http://localhost:1343',
             ],
       },
     },

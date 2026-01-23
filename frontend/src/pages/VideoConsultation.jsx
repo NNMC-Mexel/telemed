@@ -31,17 +31,33 @@ const ICE_SERVERS = {
   ],
 }
 
+// =====================================================
+// КОНФИГУРАЦИЯ SIGNALING СЕРВЕРА
+// =====================================================
+// В продакшн режиме:   https://medconnect.nnmc.kz/server-signaling
+// В режиме разработки: http://localhost:1341
+// =====================================================
+
+const PRODUCTION_SIGNALING_URL = 'https://medconnect.nnmc.kz/server-signaling';
+const DEVELOPMENT_SIGNALING_URL = 'http://localhost:1341';
+
 // Определяем URL signaling сервера в зависимости от окружения
 const getSignalingUrl = () => {
-  // В продакшн режиме используем домен с префиксом /server-signaling
-  if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
-    return (
-      import.meta.env.VITE_SIGNALING_SERVER ||
-      'https://medconnect.nnmc.kz/server-signaling'
-    );
+  // Проверяем hostname для runtime определения
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
+      return PRODUCTION_SIGNALING_URL;
+    }
   }
+  
+  // В продакшн режиме используем production URL
+  if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
+    return import.meta.env.VITE_SIGNALING_SERVER || PRODUCTION_SIGNALING_URL;
+  }
+  
   // В режиме разработки используем переменную окружения или localhost
-  return import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:1341';
+  return import.meta.env.VITE_SIGNALING_SERVER || DEVELOPMENT_SIGNALING_URL;
 };
 
 const SIGNALING_SERVER = getSignalingUrl();
