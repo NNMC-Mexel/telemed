@@ -1,121 +1,185 @@
 'use strict';
 
 /**
- * Исправляем права доступа для API
+ * Настройка прав доступа для всех ролей: patient, doctor, admin, authenticated, public.
+ * Запуск: node scripts/fix-permissions.js
  */
 
+const rolePermissions = {
+  patient: [
+    'api::doctor.doctor.find',
+    'api::doctor.doctor.findOne',
+    'api::specialization.specialization.find',
+    'api::specialization.specialization.findOne',
+    'api::appointment.appointment.find',
+    'api::appointment.appointment.findOne',
+    'api::appointment.appointment.create',
+    'api::appointment.appointment.update',
+    'api::review.review.find',
+    'api::review.review.findOne',
+    'api::review.review.create',
+    'api::time-slot.time-slot.find',
+    'api::time-slot.time-slot.findOne',
+    'api::message.message.find',
+    'api::message.message.findOne',
+    'api::message.message.create',
+    'api::conversation.conversation.find',
+    'api::conversation.conversation.findOne',
+    'api::conversation.conversation.create',
+    'api::medical-document.medical-document.find',
+    'api::medical-document.medical-document.findOne',
+    'api::medical-document.medical-document.create',
+    'plugin::upload.content-api.upload',
+    'plugin::upload.content-api.find',
+    'plugin::upload.content-api.findOne',
+    'plugin::users-permissions.user.me',
+  ],
+  doctor: [
+    'api::doctor.doctor.find',
+    'api::doctor.doctor.findOne',
+    'api::doctor.doctor.update',
+    'api::specialization.specialization.find',
+    'api::specialization.specialization.findOne',
+    'api::appointment.appointment.find',
+    'api::appointment.appointment.findOne',
+    'api::appointment.appointment.update',
+    'api::review.review.find',
+    'api::review.review.findOne',
+    'api::time-slot.time-slot.find',
+    'api::time-slot.time-slot.findOne',
+    'api::time-slot.time-slot.create',
+    'api::time-slot.time-slot.update',
+    'api::time-slot.time-slot.delete',
+    'api::message.message.find',
+    'api::message.message.findOne',
+    'api::message.message.create',
+    'api::conversation.conversation.find',
+    'api::conversation.conversation.findOne',
+    'api::conversation.conversation.create',
+    'api::medical-document.medical-document.find',
+    'api::medical-document.medical-document.findOne',
+    'api::medical-document.medical-document.create',
+    'api::medical-document.medical-document.update',
+    'plugin::upload.content-api.upload',
+    'plugin::upload.content-api.find',
+    'plugin::upload.content-api.findOne',
+    'plugin::users-permissions.user.me',
+  ],
+  admin: [
+    'api::doctor.doctor.find',
+    'api::doctor.doctor.findOne',
+    'api::doctor.doctor.create',
+    'api::doctor.doctor.update',
+    'api::doctor.doctor.delete',
+    'api::specialization.specialization.find',
+    'api::specialization.specialization.findOne',
+    'api::specialization.specialization.create',
+    'api::specialization.specialization.update',
+    'api::specialization.specialization.delete',
+    'api::appointment.appointment.find',
+    'api::appointment.appointment.findOne',
+    'api::appointment.appointment.create',
+    'api::appointment.appointment.update',
+    'api::appointment.appointment.delete',
+    'api::review.review.find',
+    'api::review.review.findOne',
+    'api::review.review.create',
+    'api::review.review.update',
+    'api::review.review.delete',
+    'api::time-slot.time-slot.find',
+    'api::time-slot.time-slot.findOne',
+    'api::time-slot.time-slot.create',
+    'api::time-slot.time-slot.update',
+    'api::time-slot.time-slot.delete',
+    'api::message.message.find',
+    'api::message.message.findOne',
+    'api::message.message.create',
+    'api::message.message.update',
+    'api::message.message.delete',
+    'api::conversation.conversation.find',
+    'api::conversation.conversation.findOne',
+    'api::conversation.conversation.create',
+    'api::conversation.conversation.update',
+    'api::conversation.conversation.delete',
+    'api::medical-document.medical-document.find',
+    'api::medical-document.medical-document.findOne',
+    'api::medical-document.medical-document.create',
+    'api::medical-document.medical-document.update',
+    'api::medical-document.medical-document.delete',
+    'api::article.article.find',
+    'api::article.article.findOne',
+    'api::article.article.create',
+    'api::article.article.update',
+    'api::article.article.delete',
+    'plugin::upload.content-api.upload',
+    'plugin::upload.content-api.find',
+    'plugin::upload.content-api.findOne',
+    'plugin::upload.content-api.destroy',
+    'plugin::users-permissions.user.me',
+  ],
+  authenticated: [
+    'api::doctor.doctor.find',
+    'api::doctor.doctor.findOne',
+    'api::specialization.specialization.find',
+    'api::specialization.specialization.findOne',
+    'api::review.review.find',
+    'api::time-slot.time-slot.find',
+    'api::time-slot.time-slot.findOne',
+    'plugin::users-permissions.user.me',
+  ],
+  public: [
+    'api::doctor.doctor.find',
+    'api::doctor.doctor.findOne',
+    'api::specialization.specialization.find',
+    'api::specialization.specialization.findOne',
+    'api::review.review.find',
+    'api::time-slot.time-slot.find',
+  ],
+};
+
 async function fixPermissions() {
-  console.log('=== Настройка прав доступа ===\n');
-  
-  // Получаем роли
+  console.log('=== Настройка прав доступа для всех ролей ===\n');
+
   const roles = await strapi.query('plugin::users-permissions.role').findMany();
-  
-  const authenticatedRole = roles.find(r => r.type === 'authenticated');
-  const publicRole = roles.find(r => r.type === 'public');
-  
-  console.log('Authenticated role ID:', authenticatedRole?.id);
-  console.log('Public role ID:', publicRole?.id);
-  
-  // Список эндпоинтов для authenticated users
-  const authenticatedPermissions = [
-    // Appointments - полный доступ
-    { action: 'api::appointment.appointment.find' },
-    { action: 'api::appointment.appointment.findOne' },
-    { action: 'api::appointment.appointment.create' },
-    { action: 'api::appointment.appointment.update' },
-    { action: 'api::appointment.appointment.delete' },
-    
-    // Doctors - чтение и обновление своего профиля
-    { action: 'api::doctor.doctor.find' },
-    { action: 'api::doctor.doctor.findOne' },
-    { action: 'api::doctor.doctor.create' },
-    { action: 'api::doctor.doctor.update' },
-    
-    // Specializations - чтение
-    { action: 'api::specialization.specialization.find' },
-    { action: 'api::specialization.specialization.findOne' },
-    
-    // Reviews
-    { action: 'api::review.review.find' },
-    { action: 'api::review.review.findOne' },
-    { action: 'api::review.review.create' },
-    
-    // Time slots
-    { action: 'api::time-slot.time-slot.find' },
-    { action: 'api::time-slot.time-slot.findOne' },
-    
-    // Messages & Conversations
-    { action: 'api::message.message.find' },
-    { action: 'api::message.message.findOne' },
-    { action: 'api::message.message.create' },
-    { action: 'api::conversation.conversation.find' },
-    { action: 'api::conversation.conversation.findOne' },
-    { action: 'api::conversation.conversation.create' },
-    
-    // Medical documents
-    { action: 'api::medical-document.medical-document.find' },
-    { action: 'api::medical-document.medical-document.findOne' },
-    { action: 'api::medical-document.medical-document.create' },
-    
-    // Upload
-    { action: 'plugin::upload.content-api.upload' },
-    { action: 'plugin::upload.content-api.find' },
-    { action: 'plugin::upload.content-api.findOne' },
-  ];
-  
-  // Список эндпоинтов для public
-  const publicPermissions = [
-    { action: 'api::doctor.doctor.find' },
-    { action: 'api::doctor.doctor.findOne' },
-    { action: 'api::specialization.specialization.find' },
-    { action: 'api::specialization.specialization.findOne' },
-    { action: 'api::review.review.find' },
-    { action: 'api::time-slot.time-slot.find' },
-  ];
-  
-  // Настраиваем права для authenticated
-  console.log('\nНастройка прав для authenticated users...');
-  for (const perm of authenticatedPermissions) {
-    try {
-      const existing = await strapi.query('plugin::users-permissions.permission').findOne({
-        where: { action: perm.action, role: authenticatedRole.id }
-      });
-      
-      if (!existing) {
-        await strapi.query('plugin::users-permissions.permission').create({
-          data: { action: perm.action, role: authenticatedRole.id }
-        });
-        console.log(`  ✓ Добавлено: ${perm.action}`);
-      } else {
-        console.log(`  - Уже есть: ${perm.action}`);
-      }
-    } catch (e) {
-      console.log(`  ✗ Ошибка для ${perm.action}: ${e.message}`);
+
+  for (const [roleType, permissions] of Object.entries(rolePermissions)) {
+    const role = roles.find(r => r.type === roleType);
+
+    if (!role) {
+      console.log(`  [SKIP] Роль "${roleType}" не найдена. Запустите bootstrap для создания.`);
+      continue;
     }
-  }
-  
-  // Настраиваем права для public
-  console.log('\nНастройка прав для public users...');
-  for (const perm of publicPermissions) {
-    try {
-      const existing = await strapi.query('plugin::users-permissions.permission').findOne({
-        where: { action: perm.action, role: publicRole.id }
+
+    console.log(`Роль: ${role.name} (type=${roleType}, id=${role.id})`);
+
+    // Удаляем все текущие permissions
+    const currentPerms = await strapi
+      .query('plugin::users-permissions.permission')
+      .findMany({ where: { role: role.id } });
+
+    for (const perm of currentPerms) {
+      await strapi.query('plugin::users-permissions.permission').delete({
+        where: { id: perm.id },
       });
-      
-      if (!existing) {
-        await strapi.query('plugin::users-permissions.permission').create({
-          data: { action: perm.action, role: publicRole.id }
-        });
-        console.log(`  ✓ Добавлено: ${perm.action}`);
-      } else {
-        console.log(`  - Уже есть: ${perm.action}`);
-      }
-    } catch (e) {
-      console.log(`  ✗ Ошибка для ${perm.action}: ${e.message}`);
     }
+    console.log(`  Удалено ${currentPerms.length} старых permissions.`);
+
+    // Создаём новые
+    let created = 0;
+    for (const action of permissions) {
+      try {
+        await strapi.query('plugin::users-permissions.permission').create({
+          data: { action, role: role.id },
+        });
+        created++;
+      } catch (e) {
+        console.log(`  [ERR] ${action}: ${e.message}`);
+      }
+    }
+    console.log(`  Создано ${created} permissions.\n`);
   }
-  
-  console.log('\n=== Готово! ===');
+
+  console.log('=== Готово! ===');
 }
 
 async function main() {
