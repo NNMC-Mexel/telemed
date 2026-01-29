@@ -3,21 +3,16 @@ import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-do
 import {
   Search,
   Filter,
-  Star,
-  Clock,
   X,
-  Calendar,
   Loader2,
 } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Card, CardContent } from '../components/ui/Card'
-import Avatar from '../components/ui/Avatar'
 import Badge from '../components/ui/Badge'
-import Modal from '../components/ui/Modal'
+import DoctorCard from '../components/doctors/DoctorCard'
 import useAppointmentStore from '../stores/appointmentStore'
 import useAuthStore from '../stores/authStore'
-import { getMediaUrl } from '../services/api'
 import BookingModal from '../components/appointments/BookingModal'
 
 const sortOptions = [
@@ -287,80 +282,12 @@ function DoctorsPage() {
             ) : (
               <div className="space-y-4">
                 {filteredDoctors.map((doctor) => (
-                  <Card 
-                    key={doctor.id} 
-                    hover 
-                    className="cursor-pointer transition-shadow hover:shadow-lg"
-                    onClick={() => navigate(`${basePath}/doctors/${doctor.documentId}`)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex flex-col sm:flex-row gap-6">
-                        {/* Avatar */}
-                        <div className="flex-shrink-0">
-                          <Avatar
-                            src={getMediaUrl(doctor.photo)}
-                            name={doctor.fullName}
-                            size="2xl"
-                            status={doctor.isActive !== false ? 'online' : undefined}
-                          />
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
-                            <div>
-                              <h3 className="text-xl font-semibold text-slate-900 hover:text-teal-600 transition-colors">
-                                {doctor.fullName}
-                              </h3>
-                              <p className="text-teal-600 font-medium">
-                                {doctor.specialization?.name || 'Специалист'}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-2xl font-bold text-slate-900">
-                                {(doctor.price || 0).toLocaleString()} ₸
-                              </p>
-                              <p className="text-sm text-slate-500">за консультацию</p>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 mb-4">
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                              <span className="font-medium text-slate-900">{Math.min(doctor.rating || 0, 5).toFixed(1)}</span>
-                              <span>({doctor.reviewsCount || 0} отзывов)</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              <span>Стаж {doctor.experience || 0} лет</span>
-                            </div>
-                          </div>
-
-                          <p className="text-slate-600 mb-4 line-clamp-2">
-                            {doctor.shortBio || doctor.bio || 'Опытный специалист'}
-                          </p>
-
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Calendar className="w-4 h-4 text-teal-600" />
-                              <span className="text-slate-600">Длительность консультации:</span>
-                              <span className="font-medium text-slate-900">
-                                {doctor.consultationDuration || doctor.slotDuration || 30} мин
-                              </span>
-                            </div>
-                            <Button 
-                              onClick={(e) => {
-                                e.stopPropagation() // Предотвращаем переход на страницу врача
-                                handleBookClick(doctor)
-                              }}
-                            >
-                              Записаться
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <DoctorCard
+                    key={doctor.id || doctor.documentId}
+                    doctor={doctor}
+                    basePath={basePath}
+                    onBookClick={handleBookClick}
+                  />
                 ))}
               </div>
             )}

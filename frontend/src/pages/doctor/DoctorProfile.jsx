@@ -16,6 +16,7 @@ import { Card, CardContent } from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Avatar from "../../components/ui/Avatar";
+import ImageCropModal from "../../components/ui/ImageCropModal";
 import useAuthStore from "../../stores/authStore";
 import api, { getMediaUrl, uploadFile } from "../../services/api";
 
@@ -156,12 +157,27 @@ function DoctorProfile() {
         }
     };
 
-    const handlePhotoUpload = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file || !doctor?.documentId) return;
+    const [cropModalOpen, setCropModalOpen] = useState(false);
+    const [cropImageSrc, setCropImageSrc] = useState(null);
 
+    const handlePhotoSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        // Reset input so same file can be selected again
+        e.target.value = '';
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            setCropImageSrc(reader.result);
+            setCropModalOpen(true);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleCroppedPhoto = async (croppedFile) => {
+        if (!doctor?.documentId) return;
         try {
-            const uploaded = await uploadFile(file);
+            const uploaded = await uploadFile(croppedFile);
             await api.put(`/api/doctors/${doctor.documentId}`, {
                 data: { photo: uploaded.id },
             });
@@ -217,7 +233,7 @@ function DoctorProfile() {
                                     type='file'
                                     className='hidden'
                                     accept='image/*'
-                                    onChange={handlePhotoUpload}
+                                    onChange={handlePhotoSelect}
                                 />
                             </label>
                         </div>
@@ -390,6 +406,15 @@ function DoctorProfile() {
                     </div>
                 </div>
             </div>
+
+            {/* Photo Crop Modal */}
+            <ImageCropModal
+                isOpen={cropModalOpen}
+                onClose={() => setCropModalOpen(false)}
+                imageSrc={cropImageSrc}
+                onCropComplete={handleCroppedPhoto}
+                aspect={1}
+            />
         </div>
     );
 }

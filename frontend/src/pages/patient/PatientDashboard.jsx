@@ -39,27 +39,30 @@ function PatientDashboard() {
   useEffect(() => {
     // Загружаем данные пользователя
     if (user?.id) {
-      fetchAppointments({ patient: user.id })
+      fetchAppointments()
       fetchDocuments({ user: user.id })
       fetchConversations(user.id)
     }
   }, [user?.id])
 
-  // Функция для проверки, прошла ли запись (более 1 часа назад)
-  const isAppointmentPast = (dateTime) => {
-    const appointmentDate = new Date(dateTime)
-    const oneHourAfter = new Date(appointmentDate.getTime() + 60 * 60 * 1000)
-    return new Date() > oneHourAfter
+  // Функция для проверки, прошла ли запись (на основе длительности консультации)
+  const isAppointmentPast = (appointment) => {
+    const appointmentDate = new Date(appointment.dateTime)
+    // Длительность консультации + буфер 5 минут
+    const consultationDuration = appointment.doctor?.consultationDuration || 30
+    const bufferMinutes = 5
+    const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000)
+    return new Date() > consultationEnd
   }
 
   useEffect(() => {
     // Подсчитываем статистику
-    const completed = appointments.filter(a => 
-      a.status === 'completed' || 
-      (['pending', 'confirmed'].includes(a.status) && isAppointmentPast(a.dateTime))
+    const completed = appointments.filter(a =>
+      a.status === 'completed' ||
+      (['pending', 'confirmed'].includes(a.status) && isAppointmentPast(a))
     ).length
-    const upcoming = appointments.filter(a => 
-      ['pending', 'confirmed'].includes(a.status) && !isAppointmentPast(a.dateTime)
+    const upcoming = appointments.filter(a =>
+      ['pending', 'confirmed'].includes(a.status) && !isAppointmentPast(a)
     ).length
     const unread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
     
@@ -72,7 +75,7 @@ function PatientDashboard() {
   }, [appointments, documents, conversations])
 
   const upcomingAppointments = appointments
-    .filter(a => ['pending', 'confirmed'].includes(a.status) && !isAppointmentPast(a.dateTime))
+    .filter(a => ['pending', 'confirmed'].includes(a.status) && !isAppointmentPast(a))
     .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime))
     .slice(0, 3)
 
@@ -201,15 +204,21 @@ function PatientDashboard() {
                   const specName = typeof appointment.doctor?.specialization === 'object'
                     ? appointment.doctor?.specialization?.name
                     : appointment.doctor?.specialization || ''
-                  
+
                   const appointmentDate = new Date(appointment.dateTime)
                   const now = new Date()
+
+                  // Длительность консультации (из настроек врача или 30 мин по умолчанию)
+                  const consultationDuration = appointment.doctor?.consultationDuration || 30
+                  // Буфер после окончания консультации (5 минут)
+                  const bufferMinutes = 5
+
                   const fifteenMinBefore = new Date(appointmentDate.getTime() - 15 * 60 * 1000)
-                  const oneHourAfter = new Date(appointmentDate.getTime() + 60 * 60 * 1000)
-                  const canJoin = ['confirmed', 'pending'].includes(appointment.status) && 
-                                  now >= fifteenMinBefore && 
-                                  now <= oneHourAfter
-                  
+                  const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000)
+                  const canJoin = ['confirmed', 'pending'].includes(appointment.status) &&
+                                  now >= fifteenMinBefore &&
+                                  now <= consultationEnd
+
                   return (
                     <div
                       key={appointment.id}

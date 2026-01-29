@@ -11,6 +11,7 @@ import {
   X,
   Loader2,
   AlertCircle,
+  FileText,
 } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -87,19 +88,22 @@ function PatientAppointments() {
 
   useEffect(() => {
     if (user?.id) {
-      fetchAppointments({ patient: user.id })
+      fetchAppointments()
     }
   }, [user?.id])
 
-  // Функция для проверки, прошла ли запись (более 1 часа назад)
-  const isAppointmentPast = (dateTime) => {
-    const appointmentDate = new Date(dateTime)
-    const oneHourAfter = new Date(appointmentDate.getTime() + 60 * 60 * 1000)
-    return new Date() > oneHourAfter
+  // Функция для проверки, прошла ли запись (на основе длительности консультации)
+  const isAppointmentPast = (appointment) => {
+    const appointmentDate = new Date(appointment.dateTime)
+    // Длительность консультации + буфер 5 минут
+    const consultationDuration = appointment.doctor?.consultationDuration || 30
+    const bufferMinutes = 5
+    const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000)
+    return new Date() > consultationEnd
   }
 
   const filteredAppointments = appointments.filter(apt => {
-    const isPast = isAppointmentPast(apt.dateTime)
+    const isPast = isAppointmentPast(apt)
     
     // Фильтр по статусу
     if (filter === 'upcoming') {
@@ -270,22 +274,27 @@ function PatientAppointments() {
             const specName = typeof appointment.doctor?.specialization === 'object'
               ? appointment.doctor.specialization?.name
               : appointment.doctor?.specialization || ''
-            
+
             const appointmentDate = new Date(appointment.dateTime)
             const now = new Date()
-            
-            // Запись считается прошедшей если прошёл 1 час с момента начала
-            const oneHourAfterAppointment = new Date(appointmentDate.getTime() + 60 * 60 * 1000)
-            const isPastAppointment = now > oneHourAfterAppointment
-            
+
+            // Длительность консультации (из настроек врача или 30 мин по умолчанию)
+            const consultationDuration = appointment.doctor?.consultationDuration || 30
+            // Буфер после окончания консультации (5 минут)
+            const bufferMinutes = 5
+
+            // Время окончания консультации с буфером
+            const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000)
+            const isPastAppointment = now > consultationEnd
+
             // Статус "upcoming" только если запись не прошедшая
             const isUpcoming = ['confirmed', 'pending'].includes(appointment.status) && !isPastAppointment
-            
-            // Можно подключиться: за 15 минут до начала и не позже 1 часа после начала
+
+            // Можно подключиться: за 15 минут до начала и до окончания консультации + буфер
             const fifteenMinBefore = new Date(appointmentDate.getTime() - 15 * 60 * 1000)
-            const canJoin = ['confirmed', 'pending'].includes(appointment.status) && 
-                           now >= fifteenMinBefore && 
-                           now <= oneHourAfterAppointment
+            const canJoin = ['confirmed', 'pending'].includes(appointment.status) &&
+                           now >= fifteenMinBefore &&
+                           now <= consultationEnd
 
             return (
               <Card key={appointment.id} hover>
@@ -337,17 +346,23 @@ function PatientAppointments() {
                           {formatPrice(appointment.price || appointment.doctor?.price || 0)}
                         </span>
                         
-                        {canJoin && appointment.roomId && (
+                        {canJoin && appointment.roomId ? (
                           <Link to={`/consultation/${appointment.roomId}`}>
                             <Button size="sm" leftIcon={<Video className="w-4 h-4" />}>
                               Подключиться
                             </Button>
                           </Link>
-                        )}
-                        
+                        ) : isPastAppointment && appointment.status !== 'cancelled' ? (
+                          <Link to={`/patient/appointments/${appointment.documentId || appointment.id}`}>
+                            <Button size="sm" variant="secondary" leftIcon={<FileText className="w-4 h-4" />}>
+                              Детали
+                            </Button>
+                          </Link>
+                        ) : null}
+
                         {isUpcoming && (
-                          <Button 
-                            variant="secondary" 
+                          <Button
+                            variant="secondary"
                             size="sm"
                             onClick={() => openCancelModal(appointment)}
                           >

@@ -16,13 +16,27 @@ import {
   Loader2,
   Send,
   X,
+  Upload,
+  FileText,
+  Save,
+  ChevronLeft,
+  ChevronRight,
+  Stethoscope,
+  ClipboardList,
+  Pill,
+  Settings,
+  MoreVertical,
+  User,
+  Link as LinkIcon,
+  FolderOpen,
+  ExternalLink,
 } from 'lucide-react'
 import { io } from 'socket.io-client'
 import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import { cn } from '../utils/helpers'
 import useAuthStore from '../stores/authStore'
-import api, { getMediaUrl } from '../services/api'
+import api, { documentsAPI, uploadFile, getMediaUrl } from '../services/api'
 
 const ICE_SERVERS = {
   iceServers: [
@@ -31,32 +45,19 @@ const ICE_SERVERS = {
   ],
 }
 
-// =====================================================
-// КОНФИГУРАЦИЯ SIGNALING СЕРВЕРА
-// =====================================================
-// В продакшн режиме:   https://medconnectrtc.nnmc.kz
-// В режиме разработки: http://localhost:1341
-// =====================================================
-
 const PRODUCTION_SIGNALING_URL = 'https://medconnectrtc.nnmc.kz';
 const DEVELOPMENT_SIGNALING_URL = 'http://localhost:1341';
 
-// Определяем URL signaling сервера в зависимости от окружения
 const getSignalingUrl = () => {
-  // Проверяем hostname для runtime определения
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
       return PRODUCTION_SIGNALING_URL;
     }
   }
-  
-  // В продакшн режиме используем production URL
   if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
     return import.meta.env.VITE_SIGNALING_SERVER || PRODUCTION_SIGNALING_URL;
   }
-  
-  // В режиме разработки используем переменную окружения или localhost
   return import.meta.env.VITE_SIGNALING_SERVER || DEVELOPMENT_SIGNALING_URL;
 };
 
@@ -66,12 +67,13 @@ function VideoConsultation() {
   const { roomId } = useParams()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  
+
   const [connectionState, setConnectionState] = useState('initializing')
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOn, setIsVideoOn] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [showChat, setShowChat] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarTab, setSidebarTab] = useState('chat') // 'chat' | 'notes'
   const [duration, setDuration] = useState(0)
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
@@ -80,32 +82,52 @@ function VideoConsultation() {
   const [linkCopied, setLinkCopied] = useState(false)
   const [remoteUser, setRemoteUser] = useState(null)
 
+  // Notes state
+  const [notesTab, setNotesTab] = useState('diagnosis')
+  const [diagnosisText, setDiagnosisText] = useState('')
+  const [planText, setPlanText] = useState('')
+  const [prescriptionsText, setPrescriptionsText] = useState('')
+  const [diagnosisFile, setDiagnosisFile] = useState(null)
+  const [isSavingDiagnosis, setIsSavingDiagnosis] = useState(false)
+  const [isSavingPlan, setIsSavingPlan] = useState(false)
+  const [isSavingPrescriptions, setIsSavingPrescriptions] = useState(false)
+  const [diagnosisSaved, setDiagnosisSaved] = useState(false)
+  const [planSaved, setPlanSaved] = useState(false)
+  const [prescriptionsSaved, setPrescriptionsSaved] = useState(false)
+  const [patientDocuments, setPatientDocuments] = useState([])
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false)
+
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
   const localStreamRef = useRef(null)
   const peerConnectionRef = useRef(null)
   const socketRef = useRef(null)
-  const containerRef = useRef(null)
+  const videoContainerRef = useRef(null)
+  const chatEndRef = useRef(null)
+
+  const isDoctor = user?.userRole === 'doctor'
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   useEffect(() => {
     const fetchAppointment = async () => {
       if (!roomId) return
       try {
-        // Явно указываем populate для связей
         const query = new URLSearchParams()
         query.append('filters[roomId][$eq]', roomId)
         query.append('populate[doctor][populate][0]', 'specialization')
         query.append('populate[doctor][populate][1]', 'photo')
-        query.append('populate[doctor][populate][2]', 'user')
         query.append('populate[patient][fields][0]', 'id')
         query.append('populate[patient][fields][1]', 'fullName')
         query.append('populate[patient][fields][2]', 'email')
         query.append('populate[patient][fields][3]', 'phone')
         query.append('populate[patient][fields][4]', 'avatar')
-        
+
         const response = await api.get(`/api/appointments?${query}`)
         const apt = response.data?.data?.[0]
-        console.log('Appointment loaded:', apt) // Для отладки
         if (apt) setAppointment(apt)
       } catch (err) {
         console.error('Error fetching appointment:', err)
@@ -114,6 +136,24 @@ function VideoConsultation() {
     fetchAppointment()
   }, [roomId])
 
+  // Fetch patient documents for doctor
+  useEffect(() => {
+    const fetchPatientDocs = async () => {
+      if (!isDoctor || !appointment?.patient?.id) return
+      setIsLoadingDocs(true)
+      try {
+        const response = await documentsAPI.getAll({ userId: appointment.patient.id })
+        const docs = response.data?.data || []
+        setPatientDocuments(docs)
+      } catch (err) {
+        console.error('Error fetching patient documents:', err)
+      } finally {
+        setIsLoadingDocs(false)
+      }
+    }
+    fetchPatientDocs()
+  }, [appointment?.patient?.id, isDoctor])
+
   const getParticipantInfo = () => {
     if (remoteUser) {
       return { name: remoteUser.userName, role: remoteUser.userRole === 'doctor' ? 'Врач' : 'Пациент' }
@@ -121,11 +161,16 @@ function VideoConsultation() {
     if (!appointment) {
       return { name: 'Ожидание...', role: '' }
     }
-    
+
     const userRole = user?.userRole || 'patient'
     if (userRole === 'doctor') {
+      // Get patient name with fallbacks
+      const patientName = appointment.patient?.fullName ||
+                          appointment.patient?.username ||
+                          appointment.patient?.email?.split('@')[0] ||
+                          'Пациент'
       return {
-        name: appointment.patient?.fullName || 'Пациент',
+        name: patientName,
         role: 'Пациент'
       }
     }
@@ -148,7 +193,7 @@ function VideoConsultation() {
           video: { width: 1280, height: 720 },
           audio: true,
         })
-        
+
         if (!mounted) {
           stream.getTracks().forEach(track => track.stop())
           return
@@ -190,9 +235,9 @@ function VideoConsultation() {
         socket.on('user-joined', async (data) => {
           setRemoteUser(data)
           setConnectionState('connecting')
-          
+
           const pc = createPeerConnection(socket, data.socketId)
-          
+
           try {
             const offer = await pc.createOffer()
             await pc.setLocalDescription(offer)
@@ -205,7 +250,7 @@ function VideoConsultation() {
         socket.on('offer', async ({ senderSocketId, offer }) => {
           setConnectionState('connecting')
           const pc = createPeerConnection(socket, senderSocketId)
-          
+
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(offer))
             const answer = await pc.createAnswer()
@@ -322,7 +367,6 @@ function VideoConsultation() {
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled
       setIsMuted(!audioTrack.enabled)
-      socketRef.current?.emit('media-toggle', { roomId, type: 'audio', enabled: audioTrack.enabled })
     }
   }
 
@@ -331,13 +375,12 @@ function VideoConsultation() {
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled
       setIsVideoOn(videoTrack.enabled)
-      socketRef.current?.emit('media-toggle', { roomId, type: 'video', enabled: videoTrack.enabled })
     }
   }
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen()
+      videoContainerRef.current?.requestFullscreen()
       setIsFullscreen(true)
     } else {
       document.exitFullscreen()
@@ -356,7 +399,7 @@ function VideoConsultation() {
     peerConnectionRef.current?.close()
     socketRef.current?.emit('leave-room')
     socketRef.current?.disconnect()
-    
+
     const userRole = user?.userRole || 'patient'
     navigate(userRole === 'doctor' ? '/doctor' : '/patient/appointments')
   }
@@ -364,7 +407,7 @@ function VideoConsultation() {
   const sendMessage = (e) => {
     e.preventDefault()
     if (!newMessage.trim() || !socketRef.current) return
-    
+
     socketRef.current.emit('chat-message', {
       roomId,
       message: newMessage,
@@ -373,184 +416,603 @@ function VideoConsultation() {
     setNewMessage('')
   }
 
+  const handleDiagnosisFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const uploaded = await uploadFile(file)
+      setDiagnosisFile(uploaded)
+    } catch (err) {
+      console.error('Error uploading file:', err)
+    }
+  }
+
+  const saveDiagnosis = async () => {
+    if (!appointment?.id) return
+    setIsSavingDiagnosis(true)
+    try {
+      await documentsAPI.create({
+        title: 'Заключение врача',
+        type: 'certificate',
+        description: diagnosisText || '',
+        file: diagnosisFile?.id,
+        appointment: appointment.id,
+        user: appointment.patient?.id,
+        doctor: appointment.doctor?.id,
+      })
+      setDiagnosisSaved(true)
+      setTimeout(() => setDiagnosisSaved(false), 2000)
+    } catch (err) {
+      console.error('Error saving diagnosis:', err)
+    } finally {
+      setIsSavingDiagnosis(false)
+    }
+  }
+
+  const savePlan = async () => {
+    if (!appointment?.id || !planText.trim()) return
+    setIsSavingPlan(true)
+    try {
+      await documentsAPI.create({
+        title: 'План обследования',
+        type: 'other',
+        description: planText,
+        appointment: appointment.id,
+        user: appointment.patient?.id,
+        doctor: appointment.doctor?.id,
+      })
+      setPlanSaved(true)
+      setTimeout(() => setPlanSaved(false), 2000)
+    } catch (err) {
+      console.error('Error saving plan:', err)
+    } finally {
+      setIsSavingPlan(false)
+    }
+  }
+
+  const savePrescriptions = async () => {
+    if (!appointment?.id || !prescriptionsText.trim()) return
+    setIsSavingPrescriptions(true)
+    try {
+      await documentsAPI.create({
+        title: 'Назначения',
+        type: 'prescription',
+        description: prescriptionsText,
+        appointment: appointment.id,
+        user: appointment.patient?.id,
+        doctor: appointment.doctor?.id,
+      })
+      setPrescriptionsSaved(true)
+      setTimeout(() => setPrescriptionsSaved(false), 2000)
+    } catch (err) {
+      console.error('Error saving prescriptions:', err)
+    } finally {
+      setIsSavingPrescriptions(false)
+    }
+  }
+
   return (
-    <div ref={containerRef} className="fixed inset-0 bg-slate-900 flex flex-col z-50">
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20 bg-gradient-to-b from-slate-900/80 to-transparent">
-        <div className="flex items-center gap-3">
-          <Avatar name={participant.name} size="md" />
-          <div>
-            <h2 className="text-white font-medium">{participant.name}</h2>
-            <p className="text-slate-400 text-sm">{participant.role}</p>
+    <div className="h-screen bg-slate-900 flex overflow-hidden">
+      {/* Main Video Area */}
+      <div className={cn(
+        "flex-1 flex flex-col transition-all duration-300",
+        sidebarOpen ? "mr-0" : "mr-0"
+      )}>
+        {/* Top Bar */}
+        <div className="flex items-center justify-between px-4 py-3 bg-slate-800/50">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Avatar name={participant.name} size="md" />
+                {connectionState === 'connected' && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-slate-800" />
+                )}
+              </div>
+              <div>
+                <h2 className="text-white font-medium text-sm">{participant.name}</h2>
+                <p className="text-slate-400 text-xs">{participant.role}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {connectionState === 'connected' && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 rounded-full">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400 text-sm font-medium">{formatDuration(duration)}</span>
+              </div>
+            )}
+            <button
+              onClick={copyInviteLink}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm transition-colors"
+            >
+              {linkCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <LinkIcon className="w-4 h-4" />}
+              <span className="hidden sm:inline">{linkCopied ? 'Скопировано' : 'Ссылка'}</span>
+            </button>
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
+            >
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+            </button>
+            {!sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 rounded-lg bg-teal-600 text-white hover:bg-teal-500 transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
-        
-        <div className="flex items-center gap-4">
-          {connectionState === 'connected' && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-full">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-              <Clock className="w-4 h-4 text-slate-400" />
-              <span className="text-white text-sm font-medium">{formatDuration(duration)}</span>
+
+        {/* Video Container */}
+        <div ref={videoContainerRef} className="flex-1 relative bg-slate-900">
+          {/* Connection States */}
+          {connectionState === 'initializing' && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-slate-800 flex items-center justify-center">
+                  <Loader2 className="w-10 h-10 text-teal-500 animate-spin" />
+                </div>
+                <p className="text-white text-xl font-medium">Подготовка...</p>
+                <p className="text-slate-400 mt-2">Настройка камеры и микрофона</p>
+              </div>
             </div>
           )}
-          <button onClick={toggleFullscreen} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg">
-            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+
+          {connectionState === 'waiting' && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center max-w-md px-4">
+                <div className="w-28 h-28 mx-auto mb-6 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center ring-4 ring-slate-700/50">
+                  <User className="w-14 h-14 text-slate-500" />
+                </div>
+                <h3 className="text-white text-2xl font-semibold mb-2">Ожидание собеседника</h3>
+                <p className="text-slate-400 mb-8">
+                  {isDoctor ? 'Пациент скоро подключится к консультации' : 'Врач скоро присоединится к вам'}
+                </p>
+
+                <div className="bg-slate-800/80 backdrop-blur rounded-2xl p-5 text-left">
+                  <p className="text-slate-400 text-sm mb-3">Ссылка для подключения:</p>
+                  <div className="flex items-center gap-2 bg-slate-900/50 rounded-xl p-3">
+                    <code className="flex-1 text-teal-400 text-sm truncate">{window.location.href}</code>
+                    <button
+                      onClick={copyInviteLink}
+                      className={cn(
+                        "p-2 rounded-lg transition-colors",
+                        linkCopied ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 hover:bg-slate-600 text-slate-400"
+                      )}
+                    >
+                      {linkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Animated dots */}
+                <div className="flex justify-center gap-1.5 mt-8">
+                  <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {connectionState === 'connecting' && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-teal-500 to-sky-500 flex items-center justify-center animate-pulse">
+                  <Avatar name={participant.name} size="xl" />
+                </div>
+                <p className="text-white text-xl font-medium mb-2">Подключение к {participant.name}...</p>
+                <div className="flex justify-center gap-1">
+                  <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {connectionState === 'failed' && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center max-w-md px-4">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-rose-500/20 flex items-center justify-center">
+                  <AlertCircle className="w-10 h-10 text-rose-500" />
+                </div>
+                <h3 className="text-white text-xl font-medium mb-2">Ошибка подключения</h3>
+                <p className="text-slate-400 mb-6">{error || 'Не удалось установить соединение'}</p>
+                <Button onClick={() => window.location.reload()}>Попробовать снова</Button>
+              </div>
+            </div>
+          )}
+
+          {/* Remote Video */}
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            className={cn(
+              "w-full h-full object-cover",
+              connectionState === 'connected' ? '' : 'hidden'
+            )}
+          />
+
+          {/* Local Video Preview */}
+          <div className="absolute bottom-24 right-4 w-48 aspect-video rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 bg-slate-800">
+            <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            {!isVideoOn && (
+              <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
+                <VideoOff className="w-8 h-8 text-slate-500" />
+              </div>
+            )}
+            <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/50 rounded-lg">
+              <p className="text-white text-xs">Вы</p>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="absolute bottom-0 inset-x-0 p-6 flex items-center justify-center">
+            <div className="flex items-center gap-3 p-2 bg-slate-800/90 backdrop-blur rounded-2xl">
+              <button
+                onClick={toggleMute}
+                className={cn(
+                  'w-12 h-12 rounded-xl flex items-center justify-center transition-all',
+                  isMuted
+                    ? 'bg-rose-500 text-white hover:bg-rose-600'
+                    : 'bg-slate-700 text-white hover:bg-slate-600'
+                )}
+              >
+                {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
+
+              <button
+                onClick={toggleVideo}
+                className={cn(
+                  'w-12 h-12 rounded-xl flex items-center justify-center transition-all',
+                  !isVideoOn
+                    ? 'bg-rose-500 text-white hover:bg-rose-600'
+                    : 'bg-slate-700 text-white hover:bg-slate-600'
+                )}
+              >
+                {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+              </button>
+
+              <div className="w-px h-8 bg-slate-600" />
+
+              <button
+                onClick={endCall}
+                className="w-14 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl flex items-center justify-center transition-all"
+              >
+                <Phone className="w-5 h-5 rotate-[135deg]" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sidebar */}
+      <div className={cn(
+        "bg-white flex flex-col transition-all duration-300 border-l border-slate-200",
+        sidebarOpen ? "w-96" : "w-0 overflow-hidden"
+      )}>
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+            <button
+              onClick={() => setSidebarTab('chat')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                sidebarTab === 'chat'
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <MessageCircle className="w-4 h-4" />
+              Чат
+            </button>
+            {isDoctor && (
+              <button
+                onClick={() => setSidebarTab('notes')}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  sidebarTab === 'notes'
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <ClipboardList className="w-4 h-4" />
+                Записи
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
-      </div>
 
-      {/* Video Area */}
-      <div className="flex-1 relative">
-        {connectionState === 'initializing' && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <Loader2 className="w-12 h-12 text-teal-500 animate-spin mx-auto mb-4" />
-              <p className="text-white text-lg">Инициализация...</p>
-            </div>
-          </div>
-        )}
-
-        {connectionState === 'waiting' && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center max-w-md">
-              <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-slate-800 flex items-center justify-center">
-                <Avatar name={participant.name} size="2xl" />
-              </div>
-              <p className="text-white text-xl font-medium mb-2">Ожидание собеседника</p>
-              <p className="text-slate-400 mb-6">Отправьте ссылку или дождитесь подключения</p>
-              
-              <div className="bg-slate-800 rounded-xl p-4 mb-4">
-                <p className="text-slate-400 text-sm mb-2">Ссылка на комнату:</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-teal-400 text-sm truncate">{window.location.href}</code>
-                  <button onClick={copyInviteLink} className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg">
-                    {linkCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
-                  </button>
+        {/* Chat Tab */}
+        {sidebarTab === 'chat' && (
+          <>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                    <MessageCircle className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <p className="text-slate-500 text-sm">Сообщений пока нет</p>
+                  <p className="text-slate-400 text-xs mt-1">Начните общение прямо сейчас</p>
                 </div>
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={cn('flex', msg.sender === 'me' ? 'justify-end' : 'justify-start')}
+                  >
+                    <div className={cn(
+                      'max-w-[85%] rounded-2xl px-4 py-3',
+                      msg.sender === 'me'
+                        ? 'bg-teal-600 text-white rounded-br-md'
+                        : 'bg-slate-100 text-slate-900 rounded-bl-md'
+                    )}>
+                      {msg.sender !== 'me' && (
+                        <p className="text-xs font-medium text-slate-500 mb-1">{msg.senderName}</p>
+                      )}
+                      <p className="text-sm">{msg.text}</p>
+                      <p className={cn(
+                        'text-xs mt-1',
+                        msg.sender === 'me' ? 'text-teal-100' : 'text-slate-400'
+                      )}>
+                        {msg.time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <form onSubmit={sendMessage} className="p-4 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Введите сообщение..."
+                  className="flex-1 px-4 py-3 bg-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <button
+                  type="submit"
+                  disabled={!newMessage.trim()}
+                  className={cn(
+                    "p-3 rounded-xl transition-colors",
+                    newMessage.trim()
+                      ? "bg-teal-600 text-white hover:bg-teal-700"
+                      : "bg-slate-100 text-slate-400"
+                  )}
+                >
+                  <Send className="w-5 h-5" />
+                </button>
               </div>
-            </div>
-          </div>
+            </form>
+          </>
         )}
 
-        {connectionState === 'connecting' && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <Avatar name={participant.name} size="2xl" className="mx-auto mb-4" />
-              <p className="text-white text-lg font-medium mb-2">Подключение...</p>
-              <div className="flex justify-center gap-1">
-                <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" />
-              </div>
+        {/* Notes Tab (Doctor only) */}
+        {sidebarTab === 'notes' && isDoctor && (
+          <div className="flex-1 overflow-y-auto">
+            {/* Notes Sub-tabs */}
+            <div className="flex items-center gap-1.5 p-4 border-b border-slate-100 overflow-x-auto">
+              {[
+                { id: 'diagnosis', label: 'Диагноз', icon: Stethoscope },
+                { id: 'plan', label: 'План', icon: ClipboardList },
+                { id: 'prescriptions', label: 'Назначения', icon: Pill },
+                { id: 'documents', label: 'Документы', icon: FolderOpen },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setNotesTab(tab.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    notesTab === tab.id
+                      ? "bg-teal-50 text-teal-700"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                  )}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
             </div>
-          </div>
-        )}
 
-        {/* Remote Video - always mounted but hidden when not connected */}
-        <video 
-          ref={remoteVideoRef} 
-          autoPlay 
-          playsInline 
-          className={`w-full h-full object-cover ${connectionState === 'connected' ? '' : 'hidden'}`}
-        />
+            <div className="p-4 space-y-4">
+              {notesTab === 'diagnosis' && (
+                <>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-medium text-slate-700">Заключение врача</label>
+                      <label className="flex items-center gap-1.5 text-xs text-teal-600 cursor-pointer hover:text-teal-700">
+                        <Upload className="w-3.5 h-3.5" />
+                        Загрузить файл
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.doc,.docx"
+                          onChange={handleDiagnosisFile}
+                        />
+                      </label>
+                    </div>
+                    <textarea
+                      value={diagnosisText}
+                      onChange={(e) => setDiagnosisText(e.target.value)}
+                      className="w-full h-48 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      placeholder="Введите диагноз и заключение..."
+                    />
+                    {diagnosisFile && (
+                      <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg text-sm">
+                        <FileText className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-600 truncate">{diagnosisFile.name}</span>
+                        <button
+                          onClick={() => setDiagnosisFile(null)}
+                          className="ml-auto p-1 hover:bg-slate-200 rounded"
+                        >
+                          <X className="w-3 h-3 text-slate-400" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={saveDiagnosis}
+                      leftIcon={<Save className="w-4 h-4" />}
+                      disabled={isSavingDiagnosis || (!diagnosisText && !diagnosisFile)}
+                      className="flex-1"
+                    >
+                      {isSavingDiagnosis ? 'Сохранение...' : 'Сохранить'}
+                    </Button>
+                    {diagnosisSaved && (
+                      <span className="flex items-center gap-1 text-sm text-emerald-600">
+                        <Check className="w-4 h-4" /> Сохранено
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
 
-        {connectionState === 'failed' && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <AlertCircle className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-              <p className="text-white text-lg font-medium mb-2">Ошибка подключения</p>
-              <p className="text-slate-400 mb-4">{error || 'Не удалось установить соединение'}</p>
-              <Button onClick={() => window.location.reload()}>Попробовать снова</Button>
-            </div>
-          </div>
-        )}
+              {notesTab === 'plan' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-3">План обследования</label>
+                    <textarea
+                      value={planText}
+                      onChange={(e) => setPlanText(e.target.value)}
+                      className="w-full h-48 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      placeholder="Введите план обследования пациента..."
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={savePlan}
+                      leftIcon={<Save className="w-4 h-4" />}
+                      disabled={isSavingPlan || !planText.trim()}
+                      className="flex-1"
+                    >
+                      {isSavingPlan ? 'Сохранение...' : 'Сохранить'}
+                    </Button>
+                    {planSaved && (
+                      <span className="flex items-center gap-1 text-sm text-emerald-600">
+                        <Check className="w-4 h-4" /> Сохранено
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
 
-        {/* Local Video */}
-        <div className="absolute bottom-24 right-4 w-48 aspect-video rounded-xl overflow-hidden shadow-lg">
-          <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-          {!isVideoOn && (
-            <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
-              <VideoOff className="w-8 h-8 text-slate-400" />
-            </div>
-          )}
-        </div>
-      </div>
+              {notesTab === 'prescriptions' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-3">Назначения</label>
+                    <textarea
+                      value={prescriptionsText}
+                      onChange={(e) => setPrescriptionsText(e.target.value)}
+                      className="w-full h-48 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      placeholder="Введите назначения и рекомендации..."
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={savePrescriptions}
+                      leftIcon={<Save className="w-4 h-4" />}
+                      disabled={isSavingPrescriptions || !prescriptionsText.trim()}
+                      className="flex-1"
+                    >
+                      {isSavingPrescriptions ? 'Сохранение...' : 'Сохранить'}
+                    </Button>
+                    {prescriptionsSaved && (
+                      <span className="flex items-center gap-1 text-sm text-emerald-600">
+                        <Check className="w-4 h-4" /> Сохранено
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
 
-      {/* Chat Panel */}
-      {showChat && (
-        <div className="absolute right-0 top-0 bottom-0 w-80 bg-white shadow-xl flex flex-col z-30">
-          <div className="p-4 border-b flex items-center justify-between">
-            <h3 className="font-semibold">Чат</h3>
-            <button onClick={() => setShowChat(false)} className="p-1 hover:bg-slate-100 rounded">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.map((msg) => (
-              <div key={msg.id} className={cn('flex', msg.sender === 'me' ? 'justify-end' : 'justify-start')}>
-                <div className={cn(
-                  'max-w-[80%] rounded-xl px-3 py-2',
-                  msg.sender === 'me' ? 'bg-teal-600 text-white' : 'bg-slate-100'
-                )}>
-                  <p className="text-sm">{msg.text}</p>
-                  <p className={cn('text-xs mt-1', msg.sender === 'me' ? 'text-teal-100' : 'text-slate-400')}>
-                    {msg.time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+              {notesTab === 'documents' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-3">
+                    Документы пациента
+                  </label>
+                  {isLoadingDocs ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
+                    </div>
+                  ) : patientDocuments.length === 0 ? (
+                    <div className="text-center py-12">
+                      <FolderOpen className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+                      <p className="text-slate-500 text-sm">У пациента нет загруженных документов</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {patientDocuments.map((doc) => {
+                        const fileUrl = doc.file?.url ? getMediaUrl(doc.file) : null
+                        const typeLabels = {
+                          analysis: 'Анализ',
+                          prescription: 'Назначение',
+                          certificate: 'Справка',
+                          other: 'Другое',
+                        }
+                        return (
+                          <div
+                            key={doc.id}
+                            className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+                          >
+                            <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                              <FileText className="w-4 h-4 text-amber-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-medium text-slate-900 truncate">
+                                {doc.title || 'Документ'}
+                              </h4>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                {typeLabels[doc.type] || doc.type}
+                                {doc.createdAt && (
+                                  <> &middot; {new Date(doc.createdAt).toLocaleDateString('ru-RU')}</>
+                                )}
+                              </p>
+                              {doc.description && (
+                                <p className="text-xs text-slate-600 mt-1 line-clamp-2">{doc.description}</p>
+                              )}
+                            </div>
+                            {fileUrl && (
+                              <a
+                                href={fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
-          <form onSubmit={sendMessage} className="p-4 border-t flex gap-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Сообщение..."
-              className="flex-1 px-3 py-2 bg-slate-100 rounded-xl text-sm focus:outline-none"
-            />
-            <Button type="submit" size="icon"><Send className="w-4 h-4" /></Button>
-          </form>
-        </div>
-      )}
-
-      {/* Controls */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-center gap-4 bg-gradient-to-t from-slate-900/80 to-transparent">
-        <button
-          onClick={toggleMute}
-          className={cn(
-            'w-14 h-14 rounded-full flex items-center justify-center transition-colors',
-            isMuted ? 'bg-rose-600 text-white' : 'bg-slate-700 text-white hover:bg-slate-600'
-          )}
-        >
-          {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-        </button>
-
-        <button
-          onClick={toggleVideo}
-          className={cn(
-            'w-14 h-14 rounded-full flex items-center justify-center transition-colors',
-            !isVideoOn ? 'bg-rose-600 text-white' : 'bg-slate-700 text-white hover:bg-slate-600'
-          )}
-        >
-          {isVideoOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-        </button>
-
-        <button
-          onClick={endCall}
-          className="w-14 h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center transition-colors"
-        >
-          <Phone className="w-6 h-6 rotate-[135deg]" />
-        </button>
-
-        <button
-          onClick={() => setShowChat(!showChat)}
-          className={cn(
-            'w-14 h-14 rounded-full flex items-center justify-center transition-colors',
-            showChat ? 'bg-teal-600 text-white' : 'bg-slate-700 text-white hover:bg-slate-600'
-          )}
-        >
-          <MessageCircle className="w-6 h-6" />
-        </button>
+        )}
       </div>
     </div>
   )

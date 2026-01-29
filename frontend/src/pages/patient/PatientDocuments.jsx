@@ -19,7 +19,7 @@ import Modal from '../../components/ui/Modal'
 import { formatDate } from '../../utils/helpers'
 import useDocumentStore from '../../stores/documentStore'
 import useAuthStore from '../../stores/authStore'
-import { getMediaUrl } from '../../services/api'
+import api, { getMediaUrl } from '../../services/api'
 
 const documentTypes = {
   analysis: { label: 'Анализы', icon: TestTube, color: 'bg-blue-100 text-blue-700' },
@@ -45,6 +45,9 @@ function PatientDocuments() {
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [previewError, setPreviewError] = useState(null)
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
   
   // Upload form state
   const [uploadFileState, setUploadFileState] = useState(null)
@@ -59,6 +62,49 @@ function PatientDocuments() {
       fetchDocuments({ userId: user.id })
     }
   }, [user?.id, fetchDocuments])
+
+  useEffect(() => {
+    let isActive = true
+    let objectUrl = null
+
+    const file = selectedDocument?.file
+    const mime = file?.mime || ''
+    const isPdf = mime.includes('pdf')
+
+    setPreviewUrl(null)
+    setPreviewError(null)
+    setIsPreviewLoading(false)
+
+    if (!selectedDocument || !file?.url || !isPdf) return undefined
+
+    const fileUrl = getMediaUrl(file)
+    if (!fileUrl) {
+      setPreviewError('Не удалось получить ссылку на файл')
+      return undefined
+    }
+
+    setIsPreviewLoading(true)
+    api
+      .get(fileUrl, { responseType: 'blob' })
+      .then((response) => {
+        if (!isActive) return
+        objectUrl = URL.createObjectURL(response.data)
+        setPreviewUrl(objectUrl)
+      })
+      .catch(() => {
+        if (!isActive) return
+        setPreviewError('Предпросмотр недоступен')
+      })
+      .finally(() => {
+        if (!isActive) return
+        setIsPreviewLoading(false)
+      })
+
+    return () => {
+      isActive = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [selectedDocument?.file?.url, selectedDocument?.file?.mime, selectedDocument?.id])
 
   const filteredDocuments = documents.filter(doc => {
     const matchesFilter = filter === 'all' || doc.type === filter
@@ -139,6 +185,9 @@ function PatientDocuments() {
     if (kb < 1024) return `${Math.round(kb)} KB`
     return `${(kb / 1024).toFixed(1)} MB`
   }
+
+  const isImagePreview = selectedDocument?.file?.mime?.startsWith('image/')
+  const isPdfPreview = selectedDocument?.file?.mime?.includes('pdf')
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -343,8 +392,42 @@ function PatientDocuments() {
               )}
             </div>
 
-            {selectedDocument.file?.mime?.startsWith('image/') ? (
+            {isImagePreview ? (
               <img src={getMediaUrl(selectedDocument.file)} alt={selectedDocument.title} className="w-full rounded-xl" />
+            ) : isPdfPreview ? (
+              <div className="bg-slate-100 rounded-xl aspect-[3/4] overflow-hidden">
+                {isPreviewLoading ? (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Загрузка предпросмотра...
+                    </div>
+                  </div>
+                ) : previewUrl ? (
+                  <object
+                    data={previewUrl}
+                    type="application/pdf"
+                    className="w-full h-full"
+                    aria-label="Предпросмотр PDF"
+                  >
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <FileText className="w-16 h-16 mx-auto text-slate-400 mb-3" />
+                        <p className="text-slate-500">Предпросмотр недоступен</p>
+                        <p className="text-sm text-slate-400 mt-1">Скачайте файл для просмотра</p>
+                      </div>
+                    </div>
+                  </object>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <FileText className="w-16 h-16 mx-auto text-slate-400 mb-3" />
+                      <p className="text-slate-500">{previewError || 'Предпросмотр недоступен'}</p>
+                      <p className="text-sm text-slate-400 mt-1">Скачайте файл для просмотра</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="bg-slate-100 rounded-xl aspect-[3/4] flex items-center justify-center">
                 <div className="text-center">

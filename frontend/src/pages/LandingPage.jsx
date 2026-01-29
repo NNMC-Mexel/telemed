@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
     Video,
@@ -27,16 +27,32 @@ import {
     HeartPulse,
     UserCheck,
     Headphones,
+    ThumbsUp,
+    ChevronLeft,
+    Send,
+    ExternalLink,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import { Card, CardContent } from "../components/ui/Card";
-import Avatar from "../components/ui/Avatar";
 import {
     doctorsAPI,
     specializationsAPI,
     getMediaUrl,
     normalizeResponse,
 } from "../services/api";
+import { cn, getInitials } from "../utils/helpers";
+
+// Gradient colors for doctor card initials
+const doctorCardColors = [
+    "bg-gradient-to-br from-teal-400 to-teal-600",
+    "bg-gradient-to-br from-sky-400 to-sky-600",
+    "bg-gradient-to-br from-violet-400 to-violet-600",
+    "bg-gradient-to-br from-rose-400 to-rose-600",
+    "bg-gradient-to-br from-amber-400 to-amber-600",
+    "bg-gradient-to-br from-emerald-400 to-emerald-600",
+    "bg-gradient-to-br from-indigo-400 to-indigo-600",
+    "bg-gradient-to-br from-pink-400 to-pink-600",
+];
 
 const features = [
     {
@@ -140,6 +156,265 @@ const testimonials = [
     },
 ];
 
+// Doctors Carousel Component
+function DoctorsCarousel({ doctors }) {
+    const carouselRef = useRef(null);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [isHovered, setIsHovered] = useState(false);
+    const cardsPerPage = 4;
+    const totalPages = Math.ceil(doctors.length / cardsPerPage);
+
+    // Auto-rotate every 3 seconds
+    useEffect(() => {
+        if (totalPages <= 1 || isHovered) return;
+        const interval = setInterval(() => {
+            setCurrentPage((prev) => (prev + 1) % totalPages);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [totalPages, isHovered]);
+
+    // Scroll to current page
+    useEffect(() => {
+        if (!carouselRef.current) return;
+        const pageWidth = carouselRef.current.clientWidth;
+        carouselRef.current.scrollTo({
+            left: pageWidth * currentPage,
+            behavior: "smooth",
+        });
+    }, [currentPage]);
+
+    const goToPage = (page) => setCurrentPage(page);
+    const goNext = () => setCurrentPage((prev) => (prev + 1) % totalPages);
+    const goPrev = () =>
+        setCurrentPage((prev) => (prev - 1 + totalPages) % totalPages);
+
+    // Pluralize years
+    const getYearWord = (years) => {
+        if (years === 1) return "год";
+        if (years >= 2 && years <= 4) return "года";
+        return "лет";
+    };
+
+    return (
+        <section className='py-24 bg-gradient-to-b from-slate-50 to-white'>
+            <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+                <div className='flex flex-col sm:flex-row items-center justify-between mb-12 gap-4'>
+                    <div className='text-center sm:text-left'>
+                        <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
+                            Наши врачи
+                        </span>
+                        <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-2'>
+                            Лучшие специалисты
+                        </h2>
+                        <p className='text-slate-600'>
+                            Квалифицированные врачи с высоким рейтингом
+                        </p>
+                    </div>
+                    <div className='flex items-center gap-3'>
+                        {totalPages > 1 && (
+                            <>
+                                <button
+                                    onClick={goPrev}
+                                    className='w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-600 transition-colors'>
+                                    <ChevronLeft className='w-5 h-5' />
+                                </button>
+                                <button
+                                    onClick={goNext}
+                                    className='w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-600 transition-colors'>
+                                    <ArrowRight className='w-5 h-5' />
+                                </button>
+                            </>
+                        )}
+                        <Link to='/doctors'>
+                            <Button
+                                variant='outline'
+                                rightIcon={<ArrowRight className='w-4 h-4' />}>
+                                Все врачи
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+
+                {/* Carousel */}
+                <div
+                    className='relative'
+                    onMouseEnter={() => setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}>
+                    <div
+                        ref={carouselRef}
+                        className='overflow-hidden scroll-smooth'>
+                        <div
+                            className='flex'
+                            style={{
+                                width: `${totalPages * 100}%`,
+                            }}>
+                            {doctors.map((doctor) => {
+                                const specName =
+                                    typeof doctor.specialization === "object"
+                                        ? doctor.specialization?.name
+                                        : doctor.specialization || "Специалист";
+                                const photoUrl = getMediaUrl(doctor.photo);
+                                const initials = getInitials(doctor.fullName);
+                                const colorIndex = doctor.fullName
+                                    ? doctor.fullName.charCodeAt(0) %
+                                      doctorCardColors.length
+                                    : 0;
+                                const bgColor = doctorCardColors[colorIndex];
+                                const rating = Math.min(doctor.rating || 0, 5);
+                                const reviewsCount = doctor.reviewsCount || 0;
+                                const experience = doctor.experience || 0;
+                                const isOnline = doctor.isActive !== false;
+                                const recommendPercent =
+                                    reviewsCount > 0
+                                        ? Math.min(95 + Math.floor(rating), 100)
+                                        : null;
+
+                                return (
+                                    <div
+                                        key={doctor.id || doctor.documentId}
+                                        className='px-3'
+                                        style={{
+                                            width: `${100 / (totalPages * cardsPerPage)}%`,
+                                        }}>
+                                        <Link
+                                            to={`/doctors/${doctor.documentId || doctor.id}`}
+                                            className='group block h-full'>
+                                            <div className='bg-white rounded-2xl border border-slate-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-slate-200 hover:-translate-y-1 h-full flex flex-col'>
+                                                {/* Photo Section */}
+                                                <div className='relative'>
+                                                    <div className='aspect-[4/5] overflow-hidden bg-slate-100'>
+                                                        {photoUrl ? (
+                                                            <img
+                                                                src={photoUrl}
+                                                                alt={
+                                                                    doctor.fullName
+                                                                }
+                                                                className='w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105'
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className={cn(
+                                                                    "w-full h-full flex items-center justify-center text-white text-4xl font-bold",
+                                                                    bgColor,
+                                                                )}>
+                                                                {initials}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {/* Online indicator */}
+                                                    {isOnline && (
+                                                        <span className='absolute bottom-3 right-3 px-2.5 py-1 bg-emerald-500 text-white text-xs font-medium rounded-full flex items-center gap-1.5 shadow-lg'>
+                                                            <span className='w-1.5 h-1.5 bg-white rounded-full animate-pulse' />
+                                                            Онлайн
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Info Section */}
+                                                <div className='p-5 flex flex-col flex-1'>
+                                                    <div className='mb-3'>
+                                                        <h3 className='text-lg font-semibold text-slate-900 group-hover:text-teal-600 transition-colors line-clamp-1'>
+                                                            {doctor.fullName}
+                                                        </h3>
+                                                        <p className='text-teal-600 font-medium text-sm'>
+                                                            {specName}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Stats Row */}
+                                                    <div className='flex flex-wrap items-center gap-x-4 gap-y-1 mb-3'>
+                                                        <div className='flex items-center gap-1'>
+                                                            <Star className='w-4 h-4 text-amber-400 fill-amber-400' />
+                                                            <span className='font-semibold text-slate-900'>
+                                                                {rating.toFixed(
+                                                                    1,
+                                                                )}
+                                                            </span>
+                                                            <span className='text-slate-500 text-sm'>
+                                                                ({reviewsCount})
+                                                            </span>
+                                                        </div>
+                                                        <div className='flex items-center gap-1 text-slate-600 text-sm'>
+                                                            <Clock className='w-4 h-4' />
+                                                            <span>
+                                                                {experience}{" "}
+                                                                {getYearWord(
+                                                                    experience,
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Recommendation Badge */}
+                                                    <div className='h-6 mb-3'>
+                                                        {recommendPercent && (
+                                                            <div className='flex items-center gap-1.5'>
+                                                                <ThumbsUp className='w-4 h-4 text-emerald-500' />
+                                                                <span className='text-sm text-emerald-600 font-medium'>
+                                                                    {
+                                                                        recommendPercent
+                                                                    }
+                                                                    %
+                                                                    рекомендуют
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Price and Action */}
+                                                    <div className='flex items-center justify-between pt-4 border-t border-slate-100 mt-auto'>
+                                                        <div>
+                                                            <p className='text-xl font-bold text-slate-900'>
+                                                                {(
+                                                                    doctor.price ||
+                                                                    0
+                                                                ).toLocaleString(
+                                                                    "ru-RU",
+                                                                )}{" "}
+                                                                ₸
+                                                            </p>
+                                                            <p className='text-xs text-slate-500'>
+                                                                за консультацию
+                                                            </p>
+                                                        </div>
+                                                        <Button
+                                                            size='sm'
+                                                            className='pointer-events-none'>
+                                                            Записаться
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Pagination dots */}
+                {totalPages > 1 && (
+                    <div className='flex items-center justify-center gap-2 mt-8'>
+                        {Array.from({ length: totalPages }).map((_, i) => (
+                            <button
+                                key={i}
+                                onClick={() => goToPage(i)}
+                                className={cn(
+                                    "h-2 rounded-full transition-all duration-300",
+                                    currentPage === i
+                                        ? "w-8 bg-teal-500"
+                                        : "w-2 bg-slate-300 hover:bg-slate-400",
+                                )}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
+
 function LandingPage() {
     const [doctors, setDoctors] = useState([]);
     const [specializations, setSpecializations] = useState([]);
@@ -151,13 +426,41 @@ function LandingPage() {
     });
     const [isLoading, setIsLoading] = useState(true);
 
+    // 3D Card Effect State
+    const cardRef = useRef(null);
+    const [cardTransform, setCardTransform] = useState({
+        rotateX: 0,
+        rotateY: 0,
+        scale: 1,
+    });
+
+    const handleCardMouseMove = (e) => {
+        if (!cardRef.current) return;
+        const card = cardRef.current;
+        const rect = card.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const mouseX = e.clientX - centerX;
+        const mouseY = e.clientY - centerY;
+
+        // Calculate rotation (max 15 degrees)
+        const rotateY = (mouseX / (rect.width / 2)) * 12;
+        const rotateX = -(mouseY / (rect.height / 2)) * 12;
+
+        setCardTransform({ rotateX, rotateY, scale: 1.02 });
+    };
+
+    const handleCardMouseLeave = () => {
+        setCardTransform({ rotateX: 0, rotateY: 0, scale: 1 });
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             try {
                 // Загружаем врачей
                 const doctorsRes = await doctorsAPI.getAll();
                 const { data: doctorsData } = normalizeResponse(doctorsRes);
-                setDoctors(doctorsData?.slice(0, 3) || []);
+                setDoctors(doctorsData?.slice(0, 8) || []);
 
                 // Загружаем специализации
                 const specsRes = await specializationsAPI.getAll();
@@ -170,7 +473,7 @@ function LandingPage() {
                     ? (
                           doctorsData.reduce(
                               (sum, d) => sum + (d.rating || 0),
-                              0
+                              0,
                           ) / doctorsData.length
                       ).toFixed(1)
                     : 0;
@@ -277,52 +580,96 @@ function LandingPage() {
                             </div>
                         </div>
 
-                        {/* Right Content - Floating Card */}
-                        <div className='hidden lg:block relative'>
+                        {/* Right Content - 3D Floating Card */}
+                        <div
+                            className='hidden lg:block relative'
+                            style={{ perspective: "1000px" }}>
                             <div className='absolute -top-10 -right-10 w-72 h-72 bg-teal-500/30 rounded-full blur-3xl' />
-                            <Card className='relative bg-white/95 backdrop-blur shadow-2xl border-0'>
-                                <CardContent className='p-8'>
-                                    <div className='flex items-center gap-4 mb-6'>
-                                        <div className='w-16 h-16 bg-gradient-to-br from-teal-500 to-sky-500 rounded-2xl flex items-center justify-center shadow-lg'>
-                                            <Video className='w-8 h-8 text-white' />
-                                        </div>
-                                        <div>
-                                            <h3 className='text-lg font-semibold text-slate-900'>
-                                                Онлайн-консультация
-                                            </h3>
-                                            <p className='text-slate-500'>
-                                                Выберите удобное время
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className='space-y-4 mb-6'>
-                                        {advantages.map((adv, idx) => (
+                            <div
+                                ref={cardRef}
+                                onMouseMove={handleCardMouseMove}
+                                onMouseLeave={handleCardMouseLeave}
+                                className='relative'
+                                style={{
+                                    transform: `rotateX(${cardTransform.rotateX}deg) rotateY(${cardTransform.rotateY}deg) scale(${cardTransform.scale})`,
+                                    transition: "transform 0.15s ease-out",
+                                    transformStyle: "preserve-3d",
+                                }}>
+                                <Card className='relative bg-white/95 backdrop-blur shadow-2xl border-0 overflow-hidden'>
+                                    {/* Shine effect */}
+                                    <div
+                                        className='absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none'
+                                        style={{
+                                            background: `linear-gradient(
+                                                ${105 + cardTransform.rotateY * 2}deg,
+                                                transparent 40%,
+                                                rgba(255,255,255,0.1) 45%,
+                                                rgba(255,255,255,0.3) 50%,
+                                                rgba(255,255,255,0.1) 55%,
+                                                transparent 60%
+                                            )`,
+                                        }}
+                                    />
+                                    <CardContent className='p-8'>
+                                        <div className='flex items-center gap-4 mb-6'>
                                             <div
-                                                key={idx}
-                                                className='flex items-center gap-3'>
-                                                <div className='w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center flex-shrink-0'>
-                                                    <adv.icon className='w-5 h-5 text-teal-600' />
-                                                </div>
-                                                <div>
-                                                    <p className='font-medium text-slate-900 text-sm'>
-                                                        {adv.title}
-                                                    </p>
-                                                    <p className='text-xs text-slate-500'>
-                                                        {adv.description}
-                                                    </p>
-                                                </div>
+                                                className='w-16 h-16 bg-gradient-to-br from-teal-500 to-sky-500 rounded-2xl flex items-center justify-center shadow-lg'
+                                                style={{
+                                                    transform:
+                                                        "translateZ(30px)",
+                                                }}>
+                                                <Video className='w-8 h-8 text-white' />
                                             </div>
-                                        ))}
-                                    </div>
+                                            <div
+                                                style={{
+                                                    transform:
+                                                        "translateZ(20px)",
+                                                }}>
+                                                <h3 className='text-lg font-semibold text-slate-900'>
+                                                    Онлайн-консультация
+                                                </h3>
+                                                <p className='text-slate-500'>
+                                                    Выберите удобное время
+                                                </p>
+                                            </div>
+                                        </div>
 
-                                    <Link to='/doctors' className='block'>
-                                        <Button className='w-full'>
-                                            Записаться сейчас
-                                        </Button>
-                                    </Link>
-                                </CardContent>
-                            </Card>
+                                        <div className='space-y-4 mb-6'>
+                                            {advantages.map((adv, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className='flex items-center gap-3'
+                                                    style={{
+                                                        transform: `translateZ(${15 - idx * 3}px)`,
+                                                    }}>
+                                                    <div className='w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center flex-shrink-0'>
+                                                        <adv.icon className='w-5 h-5 text-teal-600' />
+                                                    </div>
+                                                    <div>
+                                                        <p className='font-medium text-slate-900 text-sm'>
+                                                            {adv.title}
+                                                        </p>
+                                                        <p className='text-xs text-slate-500'>
+                                                            {adv.description}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <Link
+                                            to='/doctors'
+                                            className='block'
+                                            style={{
+                                                transform: "translateZ(25px)",
+                                            }}>
+                                            <Button className='w-full'>
+                                                Записаться сейчас
+                                            </Button>
+                                        </Link>
+                                    </CardContent>
+                                </Card>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -508,113 +855,8 @@ function LandingPage() {
                 </div>
             </section>
 
-            {/* Top Doctors Section */}
-            {doctors.length > 0 && (
-                <section className='py-24 bg-gradient-to-b from-slate-50 to-white'>
-                    <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                        <div className='flex flex-col sm:flex-row items-center justify-between mb-12 gap-4'>
-                            <div className='text-center sm:text-left'>
-                                <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
-                                    Наши врачи
-                                </span>
-                                <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-2'>
-                                    Лучшие специалисты
-                                </h2>
-                                <p className='text-slate-600'>
-                                    Квалифицированные врачи с высоким рейтингом
-                                </p>
-                            </div>
-                            <Link to='/doctors'>
-                                <Button
-                                    variant='outline'
-                                    rightIcon={
-                                        <ArrowRight className='w-4 h-4' />
-                                    }>
-                                    Все врачи
-                                </Button>
-                            </Link>
-                        </div>
-
-                        <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-8'>
-                            {doctors.map((doctor) => {
-                                const specName =
-                                    typeof doctor.specialization === "object"
-                                        ? doctor.specialization?.name
-                                        : doctor.specialization || "Специалист";
-
-                                return (
-                                    <Card
-                                        key={doctor.id}
-                                        hover
-                                        className='overflow-hidden'>
-                                        <CardContent className='p-0'>
-                                            <div className='p-6'>
-                                                <div className='flex items-center gap-4 mb-4'>
-                                                    <Avatar
-                                                        src={getMediaUrl(
-                                                            doctor.photo
-                                                        )}
-                                                        name={doctor.fullName}
-                                                        size='xl'
-                                                    />
-                                                    <div>
-                                                        <h3 className='font-semibold text-slate-900'>
-                                                            {doctor.fullName}
-                                                        </h3>
-                                                        <p className='text-teal-600'>
-                                                            {specName}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className='flex items-center gap-4 text-sm text-slate-600 mb-4'>
-                                                    <div className='flex items-center gap-1'>
-                                                        <Star className='w-4 h-4 text-amber-400 fill-amber-400' />
-                                                        <span className='font-medium text-slate-900'>
-                                                            {doctor.rating || 0}
-                                                        </span>
-                                                        <span>
-                                                            (
-                                                            {doctor.reviewsCount ||
-                                                                0}
-                                                            )
-                                                        </span>
-                                                    </div>
-                                                    <div className='flex items-center gap-1'>
-                                                        <Clock className='w-4 h-4' />
-                                                        <span>
-                                                            {doctor.experience ||
-                                                                0}{" "}
-                                                            лет опыта
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <p className='text-slate-600 text-sm mb-4 line-clamp-2'>
-                                                    {doctor.shortBio ||
-                                                        doctor.bio ||
-                                                        "Опытный специалист"}
-                                                </p>
-                                            </div>
-                                            <div className='px-6 py-4 bg-slate-50 flex items-center justify-between'>
-                                                <p className='font-bold text-teal-600 text-lg'>
-                                                    {(
-                                                        doctor.price || 0
-                                                    ).toLocaleString()}{" "}
-                                                    ₸
-                                                </p>
-                                                <Link to='/doctors'>
-                                                    <Button size='sm'>
-                                                        Записаться
-                                                    </Button>
-                                                </Link>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </section>
-            )}
+            {/* Top Doctors Carousel Section */}
+            {doctors.length > 0 && <DoctorsCarousel doctors={doctors} />}
 
             {/* Testimonials */}
             <section className='py-24 bg-white'>
@@ -642,7 +884,7 @@ function LandingPage() {
                                                     key={i}
                                                     className='w-5 h-5 text-amber-400 fill-amber-400'
                                                 />
-                                            )
+                                            ),
                                         )}
                                     </div>
                                     <p className='text-slate-600 mb-6 italic'>
@@ -766,6 +1008,142 @@ function LandingPage() {
                                     </CardContent>
                                 </Card>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Contact Section */}
+            <section id='contact' className='py-24 bg-slate-50'>
+                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+                    <div className='text-center mb-16'>
+                        <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
+                            Контакты
+                        </span>
+                        <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-4'>
+                            Свяжитесь с нами
+                        </h2>
+                        <p className='text-xl text-slate-600 max-w-2xl mx-auto'>
+                            Мы всегда на связи и готовы ответить на ваши вопросы
+                        </p>
+                    </div>
+
+                    <div className='grid lg:grid-cols-3 gap-8 mb-12'>
+                        {/* Phone */}
+                        <div className='group relative bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:border-teal-200'>
+                            <div className='absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-400 to-teal-600 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity' />
+                            <div className='w-14 h-14 bg-teal-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-teal-500 transition-colors'>
+                                <Phone className='w-7 h-7 text-teal-600 group-hover:text-white transition-colors' />
+                            </div>
+                            <h3 className='text-lg font-semibold text-slate-900 mb-2'>
+                                Телефон
+                            </h3>
+                            <p className='text-slate-500 text-sm mb-4'>
+                                Пн-Пт: 8:00 — 20:00, Сб: 9:00 — 15:00
+                            </p>
+                            <a
+                                href='tel:+77172701234'
+                                className='text-xl font-semibold text-teal-600 hover:text-teal-700 transition-colors flex items-center gap-2'>
+                                +7 (717) 270-12-34
+                                <ExternalLink className='w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity' />
+                            </a>
+                        </div>
+
+                        {/* Email */}
+                        <div className='group relative bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:border-teal-200'>
+                            <div className='absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-400 to-sky-600 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity' />
+                            <div className='w-14 h-14 bg-sky-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-sky-500 transition-colors'>
+                                <Mail className='w-7 h-7 text-sky-600 group-hover:text-white transition-colors' />
+                            </div>
+                            <h3 className='text-lg font-semibold text-slate-900 mb-2'>
+                                Электронная почта
+                            </h3>
+                            <p className='text-slate-500 text-sm mb-4'>
+                                Ответим в течение 24 часов
+                            </p>
+                            <a
+                                href='mailto:info@medconnect.kz'
+                                className='text-xl font-semibold text-sky-600 hover:text-sky-700 transition-colors flex items-center gap-2'>
+                                info@medconnect.kz
+                                <ExternalLink className='w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity' />
+                            </a>
+                        </div>
+
+                        {/* Address */}
+                        <div className='group relative bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:border-teal-200'>
+                            <div className='absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-400 to-violet-600 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity' />
+                            <div className='w-14 h-14 bg-violet-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-violet-500 transition-colors'>
+                                <MapPin className='w-7 h-7 text-violet-600 group-hover:text-white transition-colors' />
+                            </div>
+                            <h3 className='text-lg font-semibold text-slate-900 mb-2'>
+                                Адрес
+                            </h3>
+                            <p className='text-slate-500 text-sm mb-4'>
+                                Приём по записи
+                            </p>
+                            <p className='text-xl font-semibold text-violet-600'>
+                                г. Астана, просп. Абылай хана, 42
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Map + Quick Contact CTA */}
+                    <div className='grid lg:grid-cols-5 gap-8'>
+                        {/* Map placeholder */}
+                        <div className='lg:col-span-3 rounded-2xl overflow-hidden shadow-lg border border-slate-200 min-h-[320px]'>
+                            <iframe
+                                title='MedConnect Location'
+                                src='https://www.google.com/maps?q=%D0%BF%D1%80%D0%BE%D1%81%D0%BF.%20%D0%90%D0%B1%D1%8B%D0%BB%D0%B0%D0%B9%20%D1%85%D0%B0%D0%BD%D0%B0%2C%2042%2C%20%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0&output=embed'
+                                width='100%'
+                                height='100%'
+                                style={{ border: 0, minHeight: "320px" }}
+                                allowFullScreen=''
+                                loading='lazy'
+                                referrerPolicy='no-referrer-when-downgrade'
+                                className='w-full h-full'
+                            />
+                        </div>
+
+                        {/* Quick contact card */}
+                        <div className='lg:col-span-2 bg-gradient-to-br from-teal-600 to-sky-700 rounded-2xl p-8 text-white flex flex-col justify-between'>
+                            <div>
+                                <h3 className='text-2xl font-bold mb-4'>
+                                    Нужна быстрая консультация?
+                                </h3>
+                                <p className='text-white/80 mb-6 leading-relaxed'>
+                                    Запишитесь на онлайн-консультацию с врачом
+                                    прямо сейчас. Наши специалисты помогут вам в
+                                    кратчайшие сроки.
+                                </p>
+                                <div className='space-y-3 mb-8'>
+                                    <div className='flex items-center gap-3'>
+                                        <CheckCircle className='w-5 h-5 text-teal-300 flex-shrink-0' />
+                                        <span className='text-white/90 text-sm'>
+                                            Без очередей и ожидания
+                                        </span>
+                                    </div>
+                                    <div className='flex items-center gap-3'>
+                                        <CheckCircle className='w-5 h-5 text-teal-300 flex-shrink-0' />
+                                        <span className='text-white/90 text-sm'>
+                                            Консультация из любой точки
+                                        </span>
+                                    </div>
+                                    <div className='flex items-center gap-3'>
+                                        <CheckCircle className='w-5 h-5 text-teal-300 flex-shrink-0' />
+                                        <span className='text-white/90 text-sm'>
+                                            Запись результатов в личный кабинет
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <Link to='/doctors'>
+                                <Button
+                                    size='lg'
+                                    className='w-full  text-teal-700 hover:bg-teal-50 shadow-lg'
+                                    rightIcon={<Send className='w-5 h-5' />}>
+                                    Записаться к врачу
+                                </Button>
+                            </Link>
                         </div>
                     </div>
                 </div>

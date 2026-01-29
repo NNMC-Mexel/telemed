@@ -184,7 +184,10 @@ function DoctorSchedule() {
                 
                 // Фильтруем на клиенте по врачу и дате
                 const doctorAppointments = (allAppointments || []).filter(apt => {
-                    if (apt.doctor?.id !== doctorData.id) return false;
+                    const matchesDoctor =
+                        apt.doctor?.id === doctorData.id ||
+                        (doctorData.documentId && apt.doctor?.documentId === doctorData.documentId);
+                    if (!matchesDoctor) return false;
                     const aptDate = new Date(apt.dateTime);
                     return aptDate >= weekStart && aptDate < weekEnd;
                 });
@@ -467,34 +470,45 @@ function DoctorSchedule() {
                                                             </div>
                                                         </div>
                                                         <div className='flex items-center gap-2'>
-                                                            <Badge
-                                                                variant={
-                                                                    appointment.status ===
-                                                                    "confirmed"
-                                                                        ? "success"
-                                                                        : appointment.status ===
-                                                                          "pending"
-                                                                        ? "default"
-                                                                        : "danger"
-                                                                }>
-                                                                {appointment.status ===
-                                                                "confirmed"
-                                                                    ? "Подтв."
-                                                                    : appointment.status ===
-                                                                      "pending"
-                                                                    ? "Ожидает"
-                                                                    : "Отменён"}
-                                                            </Badge>
-                                                            {appointment.roomId &&
-                                                                appointment.status ===
-                                                                    "confirmed" && (
-                                                                    <Link
-                                                                        to={`/consultation/${appointment.roomId}`}>
-                                                                        <Button size='sm'>
-                                                                            Начать
-                                                                        </Button>
-                                                                    </Link>
-                                                                )}
+                                                            {(() => {
+                                                                const now = new Date();
+                                                                const aptTime = new Date(appointment.dateTime);
+                                                                const consultationDuration = doctor?.consultationDuration || doctor?.slotDuration || 30;
+                                                                const bufferMinutes = 5;
+                                                                const fifteenMinBefore = new Date(aptTime.getTime() - 15 * 60 * 1000);
+                                                                const consultationEnd = new Date(aptTime.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000);
+                                                                const canJoin = ['confirmed', 'pending'].includes(appointment.status) &&
+                                                                    now >= fifteenMinBefore && now <= consultationEnd;
+                                                                const isPast = now > consultationEnd;
+
+                                                                return (
+                                                                    <>
+                                                                        {isPast && appointment.status !== 'cancelled' ? (
+                                                                            <Badge variant='success'>Завершён</Badge>
+                                                                        ) : (
+                                                                            <Badge
+                                                                                variant={
+                                                                                    appointment.status === "confirmed"
+                                                                                        ? "success"
+                                                                                        : appointment.status === "pending"
+                                                                                        ? "default"
+                                                                                        : "danger"
+                                                                                }>
+                                                                                {appointment.status === "confirmed"
+                                                                                    ? "Подтв."
+                                                                                    : appointment.status === "pending"
+                                                                                    ? "Ожидает"
+                                                                                    : "Отменён"}
+                                                                            </Badge>
+                                                                        )}
+                                                                        {canJoin && appointment.roomId && (
+                                                                            <Link to={`/consultation/${appointment.roomId}`}>
+                                                                                <Button size='sm'>Начать</Button>
+                                                                            </Link>
+                                                                        )}
+                                                                    </>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </div>
                                                 ) : isBreak ? (

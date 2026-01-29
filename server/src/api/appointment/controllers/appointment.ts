@@ -14,10 +14,19 @@ export default factories.createCoreController('api::appointment.appointment', ()
     const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
     const populate = {
       doctor: { populate: ['specialization', 'photo'] },
-      patient: { fields: ['id', 'fullName', 'email', 'phone'] },
+      patient: { fields: ['id', 'fullName', 'email', 'phone', 'username'] },
     } as any;
     const sort = (ctx.query?.sort as any) || ['dateTime:desc'];
-    let filters: any = {};
+
+    // Parse roomId filter from query params
+    const queryFilters = ctx.query?.filters as any;
+    const roomIdFilter = queryFilters?.roomId?.$eq;
+
+    // Build additional filters
+    let additionalFilters: any = {};
+    if (roomIdFilter) {
+      additionalFilters.roomId = roomIdFilter;
+    }
 
     if (!isAdmin) {
       const isDoctor = user.role?.type === 'doctor' || user.userRole === 'doctor';
@@ -32,27 +41,49 @@ export default factories.createCoreController('api::appointment.appointment', ()
           return { data: [], meta: { pagination: { page: 1, pageSize: 0, pageCount: 0, total: 0 } } };
         }
 
-        filters = {
-          $or: [
-            { doctor: { id: doctorRecord.id } },
-            { doctor: { documentId: doctorRecord.documentId } },
-          ],
+        const byId = await strapi.documents('api::appointment.appointment').findMany({
+          filters: { doctor: { id: doctorRecord.id }, ...additionalFilters },
+          sort,
+          populate,
+        });
+        const byDocId = await strapi.documents('api::appointment.appointment').findMany({
+          filters: { doctor: { documentId: doctorRecord.documentId }, ...additionalFilters },
+          sort,
+          populate,
+        });
+        const merged = [...byId, ...byDocId];
+        const uniq = Array.from(new Map(merged.map((item: any) => [item.documentId, item])).values());
+        return {
+          data: uniq,
+          meta: { pagination: { page: 1, pageSize: uniq.length, pageCount: 1, total: uniq.length } },
         };
       } else {
         // Фильтруем по patient (users-permissions user)
         const patientId = user.id;
         const patientDocId = user.documentId;
-        filters = {
-          $or: [
-            { patient: { id: patientId } },
-            ...(patientDocId ? [{ patient: { documentId: patientDocId } }] : []),
-          ],
+        const byId = await strapi.documents('api::appointment.appointment').findMany({
+          filters: { patient: { id: patientId }, ...additionalFilters },
+          sort,
+          populate,
+        });
+        const byDocId = patientDocId
+          ? await strapi.documents('api::appointment.appointment').findMany({
+              filters: { patient: { documentId: patientDocId }, ...additionalFilters },
+              sort,
+              populate,
+            })
+          : [];
+        const merged = [...byId, ...byDocId];
+        const uniq = Array.from(new Map(merged.map((item: any) => [item.documentId, item])).values());
+        return {
+          data: uniq,
+          meta: { pagination: { page: 1, pageSize: uniq.length, pageCount: 1, total: uniq.length } },
         };
       }
     }
 
     const data = await strapi.documents('api::appointment.appointment').findMany({
-      filters,
+      filters: additionalFilters,
       sort,
       populate,
     });

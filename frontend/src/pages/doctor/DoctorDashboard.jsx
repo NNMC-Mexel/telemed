@@ -50,62 +50,70 @@ function DoctorDashboard() {
         try {
             // Получаем ВСЕХ врачей и фильтруем на клиенте по userId
             console.log("Fetching all doctors, looking for userId:", user.id);
-            const doctorRes = await api.get(
-                `/api/doctors?populate=*`
-            );
+            const doctorRes = await api.get(`/api/doctors?populate=*`);
             const allDoctors = doctorRes.data?.data || [];
             console.log("All doctors:", allDoctors);
-            
+
             // Ищем врача по userId
-            const doctorData = allDoctors.find(d => d.userId === user.id);
+            const doctorData = allDoctors.find((d) => d.userId === user.id);
             console.log("Found doctor for userId", user.id, ":", doctorData);
             setDoctor(doctorData);
 
             if (doctorData?.id) {
                 const today = new Date().toISOString().split("T")[0];
-                
+
                 // Получаем ВСЕ записи и фильтруем на клиенте
                 const appointmentsRes = await api.get(
-                    `/api/appointments?populate=*`
+                    `/api/appointments?populate=*`,
                 );
                 console.log("All appointments response:", appointmentsRes.data);
-                
-                const { data: allAppointments } = normalizeResponse(appointmentsRes);
-                
+
+                const { data: allAppointments } =
+                    normalizeResponse(appointmentsRes);
+
                 // Фильтруем записи для этого врача
-                const doctorAppointments = (allAppointments || []).filter(apt => {
-                    return apt.doctor?.id === doctorData.id;
-                });
+                const doctorAppointments = (allAppointments || []).filter(
+                    (apt) => {
+                        return (
+                            apt.doctor?.id === doctorData.id ||
+                            (doctorData.documentId &&
+                                apt.doctor?.documentId ===
+                                    doctorData.documentId)
+                        );
+                    },
+                );
                 console.log("Doctor appointments:", doctorAppointments);
-                
+
                 setAppointments(doctorAppointments);
 
                 // Получаем отзывы (все, фильтруем на клиенте)
                 const reviewsRes = await api.get(`/api/reviews?populate=*`);
                 const { data: allReviews } = normalizeResponse(reviewsRes);
                 const doctorReviews = (allReviews || [])
-                    .filter(r => r.doctor?.id === doctorData.id)
+                    .filter((r) => r.doctor?.id === doctorData.id)
                     .slice(0, 5);
                 setReviews(doctorReviews);
 
                 // Подсчитываем статистику на основе уже полученных данных
                 const todayStr = today;
                 const todayAppts = doctorAppointments.filter((a) => {
-                    const aptDate = new Date(a.dateTime).toISOString().split("T")[0];
+                    const aptDate = new Date(a.dateTime)
+                        .toISOString()
+                        .split("T")[0];
                     return aptDate === todayStr && a.status === "confirmed";
                 });
 
                 // Месячная статистика
                 const monthStart = new Date();
                 monthStart.setDate(1);
-                const monthlyCompleted = doctorAppointments.filter(a => {
+                const monthlyCompleted = doctorAppointments.filter((a) => {
                     const aptDate = new Date(a.dateTime);
                     return aptDate >= monthStart && a.status === "completed";
                 });
 
                 const monthlyEarnings = monthlyCompleted.reduce(
                     (sum, a) => sum + (a.price || doctorData.price || 0),
-                    0
+                    0,
                 );
 
                 setStats({
@@ -144,9 +152,7 @@ function DoctorDashboard() {
     });
 
     const nextAppointment = appointments.find(
-        (a) =>
-            a.status === "confirmed" &&
-            new Date(a.dateTime) > new Date()
+        (a) => a.status === "confirmed" && new Date(a.dateTime) > new Date(),
     );
 
     if (isLoading) {
@@ -265,18 +271,47 @@ function DoctorDashboard() {
                                         appointment.patient?.username ||
                                         "Пациент";
                                     const time = new Date(
-                                        appointment.dateTime
+                                        appointment.dateTime,
                                     ).toLocaleTimeString("ru-RU", {
                                         hour: "2-digit",
                                         minute: "2-digit",
                                     });
                                     const now = new Date();
                                     const aptTime = new Date(
-                                        appointment.dateTime
+                                        appointment.dateTime,
                                     );
+
+                                    // Длительность консультации (из настроек врача или 30 мин по умолчанию)
+                                    const consultationDuration =
+                                        doctor?.consultationDuration || 30;
+                                    // Буфер после окончания консультации (5 минут)
+                                    const bufferMinutes = 5;
+
+                                    // Можно подключиться: за 15 минут до начала и до окончания консультации + буфер
+                                    const fifteenMinBefore = new Date(
+                                        aptTime.getTime() - 15 * 60 * 1000,
+                                    );
+                                    const consultationEnd = new Date(
+                                        aptTime.getTime() +
+                                            (consultationDuration +
+                                                bufferMinutes) *
+                                                60 *
+                                                1000,
+                                    );
+                                    const canJoin =
+                                        ["confirmed", "pending"].includes(
+                                            appointment.status,
+                                        ) &&
+                                        now >= fifteenMinBefore &&
+                                        now <= consultationEnd;
+
+                                    // Консультация прошла
+                                    const isPastConsultation =
+                                        now > consultationEnd;
+
                                     const isNow =
                                         Math.abs(now - aptTime) <
-                                        30 * 60 * 1000; // ±30 минут
+                                        30 * 60 * 1000; // ±30 минут (для выделения)
 
                                     return (
                                         <div
@@ -284,13 +319,17 @@ function DoctorDashboard() {
                                             className={`flex items-center justify-between p-4 rounded-xl ${
                                                 isNow &&
                                                 appointment.status ===
-                                                    "confirmed"
+                                                    "confirmed" &&
+                                                !isPastConsultation
                                                     ? "bg-teal-50 border-2 border-teal-200"
-                                                    : "bg-slate-50"
+                                                    : isPastConsultation
+                                                      ? "bg-slate-100"
+                                                      : "bg-slate-50"
                                             }`}>
                                             <div className='flex items-center gap-4'>
                                                 <div className='text-center min-w-[60px]'>
-                                                    <p className='text-lg font-bold text-slate-900'>
+                                                    <p
+                                                        className={`text-lg font-bold ${isPastConsultation ? "text-slate-400" : "text-slate-900"}`}>
                                                         {time}
                                                     </p>
                                                     <p className='text-xs text-slate-500'>
@@ -304,13 +343,14 @@ function DoctorDashboard() {
                                                 <Avatar
                                                     src={getMediaUrl(
                                                         appointment.patient
-                                                            ?.avatar
+                                                            ?.avatar,
                                                     )}
                                                     name={patientName}
                                                     size='md'
                                                 />
                                                 <div>
-                                                    <h4 className='font-medium text-slate-900'>
+                                                    <h4
+                                                        className={`font-medium ${isPastConsultation ? "text-slate-500" : "text-slate-900"}`}>
                                                         {patientName}
                                                     </h4>
                                                     <p className='text-sm text-slate-500'>
@@ -323,23 +363,40 @@ function DoctorDashboard() {
                                                 </div>
                                             </div>
                                             <div className='flex items-center gap-2'>
-                                                {getStatusBadge(
-                                                    appointment.status
+                                                {isPastConsultation &&
+                                                appointment.status !==
+                                                    "cancelled" ? (
+                                                    <Badge variant='success'>
+                                                        Завершён
+                                                    </Badge>
+                                                ) : (
+                                                    getStatusBadge(
+                                                        appointment.status,
+                                                    )
                                                 )}
-                                                {appointment.status ===
-                                                    "confirmed" &&
-                                                    appointment.roomId && (
-                                                        <Link
-                                                            to={`/consultation/${appointment.roomId}`}>
-                                                            <Button
-                                                                size='sm'
-                                                                leftIcon={
-                                                                    <Video className='w-4 h-4' />
-                                                                }>
-                                                                Подключиться
-                                                            </Button>
-                                                        </Link>
-                                                    )}
+                                                {canJoin &&
+                                                appointment.roomId ? (
+                                                    <Link
+                                                        to={`/consultation/${appointment.roomId}`}>
+                                                        <Button
+                                                            size='sm'
+                                                            leftIcon={
+                                                                <Video className='w-4 h-4' />
+                                                            }>
+                                                            Подключиться
+                                                        </Button>
+                                                    </Link>
+                                                ) : isPastConsultation &&
+                                                  appointment.roomId ? (
+                                                    <Link
+                                                        to={`/doctor/appointments/${appointment.documentId || appointment.id}`}>
+                                                        <Button
+                                                            size='sm'
+                                                            variant='secondary'>
+                                                            Детали
+                                                        </Button>
+                                                    </Link>
+                                                ) : null}
                                             </div>
                                         </div>
                                     );
@@ -352,57 +409,81 @@ function DoctorDashboard() {
                 {/* Sidebar */}
                 <div className='space-y-6'>
                     {/* Next Appointment */}
-                    {nextAppointment && (
-                        <Card className='bg-gradient-to-br from-teal-500 to-sky-500 text-white'>
-                            <CardContent>
-                                <div className='flex items-center gap-2 mb-4'>
-                                    <Clock className='w-5 h-5' />
-                                    <span className='font-medium'>
-                                        Следующий приём
-                                    </span>
-                                </div>
-                                <div className='flex items-center gap-4'>
-                                    <Avatar
-                                        src={getMediaUrl(
-                                            nextAppointment.patient?.avatar
+                    {nextAppointment &&
+                        (() => {
+                            const now = new Date();
+                            const aptTime = new Date(nextAppointment.dateTime);
+                            const consultationDuration =
+                                doctor?.consultationDuration || 30;
+                            const bufferMinutes = 5;
+                            const fifteenMinBefore = new Date(
+                                aptTime.getTime() - 15 * 60 * 1000,
+                            );
+                            const consultationEnd = new Date(
+                                aptTime.getTime() +
+                                    (consultationDuration + bufferMinutes) *
+                                        60 *
+                                        1000,
+                            );
+                            const canJoinNext =
+                                now >= fifteenMinBefore &&
+                                now <= consultationEnd;
+
+                            return (
+                                <Card className='bg-gradient-to-br from-teal-500 to-sky-500 text-white'>
+                                    <CardContent>
+                                        <div className='flex items-center gap-2 mb-4'>
+                                            <Clock className='w-5 h-5' />
+                                            <span className='font-medium'>
+                                                Следующий приём
+                                            </span>
+                                        </div>
+                                        <div className='flex items-center gap-4'>
+                                            <Avatar
+                                                src={getMediaUrl(
+                                                    nextAppointment.patient
+                                                        ?.avatar,
+                                                )}
+                                                name={
+                                                    nextAppointment.patient
+                                                        ?.fullName || "Пациент"
+                                                }
+                                                size='lg'
+                                            />
+                                            <div>
+                                                <h4 className='font-semibold'>
+                                                    {nextAppointment.patient?.fullName
+                                                        ?.split(" ")
+                                                        .slice(0, 2)
+                                                        .join(" ") || "Пациент"}
+                                                </h4>
+                                                <p className='text-white/80 text-sm'>
+                                                    {formatRelativeDate(
+                                                        nextAppointment.dateTime,
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {nextAppointment.roomId &&
+                                        canJoinNext ? (
+                                            <Link
+                                                to={`/consultation/${nextAppointment.roomId}`}>
+                                                <Button className='w-full mt-4  text-teal-600 hover:bg-white/90 text-teal-600 '>
+                                                    <Video className='w-4 h-4 mr-2' />
+                                                    Начать приём
+                                                </Button>
+                                            </Link>
+                                        ) : (
+                                            <div className='w-full mt-4 py-2.5 px-4 bg-white/20 text-white text-center rounded-xl text-sm'>
+                                                {nextAppointment.roomId
+                                                    ? "Комната откроется за 15 минут до приёма"
+                                                    : "Комната будет доступна перед началом"}
+                                            </div>
                                         )}
-                                        name={
-                                            nextAppointment.patient?.fullName ||
-                                            "Пациент"
-                                        }
-                                        size='lg'
-                                    />
-                                    <div>
-                                        <h4 className='font-semibold'>
-                                            {nextAppointment.patient?.fullName
-                                                ?.split(" ")
-                                                .slice(0, 2)
-                                                .join(" ") || "Пациент"}
-                                        </h4>
-                                        <p className='text-white/80 text-sm'>
-                                            {formatRelativeDate(
-                                                nextAppointment.dateTime
-                                            )}
-                                        </p>
-                                    </div>
-                                </div>
-                                {nextAppointment.roomId ? (
-                                    <Link
-                                        to={`/consultation/${nextAppointment.roomId}`}>
-                                        <Button
-                                            className='w-full mt-4 bg-white text-teal-600 hover:bg-white/90'>
-                                            <Video className='w-4 h-4 mr-2' />
-                                            Начать приём
-                                        </Button>
-                                    </Link>
-                                ) : (
-                                    <div className='w-full mt-4 py-2.5 px-4 bg-white/20 text-white text-center rounded-xl text-sm'>
-                                        Комната будет доступна перед началом
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    )}
+                                    </CardContent>
+                                </Card>
+                            );
+                        })()}
 
                     {/* Recent Reviews */}
                     <Card>
@@ -425,7 +506,7 @@ function DoctorDashboard() {
                                         <div className='flex items-center justify-between mb-2'>
                                             <span className='font-medium text-slate-900 text-sm'>
                                                 {review.patient?.fullName?.split(
-                                                    " "
+                                                    " ",
                                                 )[0] || "Пациент"}
                                             </span>
                                             <div className='flex items-center gap-0.5'>

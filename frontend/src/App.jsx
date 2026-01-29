@@ -17,6 +17,7 @@ import PatientAppointments from './pages/patient/PatientAppointments'
 import PatientProfile from './pages/patient/PatientProfile'
 import PatientChat from './pages/patient/PatientChat'
 import PatientDocuments from './pages/patient/PatientDocuments'
+import AppointmentDetail from './pages/AppointmentDetail'
 
 // Doctor Pages
 import DoctorDashboard from './pages/doctor/DoctorDashboard'
@@ -147,6 +148,7 @@ function App() {
         >
           <Route index element={<PatientDashboard />} />
           <Route path="appointments" element={<PatientAppointments />} />
+          <Route path="appointments/:id" element={<AppointmentDetail />} />
           <Route path="doctors" element={<DoctorsPage />} />
           <Route path="doctors/:id" element={<DoctorProfilePage />} />
           <Route path="chat" element={<PatientChat />} />
@@ -165,6 +167,7 @@ function App() {
           }
         >
           <Route index element={<DoctorDashboard />} />
+          <Route path="appointments/:id" element={<AppointmentDetail />} />
           <Route path="schedule" element={<DoctorSchedule />} />
           <Route path="patients" element={<DoctorPatients />} />
           <Route path="chat" element={<PatientChat />} />

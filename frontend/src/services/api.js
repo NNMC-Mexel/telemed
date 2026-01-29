@@ -331,12 +331,8 @@ export const appointmentsAPI = {
         if (params.status) {
             query.append("filters[statuse][$eq]", params.status);
         }
-        if (params.patient) {
-            query.append("filters[patient][id][$eq]", params.patient);
-        }
-        if (params.doctorId) {
-            query.append("filters[doctor][id][$eq]", params.doctorId);
-        }
+        // Фильтрация по пациенту/врачу выполняется на бэке по текущему пользователю.
+        // Оставляем только параметры, которые реально нужны в UI.
 
         return api.get(`/api/appointments?${query}`);
     },
@@ -532,19 +528,55 @@ export const reviewsAPI = {
 // API для уведомлений
 // ===========================================
 
+let notificationsDisabled = false;
+
 export const notificationsAPI = {
-    getAll: (userId) => {
+    getAll: async (userId) => {
+        if (!userId || notificationsDisabled) {
+            return { data: { data: [] } };
+        }
         const query = new URLSearchParams();
         query.append("filters[user][id][$eq]", userId);
         query.append("sort", "createdAt:desc");
         query.append("populate", "*");
-
-        return api.get(`/api/notifications?${query}`);
+        try {
+            return await api.get(`/api/notifications?${query}`);
+        } catch (error) {
+            if (error?.response?.status === 404) {
+                notificationsDisabled = true;
+                return { data: { data: [] } };
+            }
+            throw error;
+        }
     },
 
-    markAsRead: (id) =>
-        api.put(`/api/notifications/${id}`, { data: { isRead: true } }),
+    markAsRead: async (id) => {
+        if (!id || notificationsDisabled) {
+            return { data: { data: null } };
+        }
+        try {
+            return await api.put(`/api/notifications/${id}`, { data: { isRead: true } });
+        } catch (error) {
+            if (error?.response?.status === 404) {
+                notificationsDisabled = true;
+                return { data: { data: null } };
+            }
+            throw error;
+        }
+    },
 
-    markAllAsRead: (userId) =>
-        api.put("/api/notifications/mark-all-read", { userId }),
+    markAllAsRead: async (userId) => {
+        if (!userId || notificationsDisabled) {
+            return { data: { data: null } };
+        }
+        try {
+            return await api.put("/api/notifications/mark-all-read", { userId });
+        } catch (error) {
+            if (error?.response?.status === 404) {
+                notificationsDisabled = true;
+                return { data: { data: null } };
+            }
+            throw error;
+        }
+    },
 };
