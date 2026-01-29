@@ -99,7 +99,7 @@ function PatientAppointments() {
     const consultationDuration = appointment.doctor?.consultationDuration || 30
     const bufferMinutes = 5
     const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000)
-    return new Date() > consultationEnd
+    return new Date() > consultationEnd || appointment.status === 'completed'
   }
 
   const filteredAppointments = appointments.filter(apt => {
@@ -285,7 +285,7 @@ function PatientAppointments() {
 
             // Время окончания консультации с буфером
             const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000)
-            const isPastAppointment = now > consultationEnd
+            const isPastAppointment = now > consultationEnd || appointment.status === 'completed'
 
             // Статус "upcoming" только если запись не прошедшая
             const isUpcoming = ['confirmed', 'pending'].includes(appointment.status) && !isPastAppointment

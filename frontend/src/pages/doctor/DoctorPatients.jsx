@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Users,
   Search,
@@ -10,6 +11,7 @@ import {
   Mail,
   Clock,
   Loader2,
+  History,
 } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -21,6 +23,7 @@ import { formatDate } from '../../utils/helpers'
 
 function DoctorPatients() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const [patients, setPatients] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -175,7 +178,12 @@ function DoctorPatients() {
       ) : (
         <div className="space-y-3">
           {filteredPatients.map((patient) => (
-            <Card key={patient.id} hover>
+            <Card
+              key={patient.id}
+              hover
+              className="cursor-pointer"
+              onClick={() => navigate(`/doctor/patients/${patient.id}`)}
+            >
               <CardContent>
                 <div className="flex items-center gap-4">
                   <Avatar
@@ -211,11 +219,28 @@ function DoctorPatients() {
                     <p className="text-xs text-slate-500">визитов</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="secondary" size="sm">
+                    <Button variant="secondary" size="sm" onClick={(e) => e.stopPropagation()}>
                       <MessageCircle className="w-4 h-4" />
                     </Button>
-                    <Button variant="secondary" size="sm">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/doctor/patients/${patient.id}`)
+                      }}
+                    >
                       <FileText className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/doctor/patients/${patient.id}`)
+                      }}
+                    >
+                      <History className="w-4 h-4 mr-1.5" />
+                      История
                     </Button>
                   </div>
                 </div>

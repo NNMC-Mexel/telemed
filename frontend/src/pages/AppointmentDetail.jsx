@@ -20,7 +20,7 @@ import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import Badge from '../components/ui/Badge'
 import useAuthStore from '../stores/authStore'
-import { appointmentsAPI, documentsAPI, getMediaUrl } from '../services/api'
+import { appointmentsAPI, getMediaUrl } from '../services/api'
 
 function AppointmentDetail() {
   const { id } = useParams()
@@ -32,7 +32,6 @@ function AppointmentDetail() {
   const [appointment, setAppointment] = useState(null)
   const [documents, setDocuments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingDocs, setIsLoadingDocs] = useState(false)
 
   useEffect(() => {
     const fetchAppointment = async () => {
@@ -51,32 +50,11 @@ function AppointmentDetail() {
   }, [id])
 
   useEffect(() => {
-    const fetchDocs = async () => {
-      if (!appointment) return
-      const patientId = isDoctor ? appointment.patient?.id : user?.id
-      if (!patientId) return
-      setIsLoadingDocs(true)
-      try {
-        const response = await documentsAPI.getAll({ userId: patientId })
-        const allDocs = response.data?.data || []
-        // Filter documents related to this appointment
-        const aptDocs = allDocs.filter(
-          (doc) =>
-            doc.appointment === appointment.id ||
-            doc.appointment?.id === appointment.id ||
-            doc.appointment === appointment.documentId ||
-            doc.appointment?.documentId === appointment.documentId
-        )
-        // If no appointment-specific docs, show all patient docs
-        setDocuments(aptDocs.length > 0 ? aptDocs : allDocs)
-      } catch (err) {
-        console.error('Error fetching documents:', err)
-      } finally {
-        setIsLoadingDocs(false)
-      }
-    }
-    fetchDocs()
-  }, [appointment, isDoctor, user?.id])
+    if (!appointment) return
+    // Use medical_documents populated directly from the appointment response
+    const aptDocs = appointment.medical_documents || []
+    setDocuments(aptDocs)
+  }, [appointment])
 
   const backPath = isDoctor ? '/doctor' : '/patient/appointments'
 
@@ -221,11 +199,7 @@ function AppointmentDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoadingDocs ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
-                </div>
-              ) : documents.length === 0 ? (
+              {documents.length === 0 ? (
                 <div className="text-center py-8">
                   <FileText className="w-12 h-12 mx-auto text-slate-300 mb-3" />
                   <p className="text-slate-500 text-sm">Нет документов по данной записи</p>

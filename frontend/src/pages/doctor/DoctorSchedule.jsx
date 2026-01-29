@@ -477,26 +477,27 @@ function DoctorSchedule() {
                                                                 const bufferMinutes = 5;
                                                                 const fifteenMinBefore = new Date(aptTime.getTime() - 15 * 60 * 1000);
                                                                 const consultationEnd = new Date(aptTime.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000);
-                                                                const canJoin = ['confirmed', 'pending'].includes(appointment.status) &&
+                                                                const appointmentStatus = appointment.statuse || appointment.status;
+                                                                const canJoin = ['confirmed', 'pending'].includes(appointmentStatus) &&
                                                                     now >= fifteenMinBefore && now <= consultationEnd;
-                                                                const isPast = now > consultationEnd;
+                                                                const isPast = now > consultationEnd || appointmentStatus === 'completed';
 
                                                                 return (
                                                                     <>
-                                                                        {isPast && appointment.status !== 'cancelled' ? (
+                                                                        {isPast && appointmentStatus !== 'cancelled' ? (
                                                                             <Badge variant='success'>Завершён</Badge>
                                                                         ) : (
                                                                             <Badge
                                                                                 variant={
-                                                                                    appointment.status === "confirmed"
+                                                                                    appointmentStatus === "confirmed"
                                                                                         ? "success"
-                                                                                        : appointment.status === "pending"
+                                                                                        : appointmentStatus === "pending"
                                                                                         ? "default"
                                                                                         : "danger"
                                                                                 }>
-                                                                                {appointment.status === "confirmed"
+                                                                                {appointmentStatus === "confirmed"
                                                                                     ? "Подтв."
-                                                                                    : appointment.status === "pending"
+                                                                                    : appointmentStatus === "pending"
                                                                                     ? "Ожидает"
                                                                                     : "Отменён"}
                                                                             </Badge>
@@ -504,6 +505,11 @@ function DoctorSchedule() {
                                                                         {canJoin && appointment.roomId && (
                                                                             <Link to={`/consultation/${appointment.roomId}`}>
                                                                                 <Button size='sm'>Начать</Button>
+                                                                            </Link>
+                                                                        )}
+                                                                        {isPast && appointmentStatus !== 'cancelled' && appointment.roomId && (
+                                                                            <Link to={`/doctor/appointments/${appointment.documentId || appointment.id}`}>
+                                                                                <Button size='sm' variant='secondary'>Детали</Button>
                                                                             </Link>
                                                                         )}
                                                                     </>

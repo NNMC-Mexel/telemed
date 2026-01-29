@@ -52,7 +52,7 @@ function PatientDashboard() {
     const consultationDuration = appointment.doctor?.consultationDuration || 30
     const bufferMinutes = 5
     const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000)
-    return new Date() > consultationEnd
+    return new Date() > consultationEnd || appointment.status === 'completed'
   }
 
   useEffect(() => {
@@ -93,16 +93,16 @@ function PatientDashboard() {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Welcome Section */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
             Добрый день, {user?.fullName?.split(' ')[0] || user?.username}! 👋
           </h1>
-          <p className="text-slate-600 mt-1">
+          <p className="text-sm sm:text-base text-slate-600 mt-1">
             Вот что происходит с вашим здоровьем
           </p>
         </div>
-        <Link to="/patient/doctors">
+        <Link to="/patient/doctors" className="hidden sm:block">
           <Button rightIcon={<ChevronRight className="w-4 h-4" />}>
             Записаться к врачу
           </Button>
@@ -110,10 +110,10 @@ function PatientDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardContent className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-sky-500 flex items-center justify-center">
+          <CardContent className="flex items-center gap-4 p-4 sm:p-6">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-sky-500 flex items-center justify-center flex-shrink-0">
               <Video className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -123,8 +123,8 @@ function PatientDashboard() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center">
+          <CardContent className="flex items-center gap-4 p-4 sm:p-6">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
               <Calendar className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -134,8 +134,8 @@ function PatientDashboard() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+          <CardContent className="flex items-center gap-4 p-4 sm:p-6">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
               <FileText className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -145,28 +145,28 @@ function PatientDashboard() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+          <CardContent className="flex items-center gap-4 p-4 sm:p-6">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center flex-shrink-0">
               <MessageCircle className="w-6 h-6 text-white" />
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900">{stats.unreadMessages}</p>
-              <p className="text-sm text-slate-500">Новых сообщений</p>
+              <p className="text-sm text-slate-500">Сообщений</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {quickActions.map((action, index) => (
           <Link key={index} to={action.to}>
             <Card hover className="text-center cursor-pointer">
-              <CardContent>
-                <div className={`w-12 h-12 mx-auto ${action.color} rounded-xl flex items-center justify-center mb-3`}>
-                  <action.icon className="w-6 h-6 text-white" />
+              <CardContent className="p-4 sm:p-6">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 mx-auto ${action.color} rounded-xl flex items-center justify-center mb-2 sm:mb-3`}>
+                  <action.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <p className="font-medium text-slate-900 text-sm">{action.label}</p>
+                <p className="font-medium text-slate-900 text-xs sm:text-sm">{action.label}</p>
               </CardContent>
             </Card>
           </Link>

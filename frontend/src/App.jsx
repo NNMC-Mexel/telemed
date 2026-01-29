@@ -24,6 +24,7 @@ import DoctorDashboard from './pages/doctor/DoctorDashboard'
 import DoctorSchedule from './pages/doctor/DoctorSchedule'
 import DoctorPatients from './pages/doctor/DoctorPatients'
 import DoctorProfile from './pages/doctor/DoctorProfile'
+import PatientHistory from './pages/doctor/PatientHistory'
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -170,6 +171,7 @@ function App() {
           <Route path="appointments/:id" element={<AppointmentDetail />} />
           <Route path="schedule" element={<DoctorSchedule />} />
           <Route path="patients" element={<DoctorPatients />} />
+          <Route path="patients/:patientId" element={<PatientHistory />} />
           <Route path="chat" element={<PatientChat />} />
           <Route path="profile" element={<DoctorProfile />} />
           <Route path="notifications" element={<NotificationsPage />} />

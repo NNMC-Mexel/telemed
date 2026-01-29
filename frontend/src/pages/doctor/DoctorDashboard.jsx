@@ -100,7 +100,7 @@ function DoctorDashboard() {
                     const aptDate = new Date(a.dateTime)
                         .toISOString()
                         .split("T")[0];
-                    return aptDate === todayStr && a.status === "confirmed";
+                    return aptDate === todayStr && (a.statuse || a.status) === "confirmed";
                 });
 
                 // Месячная статистика
@@ -108,7 +108,7 @@ function DoctorDashboard() {
                 monthStart.setDate(1);
                 const monthlyCompleted = doctorAppointments.filter((a) => {
                     const aptDate = new Date(a.dateTime);
-                    return aptDate >= monthStart && a.status === "completed";
+                    return aptDate >= monthStart && (a.statuse || a.status) === "completed";
                 });
 
                 const monthlyEarnings = monthlyCompleted.reduce(
@@ -152,7 +152,7 @@ function DoctorDashboard() {
     });
 
     const nextAppointment = appointments.find(
-        (a) => a.status === "confirmed" && new Date(a.dateTime) > new Date(),
+        (a) => (a.statuse || a.status) === "confirmed" && new Date(a.dateTime) > new Date(),
     );
 
     if (isLoading) {
@@ -300,14 +300,15 @@ function DoctorDashboard() {
                                     );
                                     const canJoin =
                                         ["confirmed", "pending"].includes(
-                                            appointment.status,
+                                            appointment.statuse || appointment.status,
                                         ) &&
                                         now >= fifteenMinBefore &&
                                         now <= consultationEnd;
 
-                                    // Консультация прошла
+                                    // Консультация прошла (по времени или принудительно завершена)
                                     const isPastConsultation =
-                                        now > consultationEnd;
+                                        now > consultationEnd ||
+                                        appointment.statuse === 'completed';
 
                                     const isNow =
                                         Math.abs(now - aptTime) <
@@ -364,14 +365,14 @@ function DoctorDashboard() {
                                             </div>
                                             <div className='flex items-center gap-2'>
                                                 {isPastConsultation &&
-                                                appointment.status !==
+                                                (appointment.statuse || appointment.status) !==
                                                     "cancelled" ? (
                                                     <Badge variant='success'>
                                                         Завершён
                                                     </Badge>
                                                 ) : (
                                                     getStatusBadge(
-                                                        appointment.status,
+                                                        appointment.statuse || appointment.status,
                                                     )
                                                 )}
                                                 {canJoin &&

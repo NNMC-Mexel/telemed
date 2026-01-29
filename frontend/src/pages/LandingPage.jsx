@@ -161,7 +161,28 @@ function DoctorsCarousel({ doctors }) {
     const carouselRef = useRef(null);
     const [currentPage, setCurrentPage] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
-    const cardsPerPage = 4;
+    const touchStartX = useRef(null);
+
+    // Responsive cards per page
+    const [cardsPerPage, setCardsPerPage] = useState(4);
+
+    useEffect(() => {
+        const updateCardsPerPage = () => {
+            const width = window.innerWidth;
+            if (width < 640) setCardsPerPage(1);
+            else if (width < 1024) setCardsPerPage(2);
+            else setCardsPerPage(4);
+        };
+        updateCardsPerPage();
+        window.addEventListener('resize', updateCardsPerPage);
+        return () => window.removeEventListener('resize', updateCardsPerPage);
+    }, []);
+
+    // Reset page when cardsPerPage changes
+    useEffect(() => {
+        setCurrentPage(0);
+    }, [cardsPerPage]);
+
     const totalPages = Math.ceil(doctors.length / cardsPerPage);
 
     // Auto-rotate every 3 seconds
@@ -242,7 +263,17 @@ function DoctorsCarousel({ doctors }) {
                     onMouseLeave={() => setIsHovered(false)}>
                     <div
                         ref={carouselRef}
-                        className='overflow-hidden scroll-smooth'>
+                        className='overflow-hidden scroll-smooth'
+                        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+                        onTouchEnd={(e) => {
+                            if (touchStartX.current === null) return;
+                            const diff = touchStartX.current - e.changedTouches[0].clientX;
+                            if (Math.abs(diff) > 50) {
+                                if (diff > 0) goNext();
+                                else goPrev();
+                            }
+                            touchStartX.current = null;
+                        }}>
                         <div
                             className='flex'
                             style={{
@@ -282,7 +313,7 @@ function DoctorsCarousel({ doctors }) {
                                             <div className='bg-white rounded-2xl border border-slate-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-slate-200 hover:-translate-y-1 h-full flex flex-col'>
                                                 {/* Photo Section */}
                                                 <div className='relative'>
-                                                    <div className='aspect-[4/5] overflow-hidden bg-slate-100'>
+                                                    <div className='aspect-square sm:aspect-[4/5] overflow-hidden bg-slate-100'>
                                                         {photoUrl ? (
                                                             <img
                                                                 src={photoUrl}
@@ -603,7 +634,7 @@ function LandingPage() {
                                     transition: "transform 0.15s ease-out",
                                     transformStyle: "preserve-3d",
                                 }}>
-                                <Card className='relative bg-white/95 backdrop-blur shadow-2xl border-0 overflow-hidden'>
+                                <Card className='relative bg-white/70 backdrop-blur-md shadow-2xl border-0 overflow-hidden'>
                                     {/* Shine effect */}
                                     <div
                                         className='absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none'

@@ -101,6 +101,29 @@ export default factories.createCoreController('api::appointment.appointment', ()
     };
   },
 
+  async findOne(ctx) {
+    const user = ctx.state.user;
+    if (!user) return ctx.forbidden('Not authenticated');
+
+    const { id } = ctx.params;
+    const populate = {
+      doctor: { populate: ['specialization', 'photo'] },
+      patient: { fields: ['id', 'fullName', 'email', 'phone', 'username'] },
+      medical_documents: true,
+    } as any;
+
+    const appointment = await strapi.documents('api::appointment.appointment').findOne({
+      documentId: id,
+      populate,
+    });
+
+    if (!appointment) {
+      return ctx.notFound('Appointment not found');
+    }
+
+    return { data: appointment };
+  },
+
   async create(ctx) {
     const user = ctx.state.user;
     if (!user) return ctx.forbidden('Not authenticated');

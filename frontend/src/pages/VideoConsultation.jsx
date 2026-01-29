@@ -30,13 +30,15 @@ import {
   Link as LinkIcon,
   FolderOpen,
   ExternalLink,
+  Star,
+  PhoneOff,
 } from 'lucide-react'
 import { io } from 'socket.io-client'
 import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import { cn } from '../utils/helpers'
 import useAuthStore from '../stores/authStore'
-import api, { documentsAPI, uploadFile, getMediaUrl } from '../services/api'
+import api, { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl } from '../services/api'
 
 const ICE_SERVERS = {
   iceServers: [
@@ -97,6 +99,17 @@ function VideoConsultation() {
   const [patientDocuments, setPatientDocuments] = useState([])
   const [isLoadingDocs, setIsLoadingDocs] = useState(false)
 
+  // Rating state (patient)
+  const [showRatingModal, setShowRatingModal] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [reviewText, setReviewText] = useState('')
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false)
+
+  // Force complete state (doctor)
+  const [isCompletingCall, setIsCompletingCall] = useState(false)
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
+
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
   const localStreamRef = useRef(null)
@@ -155,17 +168,17 @@ function VideoConsultation() {
   }, [appointment?.patient?.id, isDoctor])
 
   const getParticipantInfo = () => {
-    if (remoteUser) {
-      return { name: remoteUser.userName, role: remoteUser.userRole === 'doctor' ? 'Врач' : 'Пациент' }
-    }
     if (!appointment) {
+      if (remoteUser?.userName) {
+        return { name: remoteUser.userName, role: remoteUser.userRole === 'doctor' ? 'Врач' : 'Пациент' }
+      }
       return { name: 'Ожидание...', role: '' }
     }
 
-    const userRole = user?.userRole || 'patient'
-    if (userRole === 'doctor') {
-      // Get patient name with fallbacks
-      const patientName = appointment.patient?.fullName ||
+    if (isDoctor) {
+      // Doctor sees patient info
+      const patientName = remoteUser?.userName ||
+                          appointment.patient?.fullName ||
                           appointment.patient?.username ||
                           appointment.patient?.email?.split('@')[0] ||
                           'Пациент'
@@ -174,8 +187,13 @@ function VideoConsultation() {
         role: 'Пациент'
       }
     }
+
+    // Patient sees doctor info
+    const doctorName = appointment.doctor?.fullName ||
+                       remoteUser?.userName ||
+                       'Врач'
     return {
-      name: appointment.doctor?.fullName || 'Врач',
+      name: doctorName,
       role: typeof appointment.doctor?.specialization === 'object'
         ? appointment.doctor.specialization?.name
         : appointment.doctor?.specialization || 'Специалист'
@@ -394,14 +412,58 @@ function VideoConsultation() {
     setTimeout(() => setLinkCopied(false), 2000)
   }
 
-  const endCall = () => {
+  const cleanupCall = () => {
     localStreamRef.current?.getTracks().forEach(track => track.stop())
     peerConnectionRef.current?.close()
     socketRef.current?.emit('leave-room')
     socketRef.current?.disconnect()
+  }
 
-    const userRole = user?.userRole || 'patient'
-    navigate(userRole === 'doctor' ? '/doctor' : '/patient/appointments')
+  const endCall = () => {
+    cleanupCall()
+    if (isDoctor) {
+      navigate('/doctor')
+    } else {
+      // Patient — show rating modal
+      setShowRatingModal(true)
+    }
+  }
+
+  const forceCompleteCall = async () => {
+    if (!appointment?.documentId) return
+    setIsCompletingCall(true)
+    try {
+      await appointmentsAPI.update(appointment.documentId, { status: 'completed' })
+      cleanupCall()
+      navigate('/doctor')
+    } catch (err) {
+      console.error('Error completing appointment:', err)
+      setIsCompletingCall(false)
+      setShowCompleteConfirm(false)
+    }
+  }
+
+  const submitRating = async () => {
+    if (!appointment?.documentId || rating === 0) return
+    setIsSubmittingRating(true)
+    try {
+      await appointmentsAPI.update(appointment.documentId, {
+        rating,
+        review: reviewText.trim() || undefined,
+        status: 'completed',
+      })
+    } catch (err) {
+      console.error('Error submitting rating:', err)
+    } finally {
+      setIsSubmittingRating(false)
+      setShowRatingModal(false)
+      navigate('/patient/appointments')
+    }
+  }
+
+  const skipRating = () => {
+    setShowRatingModal(false)
+    navigate('/patient/appointments')
   }
 
   const sendMessage = (e) => {
@@ -694,6 +756,17 @@ function VideoConsultation() {
                 <Phone className="w-5 h-5 rotate-[135deg]" />
               </button>
             </div>
+
+            {/* Force complete button — far right for doctor only */}
+            {isDoctor && (
+              <button
+                onClick={() => setShowCompleteConfirm(true)}
+                className="absolute right-6 bottom-8 h-10 px-4 bg-slate-700/80 hover:bg-emerald-600 text-white/80 hover:text-white rounded-xl flex items-center gap-2 transition-all text-sm font-medium backdrop-blur"
+              >
+                <Check className="w-4 h-4" />
+                Завершить встречу
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1014,6 +1087,126 @@ function VideoConsultation() {
           </div>
         )}
       </div>
+
+      {/* Doctor: Confirm Complete Modal */}
+      {showCompleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCompleteConfirm(false)} />
+          <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 animate-scaleIn">
+            <div className="text-center mb-5">
+              <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <PhoneOff className="w-7 h-7 text-amber-600" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900">Завершить встречу?</h2>
+              <p className="text-slate-500 text-sm mt-1">
+                Статус записи будет изменён на «Завершён». Это действие нельзя отменить.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setShowCompleteConfirm(false)}
+              >
+                Отмена
+              </Button>
+              <Button
+                className="flex-1 bg-emerald-500 hover:bg-emerald-600"
+                onClick={forceCompleteCall}
+                disabled={isCompletingCall}
+              >
+                {isCompletingCall ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Check className="w-4 h-4 mr-2" />
+                )}
+                Завершить
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Patient Rating Modal */}
+      {showRatingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 animate-scaleIn">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Star className="w-8 h-8 text-teal-600" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Оцените консультацию</h2>
+              <p className="text-slate-500 text-sm mt-1">
+                Ваш отзыв поможет улучшить качество обслуживания
+              </p>
+            </div>
+
+            {/* Stars */}
+            <div className="flex items-center justify-center gap-2 mb-6">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setRating(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  className="p-1 transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={cn(
+                      'w-10 h-10 transition-colors',
+                      (hoverRating || rating) >= star
+                        ? 'text-amber-400 fill-amber-400'
+                        : 'text-slate-300'
+                    )}
+                  />
+                </button>
+              ))}
+            </div>
+
+            {rating > 0 && (
+              <p className="text-center text-sm font-medium text-slate-600 mb-4">
+                {rating === 1 && 'Плохо'}
+                {rating === 2 && 'Ниже среднего'}
+                {rating === 3 && 'Нормально'}
+                {rating === 4 && 'Хорошо'}
+                {rating === 5 && 'Отлично'}
+              </p>
+            )}
+
+            {/* Review text */}
+            <div className="mb-6">
+              <textarea
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                placeholder="Напишите отзыв (необязательно)..."
+                className="w-full h-28 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={skipRating}
+              >
+                Пропустить
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={submitRating}
+                disabled={rating === 0 || isSubmittingRating}
+              >
+                {isSubmittingRating ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                Отправить
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

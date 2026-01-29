@@ -12,6 +12,7 @@ import {
   Stethoscope,
   Tags,
   Activity,
+  X,
 } from 'lucide-react'
 import { cn } from '../../utils/helpers'
 import useAuthStore from '../../stores/authStore'
@@ -31,7 +32,7 @@ const iconMap = {
   activity: Activity,
 }
 
-function Sidebar({ navItems }) {
+function Sidebar({ navItems, onNavClick }) {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
 
@@ -41,17 +42,25 @@ function Sidebar({ navItems }) {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-slate-100 flex flex-col z-40">
+    <aside className="h-screen w-64 bg-white border-r border-slate-100 flex flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-slate-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center">
-            <Activity className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center">
+              <Activity className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-slate-900">MedConnect</h1>
+              <p className="text-xs text-slate-500">Телемедицина</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-slate-900">MedConnect</h1>
-            <p className="text-xs text-slate-500">Телемедицина</p>
-          </div>
+          <button
+            onClick={onNavClick}
+            className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
@@ -64,6 +73,7 @@ function Sidebar({ navItems }) {
               key={item.path}
               to={item.path}
               end={item.path.split('/').length <= 2}
+              onClick={onNavClick}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
