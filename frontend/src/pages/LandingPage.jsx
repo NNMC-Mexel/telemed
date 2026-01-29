@@ -497,12 +497,20 @@ function LandingPage() {
     return (
         <div className='overflow-hidden'>
             {/* Hero Section */}
-            <section className='relative min-h-screen flex items-center bg-gradient-to-br from-teal-600 via-teal-700 to-sky-800'>
+            <section className='relative min-h-screen flex items-center'>
+                {/* Background Image */}
+                <div className='absolute inset-0'>
+                    <img
+                        src='/background.png'
+                        alt=''
+                        className='w-full h-full object-cover'
+                    />
+                    <div className='absolute inset-0 bg-gradient-to-r from-teal-800/85 via-teal-700/75 to-sky-800/65' />
+                </div>
                 {/* Background Effects */}
-                <div className='absolute inset-0 overflow-hidden'>
+                <div className='absolute inset-0 overflow-hidden pointer-events-none'>
                     <div className='absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl' />
-                    <div className='absolute bottom-20 right-20 w-96 h-96 bg-sky-300/20 rounded-full blur-3xl' />
-                    <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-400/10 rounded-full blur-3xl' />
+                    <div className='absolute bottom-20 right-20 w-96 h-96 bg-sky-300/10 rounded-full blur-3xl' />
                 </div>
 
                 <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32'>
@@ -1093,7 +1101,7 @@ function LandingPage() {
                         <div className='lg:col-span-3 rounded-2xl overflow-hidden shadow-lg border border-slate-200 min-h-[320px]'>
                             <iframe
                                 title='MedConnect Location'
-                                src='https://www.google.com/maps?q=%D0%BF%D1%80%D0%BE%D1%81%D0%BF.%20%D0%90%D0%B1%D1%8B%D0%BB%D0%B0%D0%B9%20%D1%85%D0%B0%D0%BD%D0%B0%2C%2042%2C%20%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0&output=embed'
+                                src='https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2505.5!2d71.4926513!3d51.1492038!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4245817a521995c9%3A0xe653c982ba77912!2z0J3QsNGG0LjQvtC90LDQu9GM0L3Ri9C5INC90LDRg9GH0L3Ri9C5INC80LXQtNC40YbQuNC90YHQutC40Lkg0YbQtdC90YLRgA!5e0!3m2!1sru!2skz!4v1700000000000!5m2!1sru!2skz'
                                 width='100%'
                                 height='100%'
                                 style={{ border: 0, minHeight: "320px" }}
