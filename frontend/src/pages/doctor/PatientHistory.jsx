@@ -144,30 +144,30 @@ function PatientHistory() {
       {/* Patient Info Header */}
       <Card>
         <CardContent>
-          <div className="flex items-center gap-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 min-w-0">
             <Avatar
               src={getMediaUrl(patient?.avatar)}
               name={patientName}
               size="xl"
             />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-slate-900">{patientName}</h1>
-              <div className="flex flex-wrap items-center gap-4 mt-2">
+            <div className="flex-1 min-w-0 sm:pr-4">
+              <h1 className="text-2xl font-bold text-slate-900 break-words">{patientName}</h1>
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mt-2 min-w-0">
                 {patient?.email && (
-                  <span className="flex items-center gap-1.5 text-sm text-slate-500">
+                  <span className="flex items-center gap-1.5 text-sm text-slate-500 min-w-0">
                     <Mail className="w-4 h-4" />
-                    {patient.email}
+                    <span className="truncate">{patient.email}</span>
                   </span>
                 )}
                 {patient?.phone && (
-                  <span className="flex items-center gap-1.5 text-sm text-slate-500">
+                  <span className="flex items-center gap-1.5 text-sm text-slate-500 min-w-0">
                     <Phone className="w-4 h-4" />
-                    {patient.phone}
+                    <span className="truncate">{patient.phone}</span>
                   </span>
                 )}
               </div>
             </div>
-            <div className="text-right">
+            <div className="sm:text-right w-full sm:w-auto shrink-0">
               <p className="text-3xl font-bold text-teal-600">{appointments.length}</p>
               <p className="text-sm text-slate-500">визитов</p>
             </div>
