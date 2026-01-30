@@ -113,3 +113,45 @@ export const isValidPhone = (phone) => {
 export const isValidIIN = (iin) => {
   return /^\d{12}$/.test(iin)
 }
+
+// Check if doctor is currently within working hours
+export const isDoctorOnline = (doctor) => {
+  if (doctor.isActive === false) return false
+
+  const now = new Date()
+  const currentDay = now.getDay() // 0=Sun, 1=Mon, ...
+
+  // Check working days
+  if (doctor.workingDays) {
+    const days = typeof doctor.workingDays === 'string'
+      ? doctor.workingDays.split(',').map(Number).filter(n => !isNaN(n))
+      : doctor.workingDays
+    if (!days.includes(currentDay)) return false
+  }
+
+  // Check working hours
+  const startTime = doctor.workStartTime
+  const endTime = doctor.workEndTime
+  if (startTime && endTime) {
+    const [sh, sm] = startTime.split(':').map(Number)
+    const [eh, em] = endTime.split(':').map(Number)
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    const startMinutes = sh * 60 + sm
+    const endMinutes = eh * 60 + em
+    if (currentMinutes < startMinutes || currentMinutes >= endMinutes) return false
+  }
+
+  // Check break time
+  const breakStart = doctor.breakStart
+  const breakEnd = doctor.breakEnd
+  if (breakStart && breakEnd) {
+    const [bsh, bsm] = breakStart.split(':').map(Number)
+    const [beh, bem] = breakEnd.split(':').map(Number)
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    const breakStartMinutes = bsh * 60 + bsm
+    const breakEndMinutes = beh * 60 + bem
+    if (currentMinutes >= breakStartMinutes && currentMinutes < breakEndMinutes) return false
+  }
+
+  return true
+}

@@ -26,6 +26,7 @@ import { cn, formatPrice } from "../../utils/helpers";
 import { getMediaUrl, getBookedSlots } from "../../services/api";
 import useAppointmentStore from "../../stores/appointmentStore";
 import useAuthStore from "../../stores/authStore";
+import { useToast } from "../ui/Toast";
 
 // Функция генерации временных слотов на основе настроек врача
 const generateTimeSlots = (doctor) => {
@@ -125,6 +126,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const { user } = useAuthStore();
     const { createAppointment, fetchTimeSlots, timeSlots } =
         useAppointmentStore();
+    const toast = useToast();
 
     const [step, setStep] = useState(1);
     const [selectedDate, setSelectedDate] = useState(null);
@@ -220,6 +222,19 @@ function BookingModal({ isOpen, onClose, doctor }) {
         setError(null);
 
         try {
+            // Перепроверяем занятые слоты перед бронированием
+            const dateStr = format(selectedDate, "yyyy-MM-dd");
+            const freshBooked = await getBookedSlots(doctor.id, dateStr);
+            setBookedSlots(freshBooked);
+
+            if (freshBooked.includes(selectedTime)) {
+                toast.error("К сожалению, выбранное время было забронировано другим пациентом. Пожалуйста, выберите другое свободное время.");
+                setSelectedTime(null);
+                setStep(1);
+                setIsProcessing(false);
+                return;
+            }
+
             const dateTime = new Date(selectedDate);
             const [hours, minutes] = selectedTime.split(":");
             dateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
@@ -229,7 +244,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 doctor: doctor.id,
                 dateTime: dateTime.toISOString(),
                 type: consultationType,
-                status: "pending", // будет преобразовано в statuse в API
+                status: "pending",
                 price: doctorPrice,
                 paymentStatus: "pending",
                 roomId: `room-${Date.now()}-${Math.random()
@@ -240,7 +255,18 @@ function BookingModal({ isOpen, onClose, doctor }) {
             if (result.success) {
                 setIsComplete(true);
             } else {
-                setError(result.error || "Ошибка создания записи");
+                const msg = result.error || "Ошибка создания записи";
+                toast.error(msg);
+                setError(msg);
+                // Если время занято — сразу возвращаем на выбор времени
+                if (msg.includes("забронировано") || msg.includes("занято")) {
+                    // Добавляем слот в занятые, чтобы он исчез из списка
+                    if (selectedTime) {
+                        setBookedSlots(prev => [...prev, selectedTime]);
+                    }
+                    setSelectedTime(null);
+                    setStep(1);
+                }
             }
         } catch (err) {
             setError("Произошла ошибка. Попробуйте позже.");
@@ -378,21 +404,21 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     )}
 
                     {/* Doctor Info */}
-                    <div className='flex items-center gap-4 p-4 bg-slate-50 rounded-xl mb-6'>
+                    <div className='flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-slate-50 rounded-xl mb-6 min-w-0'>
                         <Avatar
                             src={getMediaUrl(doctor.photo)}
                             name={doctorName}
                             size='lg'
                         />
-                        <div>
-                            <h3 className='font-semibold text-slate-900'>
+                        <div className='min-w-0'>
+                            <h3 className='font-semibold text-slate-900 break-words'>
                                 {doctorName}
                             </h3>
                             <p className='text-sm text-teal-600'>
                                 {doctorSpecialization}
                             </p>
                         </div>
-                        <div className='ml-auto text-right'>
+                        <div className='sm:ml-auto sm:text-right w-full sm:w-auto'>
                             <p className='font-bold text-slate-900'>
                                 {formatPrice(doctorPrice)}
                             </p>
@@ -523,17 +549,17 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                         ? "border-teal-600 bg-teal-50"
                                         : "border-slate-200 hover:border-slate-300"
                                 )}>
-                                <div className='flex items-center gap-4'>
+                                <div className='flex flex-col sm:flex-row sm:items-center gap-4 min-w-0'>
                                     <div
                                         className={cn(
-                                            "w-12 h-12 rounded-xl flex items-center justify-center",
+                                            "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
                                             consultationType === "video"
                                                 ? "bg-teal-600 text-white"
                                                 : "bg-slate-100 text-slate-600"
                                         )}>
                                         <Video className='w-6 h-6' />
                                     </div>
-                                    <div className='flex-1'>
+                                    <div className='flex-1 min-w-0'>
                                         <h4 className='font-semibold text-slate-900'>
                                             Видеоконсультация
                                         </h4>
@@ -542,7 +568,9 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                             времени
                                         </p>
                                     </div>
-                                    <Badge variant='primary'>Рекомендуем</Badge>
+                                    <Badge variant='primary' className='self-start sm:self-auto'>
+                                        Рекомендуем
+                                    </Badge>
                                 </div>
                             </button>
 
@@ -554,17 +582,17 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                         ? "border-teal-600 bg-teal-50"
                                         : "border-slate-200 hover:border-slate-300"
                                 )}>
-                                <div className='flex items-center gap-4'>
+                                <div className='flex flex-col sm:flex-row sm:items-center gap-4 min-w-0'>
                                     <div
                                         className={cn(
-                                            "w-12 h-12 rounded-xl flex items-center justify-center",
+                                            "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
                                             consultationType === "chat"
                                                 ? "bg-teal-600 text-white"
                                                 : "bg-slate-100 text-slate-600"
                                         )}>
                                         <MessageCircle className='w-6 h-6' />
                                     </div>
-                                    <div className='flex-1'>
+                                    <div className='flex-1 min-w-0'>
                                         <h4 className='font-semibold text-slate-900'>
                                             Чат-консультация
                                         </h4>

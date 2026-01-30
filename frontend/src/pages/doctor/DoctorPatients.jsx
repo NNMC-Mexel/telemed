@@ -185,7 +185,57 @@ function DoctorPatients() {
               onClick={() => navigate(`/doctor/patients/${patient.id}`)}
             >
               <CardContent>
-                <div className="flex items-center gap-4">
+                {/* Mobile Layout */}
+                <div className="sm:hidden">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Avatar
+                      src={getMediaUrl(patient.avatar)}
+                      name={patient.fullName || patient.username}
+                      size="md"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-slate-900 truncate">
+                        {patient.fullName || patient.username || 'Пациент'}
+                      </h3>
+                      <p className="text-xs text-slate-500 truncate mt-0.5">
+                        {patient.email}
+                      </p>
+                    </div>
+                    <div className="text-center flex-shrink-0">
+                      <p className="text-xl font-bold text-teal-600">{patient.appointmentsCount}</p>
+                      <p className="text-xs text-slate-500">визитов</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-3 px-1">
+                    {patient.phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        {patient.phone}
+                      </span>
+                    )}
+                    <span>Визит: {formatDate(patient.lastVisit, 'dd.MM.yyyy')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="secondary" size="sm" className="flex-1" onClick={(e) => e.stopPropagation()}>
+                      <MessageCircle className="w-4 h-4 mr-1" />
+                      Чат
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/doctor/patients/${patient.id}`)
+                      }}
+                    >
+                      <History className="w-4 h-4 mr-1" />
+                      История
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Desktop Layout */}
+                <div className="hidden sm:flex items-center gap-4">
                   <Avatar
                     src={getMediaUrl(patient.avatar)}
                     name={patient.fullName || patient.username}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   FileText,
   Download,
@@ -11,12 +11,17 @@ import {
   Trash2,
   X,
   Loader2,
+  ChevronRight,
+  ArrowLeft,
+  FolderOpen,
+  Stethoscope,
+  ArrowUpDown,
 } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
-import { formatDate } from '../../utils/helpers'
+import { formatDate, cn } from '../../utils/helpers'
 import useDocumentStore from '../../stores/documentStore'
 import useAuthStore from '../../stores/authStore'
 import api, { getMediaUrl } from '../../services/api'
@@ -30,25 +35,28 @@ const documentTypes = {
 
 function PatientDocuments() {
   const { user } = useAuthStore()
-  const { 
-    documents, 
-    isLoading, 
-    isUploading, 
+  const {
+    documents,
+    isLoading,
+    isUploading,
     error,
-    fetchDocuments, 
+    fetchDocuments,
     uploadDocument,
     deleteDocument,
   } = useDocumentStore()
-  
+
+  // View state
+  const [selectedFolder, setSelectedFolder] = useState(null)
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortNewest, setSortNewest] = useState(true)
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [previewError, setPreviewError] = useState(null)
   const [isPreviewLoading, setIsPreviewLoading] = useState(false)
-  
+
   // Upload form state
   const [uploadFileState, setUploadFileState] = useState(null)
   const [uploadTitle, setUploadTitle] = useState('')
@@ -56,13 +64,13 @@ function PatientDocuments() {
   const [uploadDescription, setUploadDescription] = useState('')
   const fileInputRef = useRef(null)
 
-  // Загружаем документы при монтировании
   useEffect(() => {
     if (user?.id) {
       fetchDocuments({ userId: user.id })
     }
   }, [user?.id, fetchDocuments])
 
+  // Preview logic
   useEffect(() => {
     let isActive = true
     let objectUrl = null
@@ -106,13 +114,65 @@ function PatientDocuments() {
     }
   }, [selectedDocument?.file?.url, selectedDocument?.file?.mime, selectedDocument?.id])
 
-  const filteredDocuments = documents.filter(doc => {
-    const matchesFilter = filter === 'all' || doc.type === filter
-    const matchesSearch = 
-      doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.doctor?.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesFilter && matchesSearch
-  })
+  // Group documents by appointment (consultation folders)
+  const { folders, ungroupedDocs } = useMemo(() => {
+    const grouped = {}
+    const ungrouped = []
+
+    for (const doc of documents) {
+      const apt = doc.appointment
+      if (apt) {
+        const aptKey = apt.documentId || apt.id
+        if (!grouped[aptKey]) {
+          grouped[aptKey] = {
+            id: aptKey,
+            dateTime: apt.dateTime,
+            doctor: apt.doctor || doc.doctor,
+            docs: [],
+          }
+        }
+        grouped[aptKey].docs.push(doc)
+        if (apt.doctor && !grouped[aptKey].doctor) {
+          grouped[aptKey].doctor = apt.doctor
+        }
+      } else {
+        ungrouped.push(doc)
+      }
+    }
+
+    let folderList = Object.values(grouped)
+    folderList.sort((a, b) => {
+      const dateA = new Date(a.dateTime || 0)
+      const dateB = new Date(b.dateTime || 0)
+      return sortNewest ? dateB - dateA : dateA - dateB
+    })
+
+    return { folders: folderList, ungroupedDocs: ungrouped }
+  }, [documents, sortNewest])
+
+  // Filter folders by search query (doctor name)
+  const filteredFolders = useMemo(() => {
+    if (!searchQuery.trim()) return folders
+    const q = searchQuery.toLowerCase()
+    return folders.filter(f => {
+      const doctorName = f.doctor?.fullName || ''
+      const specName = typeof f.doctor?.specialization === 'object'
+        ? f.doctor.specialization?.name || ''
+        : f.doctor?.specialization || ''
+      return doctorName.toLowerCase().includes(q) || specName.toLowerCase().includes(q)
+    })
+  }, [folders, searchQuery])
+
+  // Documents inside selected folder, filtered by type
+  const folderDocuments = useMemo(() => {
+    if (!selectedFolder) return []
+    const docs = selectedFolder.id === '__uploads__'
+      ? ungroupedDocs
+      : (folders.find(f => f.id === selectedFolder.id)?.docs || [])
+
+    if (filter === 'all') return docs
+    return docs.filter(d => d.type === filter)
+  }, [selectedFolder, folders, ungroupedDocs, filter])
 
   const stats = {
     total: documents.length,
@@ -125,9 +185,7 @@ function PatientDocuments() {
     const file = e.target.files?.[0]
     if (file) {
       setUploadFileState(file)
-      if (!uploadTitle) {
-        setUploadTitle(file.name.replace(/\.[^/.]+$/, ''))
-      }
+      if (!uploadTitle) setUploadTitle(file.name.replace(/\.[^/.]+$/, ''))
     }
   }
 
@@ -136,22 +194,18 @@ function PatientDocuments() {
     const file = e.dataTransfer.files?.[0]
     if (file) {
       setUploadFileState(file)
-      if (!uploadTitle) {
-        setUploadTitle(file.name.replace(/\.[^/.]+$/, ''))
-      }
+      if (!uploadTitle) setUploadTitle(file.name.replace(/\.[^/.]+$/, ''))
     }
   }
 
   const handleUpload = async () => {
     if (!uploadFileState || !uploadTitle) return
-    
     const result = await uploadDocument(uploadFileState, {
       title: uploadTitle,
       type: uploadType,
       description: uploadDescription,
       userId: user.id,
     })
-    
     if (result.success) {
       setShowUploadModal(false)
       resetUploadForm()
@@ -167,16 +221,12 @@ function PatientDocuments() {
 
   const handleDelete = async (id) => {
     const result = await deleteDocument(id)
-    if (result.success) {
-      setShowDeleteConfirm(null)
-    }
+    if (result.success) setShowDeleteConfirm(null)
   }
 
   const handleDownload = (doc) => {
     const url = getMediaUrl(doc.file)
-    if (url) {
-      window.open(url, '_blank')
-    }
+    if (url) window.open(url, '_blank')
   }
 
   const getFileSize = (file) => {
@@ -184,6 +234,36 @@ function PatientDocuments() {
     const kb = file.size / 1024
     if (kb < 1024) return `${Math.round(kb)} KB`
     return `${(kb / 1024).toFixed(1)} MB`
+  }
+
+  const getDocTypeBadges = (docs) => {
+    const types = [...new Set(docs.map(d => d.type).filter(Boolean))]
+    return types.map(t => documentTypes[t] || documentTypes.other)
+  }
+
+  const getDoctorInfo = (folder) => {
+    const doctor = folder.doctor
+    if (!doctor) return null
+    const specName = typeof doctor.specialization === 'object'
+      ? doctor.specialization?.name
+      : doctor.specialization
+    return { name: doctor.fullName, spec: specName }
+  }
+
+  const getDocCountWord = (count) => {
+    if (count === 1) return 'документ'
+    if (count >= 2 && count <= 4) return 'документа'
+    return 'документов'
+  }
+
+  const openFolder = (folder) => {
+    setSelectedFolder(folder)
+    setFilter('all')
+  }
+
+  const closeFolder = () => {
+    setSelectedFolder(null)
+    setFilter('all')
   }
 
   const isImagePreview = selectedDocument?.file?.mime?.startsWith('image/')
@@ -202,11 +282,8 @@ function PatientDocuments() {
         </Button>
       </div>
 
-      {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
-          {error}
-        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">{error}</div>
       )}
 
       {/* Stats */}
@@ -237,20 +314,171 @@ function PatientDocuments() {
         ))}
       </div>
 
-      {/* Filters & Search */}
-      <Card>
-        <CardContent className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Поиск документов..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
+      {/* Content Area */}
+      {isLoading ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <Loader2 className="w-8 h-8 mx-auto text-teal-600 animate-spin mb-4" />
+            <p className="text-slate-600">Загрузка документов...</p>
+          </CardContent>
+        </Card>
+      ) : !selectedFolder ? (
+        /* ========== FOLDER VIEW ========== */
+        <>
+          {/* Search & Sort */}
+          <Card>
+            <CardContent className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Поиск по врачу..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+              <button
+                onClick={() => setSortNewest(prev => !prev)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                <ArrowUpDown className="w-4 h-4" />
+                {sortNewest ? 'Сначала новые' : 'Сначала старые'}
+              </button>
+            </CardContent>
+          </Card>
+
+          {/* Consultation Folders */}
+          <div className="space-y-3">
+            {filteredFolders.length === 0 && ungroupedDocs.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <FolderOpen className="w-16 h-16 mx-auto text-slate-300 mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">Документы не найдены</h3>
+                  <p className="text-slate-600">
+                    {searchQuery ? 'Попробуйте изменить параметры поиска' : 'У вас пока нет документов'}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {filteredFolders.map((folder) => {
+                  const doctorInfo = getDoctorInfo(folder)
+                  const typeBadges = getDocTypeBadges(folder.docs)
+                  return (
+                    <Card
+                      key={folder.id}
+                      hover
+                      className="cursor-pointer"
+                      onClick={() => openFolder(folder)}
+                    >
+                      <CardContent>
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center flex-shrink-0">
+                            <Stethoscope className="w-6 h-6 text-teal-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-slate-900">
+                              Консультация — {formatDate(folder.dateTime)}
+                            </h3>
+                            {doctorInfo && (
+                              <p className="text-sm text-slate-600 mt-0.5">
+                                {doctorInfo.name}
+                                {doctorInfo.spec && <span className="text-slate-400"> · {doctorInfo.spec}</span>}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              <span className="text-xs text-slate-500">
+                                {folder.docs.length} {getDocCountWord(folder.docs.length)}
+                              </span>
+                              {typeBadges.map((badge, i) => (
+                                <Badge key={i} className={cn('text-xs', badge.color)}>{badge.label}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+
+                {/* Ungrouped docs folder */}
+                {ungroupedDocs.length > 0 && (
+                  <Card
+                    hover
+                    className="cursor-pointer"
+                    onClick={() => openFolder({ id: '__uploads__', label: 'Мои загрузки' })}
+                  >
+                    <CardContent>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                          <FolderOpen className="w-6 h-6 text-amber-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-slate-900">Мои загрузки</h3>
+                          <p className="text-sm text-slate-500 mt-1">
+                            {ungroupedDocs.length} {getDocCountWord(ungroupedDocs.length)}
+                          </p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </div>
+        </>
+      ) : (
+        /* ========== INSIDE FOLDER VIEW ========== */
+        <>
+          {/* Back button & folder header */}
+          <div>
+            <button
+              onClick={closeFolder}
+              className="flex items-center gap-2 text-teal-600 hover:text-teal-700 font-medium mb-3 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Назад к консультациям
+            </button>
+            <Card>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    'w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0',
+                    selectedFolder.id === '__uploads__' ? 'bg-amber-50' : 'bg-teal-50'
+                  )}>
+                    {selectedFolder.id === '__uploads__'
+                      ? <FolderOpen className="w-6 h-6 text-amber-600" />
+                      : <Stethoscope className="w-6 h-6 text-teal-600" />
+                    }
+                  </div>
+                  <div>
+                    {selectedFolder.id === '__uploads__' ? (
+                      <h2 className="text-lg font-semibold text-slate-900">Мои загрузки</h2>
+                    ) : (
+                      <>
+                        <h2 className="text-lg font-semibold text-slate-900">
+                          Консультация — {formatDate(selectedFolder.dateTime)}
+                        </h2>
+                        {getDoctorInfo(selectedFolder) && (
+                          <p className="text-slate-600 mt-0.5">
+                            {getDoctorInfo(selectedFolder).name}
+                            {getDoctorInfo(selectedFolder).spec && (
+                              <span className="text-slate-400"> · {getDoctorInfo(selectedFolder).spec}</span>
+                            )}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
+          {/* Type filter */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setFilter('all')}
@@ -272,79 +500,70 @@ function PatientDocuments() {
               </button>
             ))}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Documents List */}
-      <div className="space-y-3">
-        {isLoading ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <Loader2 className="w-8 h-8 mx-auto text-teal-600 animate-spin mb-4" />
-              <p className="text-slate-600">Загрузка документов...</p>
-            </CardContent>
-          </Card>
-        ) : filteredDocuments.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <FileText className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">Документы не найдены</h3>
-              <p className="text-slate-600">
-                {searchQuery ? 'Попробуйте изменить параметры поиска' : 'У вас пока нет документов'}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredDocuments.map((doc) => {
-            const typeConfig = documentTypes[doc.type] || documentTypes.other
-            return (
-              <Card key={doc.id} hover className="cursor-pointer" onClick={() => setSelectedDocument(doc)}>
-                <CardContent>
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl ${typeConfig.color} flex items-center justify-center`}>
-                      <typeConfig.icon className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-slate-900">{doc.title}</h3>
-                      <div className="flex items-center gap-4 mt-1 flex-wrap">
-                        {doc.doctor?.fullName && (
-                          <>
-                            <span className="text-sm text-slate-500">{doc.doctor.fullName}</span>
-                            <span className="text-sm text-slate-400">•</span>
-                          </>
-                        )}
-                        <span className="text-sm text-slate-500 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(doc.createdAt)}
-                        </span>
-                        <span className="text-sm text-slate-400">•</span>
-                        <span className="text-sm text-slate-500">{getFileSize(doc.file)}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={typeConfig.color}>{typeConfig.label}</Badge>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDownload(doc) }}
-                        className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
-                        title="Скачать"
-                      >
-                        <Download className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(doc.id) }}
-                        className="p-2 hover:bg-red-100 rounded-lg text-slate-500 hover:text-red-600"
-                        title="Удалить"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
+          {/* Documents list */}
+          <div className="space-y-3">
+            {folderDocuments.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <FileText className="w-16 h-16 mx-auto text-slate-300 mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">Нет документов</h3>
+                  <p className="text-slate-600">В этой категории пока нет документов</p>
                 </CardContent>
               </Card>
-            )
-          })
-        )}
-      </div>
+            ) : (
+              folderDocuments.map((doc) => {
+                const typeConfig = documentTypes[doc.type] || documentTypes.other
+                return (
+                  <Card key={doc.id} hover className="cursor-pointer" onClick={() => setSelectedDocument(doc)}>
+                    <CardContent>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl ${typeConfig.color} flex items-center justify-center flex-shrink-0`}>
+                          <typeConfig.icon className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-slate-900">{doc.title}</h3>
+                          <div className="flex items-center gap-4 mt-1 flex-wrap">
+                            {doc.doctor?.fullName && (
+                              <>
+                                <span className="text-sm text-slate-500">{doc.doctor.fullName}</span>
+                                <span className="text-sm text-slate-400">&middot;</span>
+                              </>
+                            )}
+                            <span className="text-sm text-slate-500 flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(doc.createdAt)}
+                            </span>
+                            <span className="text-sm text-slate-400">&middot;</span>
+                            <span className="text-sm text-slate-500">{getFileSize(doc.file)}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Badge className={typeConfig.color}>{typeConfig.label}</Badge>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDownload(doc) }}
+                            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
+                            title="Скачать"
+                          >
+                            <Download className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(doc.id) }}
+                            className="p-2 hover:bg-red-100 rounded-lg text-slate-500 hover:text-red-600"
+                            title="Удалить"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            )}
+          </div>
+        </>
+      )}
 
       {/* Document Preview Modal */}
       <Modal
@@ -459,7 +678,7 @@ function PatientDocuments() {
         }
       >
         <div className="space-y-4">
-          <div 
+          <div
             onClick={() => fileInputRef.current?.click()}
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
@@ -522,8 +741,6 @@ function PatientDocuments() {
               placeholder="Дополнительная информация о документе..."
             />
           </div>
-
-          <p className="text-sm text-slate-500">💡 Загруженные документы будут доступны вашим врачам для просмотра</p>
         </div>
       </Modal>
 

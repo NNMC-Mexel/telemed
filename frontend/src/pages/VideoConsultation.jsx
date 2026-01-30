@@ -29,6 +29,8 @@ import {
   User,
   Link as LinkIcon,
   FolderOpen,
+  Folder,
+  ChevronDown,
   ExternalLink,
   Star,
   PhoneOff,
@@ -96,6 +98,8 @@ function VideoConsultation() {
   const [diagnosisSaved, setDiagnosisSaved] = useState(false)
   const [planSaved, setPlanSaved] = useState(false)
   const [prescriptionsSaved, setPrescriptionsSaved] = useState(false)
+  // Track existing document IDs to update instead of create duplicates
+  const [existingDocIds, setExistingDocIds] = useState({ certificate: null, other: null, prescription: null })
   const [patientDocuments, setPatientDocuments] = useState([])
   const [isLoadingDocs, setIsLoadingDocs] = useState(false)
 
@@ -116,6 +120,12 @@ function VideoConsultation() {
   const peerConnectionRef = useRef(null)
   const socketRef = useRef(null)
   const videoContainerRef = useRef(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      setSidebarOpen(false)
+    }
+  }, [])
   const chatEndRef = useRef(null)
 
   const isDoctor = user?.userRole === 'doctor'
@@ -149,7 +159,7 @@ function VideoConsultation() {
     fetchAppointment()
   }, [roomId])
 
-  // Fetch patient documents for doctor
+  // Fetch patient documents for doctor + load existing docs for this appointment
   useEffect(() => {
     const fetchPatientDocs = async () => {
       if (!isDoctor || !appointment?.patient?.id) return
@@ -158,6 +168,28 @@ function VideoConsultation() {
         const response = await documentsAPI.getAll({ userId: appointment.patient.id })
         const docs = response.data?.data || []
         setPatientDocuments(docs)
+
+        // Pre-fill forms with existing documents for this appointment
+        const aptId = appointment.documentId || appointment.id
+        const aptDocs = docs.filter(d => {
+          const docAptId = d.appointment?.documentId || d.appointment?.id
+          return docAptId && String(docAptId) === String(aptId)
+        })
+        const ids = { certificate: null, other: null, prescription: null }
+        for (const doc of aptDocs) {
+          const docId = doc.documentId || doc.id
+          if (doc.type === 'certificate' && !ids.certificate) {
+            ids.certificate = docId
+            setDiagnosisText(doc.description || '')
+          } else if (doc.type === 'other' && !ids.other) {
+            ids.other = docId
+            setPlanText(doc.description || '')
+          } else if (doc.type === 'prescription' && !ids.prescription) {
+            ids.prescription = docId
+            setPrescriptionsText(doc.description || '')
+          }
+        }
+        setExistingDocIds(ids)
       } catch (err) {
         console.error('Error fetching patient documents:', err)
       } finally {
@@ -493,15 +525,24 @@ function VideoConsultation() {
     if (!appointment?.id) return
     setIsSavingDiagnosis(true)
     try {
-      await documentsAPI.create({
-        title: 'Заключение врача',
-        type: 'certificate',
-        description: diagnosisText || '',
-        file: diagnosisFile?.id,
-        appointment: appointment.id,
-        user: appointment.patient?.id,
-        doctor: appointment.doctor?.id,
-      })
+      if (existingDocIds.certificate) {
+        await documentsAPI.update(existingDocIds.certificate, {
+          description: diagnosisText || '',
+          file: diagnosisFile?.id,
+        })
+      } else {
+        const res = await documentsAPI.create({
+          title: 'Заключение врача',
+          type: 'certificate',
+          description: diagnosisText || '',
+          file: diagnosisFile?.id,
+          appointment: appointment.id,
+          user: appointment.patient?.id,
+          doctor: appointment.doctor?.id,
+        })
+        const newDoc = res.data?.data
+        if (newDoc) setExistingDocIds(prev => ({ ...prev, certificate: newDoc.documentId || newDoc.id }))
+      }
       setDiagnosisSaved(true)
       setTimeout(() => setDiagnosisSaved(false), 2000)
     } catch (err) {
@@ -515,14 +556,22 @@ function VideoConsultation() {
     if (!appointment?.id || !planText.trim()) return
     setIsSavingPlan(true)
     try {
-      await documentsAPI.create({
-        title: 'План обследования',
-        type: 'other',
-        description: planText,
-        appointment: appointment.id,
-        user: appointment.patient?.id,
-        doctor: appointment.doctor?.id,
-      })
+      if (existingDocIds.other) {
+        await documentsAPI.update(existingDocIds.other, {
+          description: planText,
+        })
+      } else {
+        const res = await documentsAPI.create({
+          title: 'План обследования',
+          type: 'other',
+          description: planText,
+          appointment: appointment.id,
+          user: appointment.patient?.id,
+          doctor: appointment.doctor?.id,
+        })
+        const newDoc = res.data?.data
+        if (newDoc) setExistingDocIds(prev => ({ ...prev, other: newDoc.documentId || newDoc.id }))
+      }
       setPlanSaved(true)
       setTimeout(() => setPlanSaved(false), 2000)
     } catch (err) {
@@ -536,14 +585,22 @@ function VideoConsultation() {
     if (!appointment?.id || !prescriptionsText.trim()) return
     setIsSavingPrescriptions(true)
     try {
-      await documentsAPI.create({
-        title: 'Назначения',
-        type: 'prescription',
-        description: prescriptionsText,
-        appointment: appointment.id,
-        user: appointment.patient?.id,
-        doctor: appointment.doctor?.id,
-      })
+      if (existingDocIds.prescription) {
+        await documentsAPI.update(existingDocIds.prescription, {
+          description: prescriptionsText,
+        })
+      } else {
+        const res = await documentsAPI.create({
+          title: 'Назначения',
+          type: 'prescription',
+          description: prescriptionsText,
+          appointment: appointment.id,
+          user: appointment.patient?.id,
+          doctor: appointment.doctor?.id,
+        })
+        const newDoc = res.data?.data
+        if (newDoc) setExistingDocIds(prev => ({ ...prev, prescription: newDoc.documentId || newDoc.id }))
+      }
       setPrescriptionsSaved(true)
       setTimeout(() => setPrescriptionsSaved(false), 2000)
     } catch (err) {
@@ -554,36 +611,42 @@ function VideoConsultation() {
   }
 
   return (
-    <div className="h-screen bg-slate-900 flex overflow-hidden">
+    <div className="h-screen bg-slate-900 flex flex-col sm:flex-row overflow-hidden">
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-20 bg-slate-900/40 backdrop-blur-sm sm:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
       {/* Main Video Area */}
       <div className={cn(
-        "flex-1 flex flex-col transition-all duration-300",
+        "flex-1 flex flex-col min-w-0 transition-all duration-300",
         sidebarOpen ? "mr-0" : "mr-0"
       )}>
         {/* Top Bar */}
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-800/50">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-3 sm:px-4 py-3 bg-slate-800/50">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => navigate(-1)}
               className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="relative">
                 <Avatar name={participant.name} size="md" />
                 {connectionState === 'connected' && (
                   <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-slate-800" />
                 )}
               </div>
-              <div>
-                <h2 className="text-white font-medium text-sm">{participant.name}</h2>
-                <p className="text-slate-400 text-xs">{participant.role}</p>
+              <div className="min-w-0">
+                <h2 className="text-white font-medium text-sm sm:text-base truncate">{participant.name}</h2>
+                <p className="text-slate-400 text-xs truncate">{participant.role}</p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center flex-wrap justify-end gap-2 w-full sm:w-auto">
             {connectionState === 'connected' && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 rounded-full">
                 <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
@@ -708,7 +771,7 @@ function VideoConsultation() {
           />
 
           {/* Local Video Preview */}
-          <div className="absolute bottom-24 right-4 w-48 aspect-video rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 bg-slate-800">
+          <div className="absolute bottom-24 right-3 sm:right-4 w-28 sm:w-48 aspect-video rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 bg-slate-800">
             <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
             {!isVideoOn && (
               <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
@@ -721,7 +784,7 @@ function VideoConsultation() {
           </div>
 
           {/* Controls */}
-          <div className="absolute bottom-0 inset-x-0 p-6 flex items-center justify-center">
+          <div className="absolute bottom-0 inset-x-0 p-4 sm:p-6 flex flex-col items-center justify-center gap-3">
             <div className="flex items-center gap-3 p-2 bg-slate-800/90 backdrop-blur rounded-2xl">
               <button
                 onClick={toggleMute}
@@ -761,7 +824,7 @@ function VideoConsultation() {
             {isDoctor && (
               <button
                 onClick={() => setShowCompleteConfirm(true)}
-                className="absolute right-6 bottom-8 h-10 px-4 bg-slate-700/80 hover:bg-emerald-600 text-white/80 hover:text-white rounded-xl flex items-center gap-2 transition-all text-sm font-medium backdrop-blur"
+                className="h-10 px-4 bg-slate-700/80 hover:bg-emerald-600 text-white/80 hover:text-white rounded-xl flex items-center gap-2 transition-all text-sm font-medium backdrop-blur sm:absolute sm:right-6 sm:bottom-8"
               >
                 <Check className="w-4 h-4" />
                 Завершить встречу
@@ -773,8 +836,8 @@ function VideoConsultation() {
 
       {/* Sidebar */}
       <div className={cn(
-        "bg-white flex flex-col transition-all duration-300 border-l border-slate-200",
-        sidebarOpen ? "w-96" : "w-0 overflow-hidden"
+        "bg-white flex flex-col transition-all duration-300 border-l border-slate-200 fixed sm:static inset-y-0 right-0 z-30 h-full",
+        sidebarOpen ? "translate-x-0 w-full sm:w-96" : "translate-x-full sm:translate-x-0 sm:w-0 overflow-hidden"
       )}>
         {/* Sidebar Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
@@ -1034,53 +1097,81 @@ function VideoConsultation() {
                       <FolderOpen className="w-12 h-12 mx-auto text-slate-300 mb-3" />
                       <p className="text-slate-500 text-sm">У пациента нет загруженных документов</p>
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {patientDocuments.map((doc) => {
-                        const fileUrl = doc.file?.url ? getMediaUrl(doc.file) : null
-                        const typeLabels = {
-                          analysis: 'Анализ',
-                          prescription: 'Назначение',
-                          certificate: 'Справка',
-                          other: 'Другое',
-                        }
-                        return (
-                          <div
-                            key={doc.id}
-                            className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
-                          >
-                            <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-                              <FileText className="w-4 h-4 text-amber-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-medium text-slate-900 truncate">
-                                {doc.title || 'Документ'}
-                              </h4>
-                              <p className="text-xs text-slate-500 mt-0.5">
-                                {typeLabels[doc.type] || doc.type}
-                                {doc.createdAt && (
-                                  <> &middot; {new Date(doc.createdAt).toLocaleDateString('ru-RU')}</>
-                                )}
-                              </p>
-                              {doc.description && (
-                                <p className="text-xs text-slate-600 mt-1 line-clamp-2">{doc.description}</p>
-                              )}
-                            </div>
-                            {fileUrl && (
-                              <a
-                                href={fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                  ) : (() => {
+                    const typeConfig = {
+                      analysis: { label: 'Анализы', icon: 'bg-blue-100', iconColor: 'text-blue-600', folderColor: 'bg-blue-50 border-blue-100' },
+                      prescription: { label: 'Назначения', icon: 'bg-emerald-100', iconColor: 'text-emerald-600', folderColor: 'bg-emerald-50 border-emerald-100' },
+                      certificate: { label: 'Справки', icon: 'bg-violet-100', iconColor: 'text-violet-600', folderColor: 'bg-violet-50 border-violet-100' },
+                      other: { label: 'Другое', icon: 'bg-amber-100', iconColor: 'text-amber-600', folderColor: 'bg-amber-50 border-amber-100' },
+                    }
+                    const grouped = patientDocuments.reduce((acc, doc) => {
+                      const type = doc.type || 'other'
+                      if (!acc[type]) acc[type] = []
+                      acc[type].push(doc)
+                      return acc
+                    }, {})
+                    const typeOrder = ['analysis', 'prescription', 'certificate', 'other']
+                    const sortedTypes = typeOrder.filter(t => grouped[t]?.length > 0)
+
+                    return (
+                      <div className="space-y-2">
+                        {sortedTypes.map((type) => {
+                          const config = typeConfig[type] || typeConfig.other
+                          const docs = grouped[type]
+                          return (
+                            <details key={type} className={`rounded-xl border ${config.folderColor} overflow-hidden`}>
+                              <summary className="flex items-center gap-3 p-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden hover:bg-white/40 transition-colors">
+                                <div className={`w-9 h-9 rounded-lg ${config.icon} flex items-center justify-center flex-shrink-0`}>
+                                  <Folder className={`w-4 h-4 ${config.iconColor}`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-medium text-slate-900">{config.label}</h4>
+                                  <p className="text-xs text-slate-500">{docs.length} док.</p>
+                                </div>
+                                <ChevronDown className="w-4 h-4 text-slate-400 transition-transform [[open]>&]:rotate-180 flex-shrink-0" />
+                              </summary>
+                              <div className="px-3 pb-3 space-y-1.5">
+                                {docs.map((doc) => {
+                                  const fileUrl = doc.file?.url ? getMediaUrl(doc.file) : null
+                                  return (
+                                    <div
+                                      key={doc.id}
+                                      className="flex items-start gap-3 p-2.5 bg-white rounded-lg hover:bg-slate-50 transition-colors"
+                                    >
+                                      <div className={`w-8 h-8 rounded-lg ${config.icon} flex items-center justify-center flex-shrink-0`}>
+                                        <FileText className={`w-3.5 h-3.5 ${config.iconColor}`} />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm font-medium text-slate-900 truncate">
+                                          {doc.title || 'Документ'}
+                                        </h4>
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                          {doc.createdAt && new Date(doc.createdAt).toLocaleDateString('ru-RU')}
+                                        </p>
+                                        {doc.description && (
+                                          <p className="text-xs text-slate-600 mt-1 line-clamp-2">{doc.description}</p>
+                                        )}
+                                      </div>
+                                      {fileUrl && (
+                                        <a
+                                          href={fileUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="p-1.5 rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
+                                        >
+                                          <ExternalLink className="w-4 h-4" />
+                                        </a>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </details>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>

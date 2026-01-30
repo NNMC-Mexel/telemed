@@ -27,7 +27,7 @@ import Avatar from "../components/ui/Avatar";
 import Badge from "../components/ui/Badge";
 import BookingModal from "../components/appointments/BookingModal";
 import api, { normalizeResponse, getMediaUrl } from "../services/api";
-import { formatPrice, formatDate } from "../utils/helpers";
+import { formatPrice, formatDate, isDoctorOnline } from "../utils/helpers";
 
 function DoctorProfilePage() {
     const { id } = useParams();
@@ -134,7 +134,7 @@ function DoctorProfilePage() {
                                                     </div>
                                                 )}
                                             </div>
-                                            {doctor.isActive !== false && (
+                                            {isDoctorOnline(doctor) && (
                                                 <span className='absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full ring-4 ring-white flex items-center justify-center'>
                                                     <span className='w-2 h-2 bg-white rounded-full animate-pulse' />
                                                 </span>

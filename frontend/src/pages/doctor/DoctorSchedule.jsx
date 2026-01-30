@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useToast } from "../../components/ui/Toast";
 import {
     ChevronLeft,
     ChevronRight,
@@ -89,6 +90,7 @@ const generateWorkingSlots = (workingHours) => {
 
 function DoctorSchedule() {
     const { user } = useAuthStore();
+    const toast = useToast();
     const [doctor, setDoctor] = useState(null);
     const [appointments, setAppointments] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -232,7 +234,7 @@ function DoctorSchedule() {
 
     const saveSettings = async () => {
         if (!doctor?.documentId) {
-            alert("Профиль врача не найден");
+            toast.error("Профиль врача не найден");
             return;
         }
 
@@ -262,7 +264,7 @@ function DoctorSchedule() {
             console.log("Save response:", response.data);
 
             setShowSettingsModal(false);
-            alert("Настройки сохранены!");
+            toast.success("Настройки сохранены!");
             // Обновляем данные
             await fetchDoctorAndAppointments();
         } catch (error) {
@@ -270,7 +272,7 @@ function DoctorSchedule() {
                 "Error saving settings:",
                 error.response?.data || error
             );
-            alert(
+            toast.error(
                 "Ошибка сохранения настроек: " +
                     (error.response?.data?.error?.message || error.message)
             );
@@ -334,7 +336,7 @@ function DoctorSchedule() {
                     </div>
 
                     {/* Week Calendar */}
-                    <div className='grid grid-cols-7 gap-2'>
+                    <div className='grid grid-cols-7 gap-1 sm:gap-2'>
                         {weekDays.map((day, index) => {
                             const dayAppointments = getAppointmentsForDate(day);
                             const isSelected = isSameDay(day, selectedDate);
@@ -345,7 +347,7 @@ function DoctorSchedule() {
                                 <button
                                     key={index}
                                     onClick={() => setSelectedDate(day)}
-                                    className={`p-3 rounded-xl text-center transition-all ${
+                                    className={`p-1.5 sm:p-3 rounded-lg sm:rounded-xl text-center transition-all ${
                                         isSelected
                                             ? "bg-teal-600 text-white"
                                             : isToday
@@ -354,26 +356,24 @@ function DoctorSchedule() {
                                             ? "bg-white hover:bg-slate-50"
                                             : "bg-slate-100 text-slate-400"
                                     }`}>
-                                    <p className='text-xs font-medium mb-1'>
-                                        {format(day, "EEE", { locale: ru })}
+                                    <p className='text-[10px] sm:text-xs font-medium mb-0.5 sm:mb-1'>
+                                        {format(day, "EEEEEE", { locale: ru })}
                                     </p>
                                     <p
-                                        className={`text-lg font-bold ${
+                                        className={`text-base sm:text-lg font-bold ${
                                             isSelected ? "text-white" : ""
                                         }`}>
                                         {format(day, "d")}
                                     </p>
                                     {dayAppointments.length > 0 && (
                                         <div
-                                            className={`mt-1 text-xs ${
+                                            className={`mt-0.5 sm:mt-1 text-[10px] sm:text-xs leading-tight ${
                                                 isSelected
                                                     ? "text-white/80"
-                                                    : "text-slate-500"
+                                                    : "text-teal-600"
                                             }`}>
-                                            {dayAppointments.length}{" "}
-                                            {dayAppointments.length === 1
-                                                ? "запись"
-                                                : "записей"}
+                                            {dayAppointments.length}
+                                            <span className='hidden sm:inline'>{" "}{dayAppointments.length === 1 ? "запись" : "записей"}</span>
                                         </div>
                                     )}
                                 </button>
@@ -418,22 +418,22 @@ function DoctorSchedule() {
                                         return (
                                             <div
                                                 key={time}
-                                                className={`flex items-center gap-4 p-3 rounded-xl ${
+                                                className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-2 sm:p-3 rounded-xl min-w-0 ${
                                                     appointment
                                                         ? "bg-teal-50 border border-teal-200"
                                                         : isBreak
                                                         ? "bg-slate-100"
                                                         : "bg-slate-50 hover:bg-slate-100"
                                                 }`}>
-                                                <div className='w-16 text-center'>
-                                                    <span className='font-medium text-slate-700'>
+                                                <div className='w-full sm:w-16 text-center sm:text-center flex-shrink-0'>
+                                                    <span className='font-medium text-slate-700 text-sm sm:text-base'>
                                                         {time}
                                                     </span>
                                                 </div>
-                                                <div className='w-px h-8 bg-slate-200' />
+                                                <div className='hidden sm:block w-px h-8 bg-slate-200 flex-shrink-0' />
                                                 {appointment ? (
-                                                    <div className='flex-1 flex items-center justify-between'>
-                                                        <div className='flex items-center gap-3'>
+                                                    <div className='flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0 w-full'>
+                                                        <div className='flex items-center gap-2 sm:gap-3 min-w-0'>
                                                             <Avatar
                                                                 src={getMediaUrl(
                                                                     appointment
@@ -448,8 +448,8 @@ function DoctorSchedule() {
                                                                 }
                                                                 size='sm'
                                                             />
-                                                            <div>
-                                                                <p className='font-medium text-slate-900'>
+                                                            <div className='min-w-0'>
+                                                                <p className='font-medium text-slate-900 text-sm sm:text-base truncate'>
                                                                     {appointment
                                                                         .patient
                                                                         ?.fullName ||
@@ -462,14 +462,12 @@ function DoctorSchedule() {
                                                                     ) : (
                                                                         <MessageCircle className='w-3 h-3' />
                                                                     )}
-                                                                    {appointment.type ===
-                                                                    "video"
-                                                                        ? "Видеоконсультация"
-                                                                        : "Чат"}
+                                                                    <span className='hidden sm:inline'>{appointment.type === "video" ? "Видеоконсультация" : "Чат"}</span>
+                                                                    <span className='sm:hidden'>{appointment.type === "video" ? "Видео" : "Чат"}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className='flex items-center gap-2'>
+                                                        <div className='flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end'>
                                                             {(() => {
                                                                 const now = new Date();
                                                                 const aptTime = new Date(appointment.dateTime);
@@ -518,11 +516,11 @@ function DoctorSchedule() {
                                                         </div>
                                                     </div>
                                                 ) : isBreak ? (
-                                                    <span className='text-slate-400'>
+                                                    <span className='text-slate-400 w-full sm:w-auto'>
                                                         Перерыв
                                                     </span>
                                                 ) : (
-                                                    <span className='text-slate-400'>
+                                                    <span className='text-slate-400 w-full sm:w-auto'>
                                                         Свободно
                                                     </span>
                                                 )}

@@ -89,10 +89,15 @@ function DoctorDashboard() {
                 // Получаем отзывы (все, фильтруем на клиенте)
                 const reviewsRes = await api.get(`/api/reviews?populate=*`);
                 const { data: allReviews } = normalizeResponse(reviewsRes);
-                const doctorReviews = (allReviews || [])
-                    .filter((r) => r.doctor?.id === doctorData.id)
-                    .slice(0, 5);
+                const allDoctorReviews = (allReviews || [])
+                    .filter((r) => r.doctor?.id === doctorData.id);
+                const doctorReviews = allDoctorReviews.slice(0, 5);
                 setReviews(doctorReviews);
+
+                // Вычисляем рейтинг из реальных отзывов
+                const computedRating = allDoctorReviews.length > 0
+                    ? allDoctorReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / allDoctorReviews.length
+                    : 0;
 
                 // Подсчитываем статистику на основе уже полученных данных
                 const todayStr = today;
@@ -119,7 +124,7 @@ function DoctorDashboard() {
                 setStats({
                     todayPatients: todayAppts.length,
                     monthlyEarnings,
-                    rating: doctorData.rating || 0,
+                    rating: computedRating,
                     monthlyConsultations: monthlyCompleted.length,
                 });
             }
@@ -244,19 +249,19 @@ function DoctorDashboard() {
                 </Card>
             </div>
 
-            <div className='grid lg:grid-cols-3 gap-6'>
+            <div className='grid md:grid-cols-3 gap-6 min-w-0'>
                 {/* Today's Schedule */}
-                <div className='lg:col-span-2'>
-                    <Card>
-                        <CardHeader className='flex flex-row items-center justify-between'>
+                <div className='md:col-span-2 min-w-0'>
+                    <Card className='min-w-0'>
+                        <CardHeader className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between min-w-0'>
                             <CardTitle>Расписание на сегодня</CardTitle>
                             <Link
                                 to='/doctor/schedule'
-                                className='text-sm text-teal-600 hover:text-teal-700'>
+                                className='text-sm text-teal-600 hover:text-teal-700 self-start sm:self-auto'>
                                 Полное расписание
                             </Link>
                         </CardHeader>
-                        <CardContent className='space-y-3'>
+                        <CardContent className='space-y-3 min-w-0'>
                             {todayAppointments.length === 0 ? (
                                 <div className='text-center py-8'>
                                     <Calendar className='w-12 h-12 mx-auto text-slate-300 mb-3' />
@@ -317,7 +322,7 @@ function DoctorDashboard() {
                                     return (
                                         <div
                                             key={appointment.id}
-                                            className={`flex items-center justify-between p-4 rounded-xl ${
+                                            className={`p-3 sm:p-4 rounded-xl ${
                                                 isNow &&
                                                 appointment.status ===
                                                     "confirmed" &&
@@ -327,77 +332,101 @@ function DoctorDashboard() {
                                                       ? "bg-slate-100"
                                                       : "bg-slate-50"
                                             }`}>
-                                            <div className='flex items-center gap-4'>
-                                                <div className='text-center min-w-[60px]'>
-                                                    <p
-                                                        className={`text-lg font-bold ${isPastConsultation ? "text-slate-400" : "text-slate-900"}`}>
-                                                        {time}
-                                                    </p>
-                                                    <p className='text-xs text-slate-500'>
-                                                        {appointment.type ===
-                                                        "video"
-                                                            ? "Видео"
-                                                            : "Чат"}
-                                                    </p>
+                                            {/* Mobile Layout */}
+                                            <div className='sm:hidden'>
+                                                <div className='flex items-center gap-3'>
+                                                    <div className='text-center shrink-0 w-12'>
+                                                        <p className={`text-base font-bold ${isPastConsultation ? "text-slate-400" : "text-slate-900"}`}>
+                                                            {time}
+                                                        </p>
+                                                        <p className='text-[10px] text-slate-500'>
+                                                            {appointment.type === "video" ? "Видео" : "Чат"}
+                                                        </p>
+                                                    </div>
+                                                    <div className='w-px h-10 bg-slate-200 shrink-0' />
+                                                    <Avatar
+                                                        src={getMediaUrl(appointment.patient?.avatar)}
+                                                        name={patientName}
+                                                        size='sm'
+                                                    />
+                                                    <div className='flex-1 min-w-0'>
+                                                        <h4 className={`font-medium text-sm truncate ${isPastConsultation ? "text-slate-500" : "text-slate-900"}`}>
+                                                            {patientName}
+                                                        </h4>
+                                                        <p className='text-xs text-slate-500 truncate'>
+                                                            {appointment.patient?.phone || ""}
+                                                        </p>
+                                                    </div>
+                                                    <div className='shrink-0'>
+                                                        {isPastConsultation && (appointment.statuse || appointment.status) !== "cancelled" ? (
+                                                            <Badge variant='success'>Завершён</Badge>
+                                                        ) : (
+                                                            getStatusBadge(appointment.statuse || appointment.status)
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className='w-px h-12 bg-slate-200' />
-                                                <Avatar
-                                                    src={getMediaUrl(
-                                                        appointment.patient
-                                                            ?.avatar,
-                                                    )}
-                                                    name={patientName}
-                                                    size='md'
-                                                />
-                                                <div>
-                                                    <h4
-                                                        className={`font-medium ${isPastConsultation ? "text-slate-500" : "text-slate-900"}`}>
-                                                        {patientName}
-                                                    </h4>
-                                                    <p className='text-sm text-slate-500'>
-                                                        {appointment.patient
-                                                            ?.phone ||
-                                                            appointment.patient
-                                                                ?.email ||
-                                                            ""}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className='flex items-center gap-2'>
-                                                {isPastConsultation &&
-                                                (appointment.statuse || appointment.status) !==
-                                                    "cancelled" ? (
-                                                    <Badge variant='success'>
-                                                        Завершён
-                                                    </Badge>
-                                                ) : (
-                                                    getStatusBadge(
-                                                        appointment.statuse || appointment.status,
-                                                    )
-                                                )}
-                                                {canJoin &&
-                                                appointment.roomId ? (
-                                                    <Link
-                                                        to={`/consultation/${appointment.roomId}`}>
-                                                        <Button
-                                                            size='sm'
-                                                            leftIcon={
-                                                                <Video className='w-4 h-4' />
-                                                            }>
-                                                            Подключиться
+                                                {canJoin && appointment.roomId && (
+                                                    <Link to={`/consultation/${appointment.roomId}`} className='block mt-2'>
+                                                        <Button size='sm' className='w-full' leftIcon={<Video className='w-4 h-4' />}>
+                                                            Начать приём
                                                         </Button>
                                                     </Link>
-                                                ) : isPastConsultation &&
-                                                  appointment.roomId ? (
+                                                )}
+                                                {!canJoin && isPastConsultation && appointment.roomId && (
                                                     <Link
-                                                        to={`/doctor/appointments/${appointment.documentId || appointment.id}`}>
-                                                        <Button
-                                                            size='sm'
-                                                            variant='secondary'>
+                                                        to={`/doctor/appointments/${appointment.documentId || appointment.id}`}
+                                                        className='block mt-2'>
+                                                        <Button size='sm' variant='secondary' className='w-full'>
                                                             Детали
                                                         </Button>
                                                     </Link>
-                                                ) : null}
+                                                )}
+                                            </div>
+
+                                            {/* Desktop Layout */}
+                                            <div className='hidden sm:flex items-center justify-between gap-4'>
+                                                <div className='flex items-center gap-4 min-w-0'>
+                                                    <div className='text-center min-w-[60px] shrink-0'>
+                                                        <p className={`text-lg font-bold ${isPastConsultation ? "text-slate-400" : "text-slate-900"}`}>
+                                                            {time}
+                                                        </p>
+                                                        <p className='text-xs text-slate-500'>
+                                                            {appointment.type === "video" ? "Видео" : "Чат"}
+                                                        </p>
+                                                    </div>
+                                                    <div className='w-px h-12 bg-slate-200' />
+                                                    <Avatar
+                                                        src={getMediaUrl(appointment.patient?.avatar)}
+                                                        name={patientName}
+                                                        size='md'
+                                                    />
+                                                    <div className='min-w-0'>
+                                                        <h4 className={`font-medium truncate ${isPastConsultation ? "text-slate-500" : "text-slate-900"}`}>
+                                                            {patientName}
+                                                        </h4>
+                                                        <p className='text-sm text-slate-500 truncate'>
+                                                            {appointment.patient?.phone || appointment.patient?.email || ""}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className='flex items-center gap-2 shrink-0'>
+                                                    {isPastConsultation && (appointment.statuse || appointment.status) !== "cancelled" ? (
+                                                        <Badge variant='success'>Завершён</Badge>
+                                                    ) : (
+                                                        getStatusBadge(appointment.statuse || appointment.status)
+                                                    )}
+                                                    {canJoin && appointment.roomId ? (
+                                                        <Link to={`/consultation/${appointment.roomId}`}>
+                                                            <Button size='sm' leftIcon={<Video className='w-4 h-4' />}>
+                                                                Подключиться
+                                                            </Button>
+                                                        </Link>
+                                                    ) : isPastConsultation && appointment.roomId ? (
+                                                        <Link to={`/doctor/appointments/${appointment.documentId || appointment.id}`}>
+                                                            <Button size='sm' variant='secondary'>Детали</Button>
+                                                        </Link>
+                                                    ) : null}
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -408,7 +437,7 @@ function DoctorDashboard() {
                 </div>
 
                 {/* Sidebar */}
-                <div className='space-y-6'>
+                <div className='space-y-6 min-w-0'>
                     {/* Next Appointment */}
                     {nextAppointment &&
                         (() => {
@@ -431,8 +460,8 @@ function DoctorDashboard() {
                                 now <= consultationEnd;
 
                             return (
-                                <Card className='bg-gradient-to-br from-teal-500 to-sky-500 text-white'>
-                                    <CardContent>
+                    <Card className='bg-gradient-to-br from-teal-500 to-sky-500 text-white min-w-0'>
+                        <CardContent className='min-w-0'>
                                         <div className='flex items-center gap-2 mb-4'>
                                             <Clock className='w-5 h-5' />
                                             <span className='font-medium'>
@@ -487,14 +516,14 @@ function DoctorDashboard() {
                         })()}
 
                     {/* Recent Reviews */}
-                    <Card>
-                        <CardHeader>
+                    <Card className='min-w-0'>
+                        <CardHeader className='min-w-0'>
                             <CardTitle className='flex items-center gap-2'>
                                 <Star className='w-5 h-5 text-amber-400' />
                                 Отзывы
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className='space-y-3'>
+                        <CardContent className='space-y-3 min-w-0'>
                             {reviews.length === 0 ? (
                                 <p className='text-center text-slate-500 py-4 text-sm'>
                                     Пока нет отзывов
@@ -503,9 +532,9 @@ function DoctorDashboard() {
                                 reviews.map((review) => (
                                     <div
                                         key={review.id}
-                                        className='p-3 bg-slate-50 rounded-xl'>
+                                        className='p-3 bg-slate-50 rounded-xl min-w-0'>
                                         <div className='flex items-center justify-between mb-2'>
-                                            <span className='font-medium text-slate-900 text-sm'>
+                                            <span className='font-medium text-slate-900 text-sm min-w-0 truncate'>
                                                 {review.patient?.fullName?.split(
                                                     " ",
                                                 )[0] || "Пациент"}
@@ -524,7 +553,7 @@ function DoctorDashboard() {
                                                 ))}
                                             </div>
                                         </div>
-                                        <p className='text-sm text-slate-600'>
+                                        <p className='text-sm text-slate-600 break-words'>
                                             {review.comment || review.text}
                                         </p>
                                         <p className='text-xs text-slate-400 mt-1'>

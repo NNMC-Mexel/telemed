@@ -18,7 +18,7 @@ import Input from "../../components/ui/Input";
 import Avatar from "../../components/ui/Avatar";
 import ImageCropModal from "../../components/ui/ImageCropModal";
 import useAuthStore from "../../stores/authStore";
-import api, { getMediaUrl, uploadFile } from "../../services/api";
+import api, { getMediaUrl, uploadFile, normalizeResponse } from "../../services/api";
 
 function DoctorProfile() {
     const { user, updateProfile } = useAuthStore();
@@ -26,6 +26,7 @@ function DoctorProfile() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
+    const [reviewStats, setReviewStats] = useState({ rating: 0, count: 0 });
 
     const [formData, setFormData] = useState({
         fullName: "",
@@ -83,6 +84,23 @@ function DoctorProfile() {
 
             if (doctorData) {
                 setDoctor(doctorData);
+
+                // Получаем отзывы и вычисляем рейтинг
+                try {
+                    const reviewsRes = await api.get(`/api/reviews?populate=*`);
+                    const { data: allReviews } = normalizeResponse(reviewsRes);
+                    const doctorReviews = (allReviews || []).filter(
+                        (r) => r.doctor?.id === doctorData.id
+                    );
+                    const count = doctorReviews.length;
+                    const avg = count > 0
+                        ? doctorReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / count
+                        : 0;
+                    setReviewStats({ rating: avg, count });
+                } catch (e) {
+                    console.error("Error fetching reviews:", e);
+                }
+
                 setFormData({
                     fullName: doctorData.fullName || user.fullName || "",
                     email: user.email || "",
@@ -249,7 +267,7 @@ function DoctorProfile() {
                                 <div className='flex items-center justify-center gap-1 text-amber-500 mb-1'>
                                     <Star className='w-4 h-4 fill-current' />
                                     <span className='font-bold'>
-                                        {doctor?.rating || 0}
+                                        {reviewStats.rating.toFixed(1)}
                                     </span>
                                 </div>
                                 <p className='text-xs text-slate-500'>
@@ -258,7 +276,7 @@ function DoctorProfile() {
                             </div>
                             <div className='p-3 bg-slate-50 rounded-xl'>
                                 <p className='font-bold text-slate-900'>
-                                    {doctor?.reviewsCount || 0}
+                                    {reviewStats.count}
                                 </p>
                                 <p className='text-xs text-slate-500'>
                                     Отзывов

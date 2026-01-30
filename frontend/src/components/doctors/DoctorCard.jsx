@@ -2,7 +2,7 @@ import { Star, Clock, ThumbsUp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../ui/Button'
 import { getMediaUrl } from '../../services/api'
-import { cn, getInitials } from '../../utils/helpers'
+import { cn, getInitials, isDoctorOnline } from '../../utils/helpers'
 
 const colors = [
   'bg-gradient-to-br from-teal-400 to-teal-600',
@@ -28,7 +28,7 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
   const experience = doctor.experience || 0
   const price = doctor.price || 0
   const specialization = doctor.specialization?.name || 'Специалист'
-  const isOnline = doctor.isActive !== false
+  const isOnline = isDoctorOnline(doctor)
 
   // Calculate recommendation percentage
   const recommendPercent = reviewsCount > 0 ? Math.min(95 + Math.floor(rating), 100) : null

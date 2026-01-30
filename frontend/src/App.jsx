@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
+import { ToastProvider } from './components/ui/Toast'
 
 // Layouts
 import { PublicLayout, DashboardLayout } from './components/layout'
@@ -109,6 +110,7 @@ function App() {
   }, [token, fetchUser, _hasHydrated])
 
   return (
+    <ToastProvider>
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
@@ -208,6 +210,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </ToastProvider>
   )
 }
 

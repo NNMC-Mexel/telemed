@@ -40,7 +40,7 @@ import {
     getMediaUrl,
     normalizeResponse,
 } from "../services/api";
-import { cn, getInitials } from "../utils/helpers";
+import { cn, getInitials, isDoctorOnline } from "../utils/helpers";
 
 // Gradient colors for doctor card initials
 const doctorCardColors = [
@@ -294,7 +294,7 @@ function DoctorsCarousel({ doctors }) {
                                 const rating = Math.min(doctor.rating || 0, 5);
                                 const reviewsCount = doctor.reviewsCount || 0;
                                 const experience = doctor.experience || 0;
-                                const isOnline = doctor.isActive !== false;
+                                const isOnline = isDoctorOnline(doctor);
                                 const recommendPercent =
                                     reviewsCount > 0
                                         ? Math.min(95 + Math.floor(rating), 100)

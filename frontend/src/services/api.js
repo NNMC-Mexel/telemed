@@ -483,7 +483,16 @@ export const messagesAPI = {
 export const documentsAPI = {
     getAll: (params = {}) => {
         const query = new URLSearchParams();
-        query.append("populate", "*");
+        query.append("populate[file]", "*");
+        query.append("populate[user][fields][0]", "id");
+        query.append("populate[user][fields][1]", "fullName");
+        query.append("populate[doctor][populate][0]", "specialization");
+        query.append("populate[doctor][fields][0]", "id");
+        query.append("populate[doctor][fields][1]", "fullName");
+        query.append("populate[appointment][populate][doctor][populate][0]", "specialization");
+        query.append("populate[appointment][fields][0]", "id");
+        query.append("populate[appointment][fields][1]", "dateTime");
+        query.append("populate[appointment][fields][2]", "type");
         query.append("sort", "createdAt:desc");
 
         if (params.userId) {
@@ -493,7 +502,6 @@ export const documentsAPI = {
             query.append("filters[type][$eq]", params.type);
         }
 
-        // Используем medical-documents (Strapi генерирует URL по pluralName)
         return api.get(`/api/medical-documents?${query}`);
     },
 

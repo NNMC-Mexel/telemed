@@ -162,6 +162,37 @@ export default factories.createCoreController('api::appointment.appointment', ()
       }
     }
 
+    // --- Check for time slot conflicts ---
+    if (body.dateTime && doctorDocId) {
+      const requestedTime = new Date(body.dateTime);
+
+      // Find doctor to get slotDuration
+      const doctorRecord = await strapi.documents('api::doctor.doctor').findOne({
+        documentId: doctorDocId,
+        fields: ['id', 'slotDuration'],
+      });
+      const slotMinutes = (doctorRecord as any)?.slotDuration || 30;
+
+      // Check for existing active appointments at the same time for this doctor
+      const slotStart = new Date(requestedTime);
+      const slotEnd = new Date(requestedTime.getTime() + slotMinutes * 60 * 1000);
+
+      const existing = await strapi.documents('api::appointment.appointment').findMany({
+        filters: {
+          doctor: { documentId: doctorDocId },
+          dateTime: {
+            $gte: slotStart.toISOString(),
+            $lt: slotEnd.toISOString(),
+          },
+          statuse: { $in: ['pending', 'confirmed', 'in_progress'] },
+        },
+      });
+
+      if (existing.length > 0) {
+        return ctx.badRequest('К сожалению, это время уже было забронировано другим пациентом. Пожалуйста, выберите другое свободное время.');
+      }
+    }
+
     // Create appointment via document service (bypasses REST API sanitizer)
     const appointment = await strapi.documents('api::appointment.appointment').create({
       data: {
