@@ -112,7 +112,7 @@ export default (plugin) => {
               reviewsCount: 0,
               price: 8000,
               experience: doctorData?.experience ? parseInt(doctorData.experience) : 0,
-              bio: doctorData?.education || '',
+              education: doctorData?.education || '',
               workStartTime: '09:00',
               workEndTime: '18:00',
               breakStart: '12:00',
