@@ -70,9 +70,85 @@ FRONTEND_URL=https://medconnect.nnmc.kz
 ```env
 VITE_API_URL=https://medconnectserver.nnmc.kz
 VITE_SIGNALING_SERVER=https://medconnectrtc.nnmc.kz
+VITE_TURN_URL=turn:medconnect.nnmc.kz:3478
+VITE_TURN_USERNAME=medconnect
+VITE_TURN_CREDENTIAL=medconnect2026
 VITE_APP_NAME=MedConnect
 VITE_APP_VERSION=1.0.0
 ```
+
+## Установка coturn (TURN relay)
+
+Если звонок работает в одной сети, но не работает между разными сетями, нужен рабочий TURN relay.
+
+### 1) Установка пакета
+
+```bash
+sudo apt update
+sudo apt install coturn -y
+```
+
+### 2) Включение сервиса
+
+В файле `/etc/default/coturn`:
+
+```bash
+TURNSERVER_ENABLED=1
+```
+
+### 3) Базовый конфиг `/etc/turnserver.conf`
+
+```conf
+listening-port=3478
+tls-listening-port=5349
+
+realm=medconnect.nnmc.kz
+server-name=medconnect.nnmc.kz
+
+lt-cred-mech
+user=medconnect:medconnect2026
+
+fingerprint
+no-multicast-peers
+no-cli
+
+# Укажите реальный публичный IP сервера:
+external-ip=YOUR_SERVER_PUBLIC_IP
+
+# Диапазон relay-портов:
+min-port=49152
+max-port=65535
+
+log-file=/var/log/turnserver.log
+verbose
+```
+
+Для `turns:` (TLS) добавьте сертификаты:
+
+```conf
+cert=/etc/letsencrypt/live/medconnect.nnmc.kz/fullchain.pem
+pkey=/etc/letsencrypt/live/medconnect.nnmc.kz/privkey.pem
+```
+
+### 4) Открытие портов в firewall
+
+```bash
+sudo ufw allow 3478/tcp
+sudo ufw allow 3478/udp
+sudo ufw allow 5349/tcp
+sudo ufw allow 5349/udp
+sudo ufw allow 49152:65535/udp
+```
+
+### 5) Запуск и проверка
+
+```bash
+sudo systemctl restart coturn
+sudo systemctl enable coturn
+sudo systemctl status coturn
+```
+
+После этого пересоберите frontend, чтобы подхватились актуальные `VITE_TURN_*`.
 
 ## Nginx конфигурация для Signaling Server
 
@@ -162,4 +238,3 @@ server {
 - Проверьте WebSocket upgrade в nginx/Coolify
 - Проверьте STUN/TURN серверы
 - Убедитесь, что в настройках Coolify включена поддержка WebSocket
-

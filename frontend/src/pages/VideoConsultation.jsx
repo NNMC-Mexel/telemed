@@ -46,6 +46,18 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    ...(import.meta.env.VITE_TURN_URL ? [
+      {
+        urls: import.meta.env.VITE_TURN_URL,
+        username: import.meta.env.VITE_TURN_USERNAME || '',
+        credential: import.meta.env.VITE_TURN_CREDENTIAL || '',
+      },
+      {
+        urls: import.meta.env.VITE_TURN_URL + '?transport=tcp',
+        username: import.meta.env.VITE_TURN_USERNAME || '',
+        credential: import.meta.env.VITE_TURN_CREDENTIAL || '',
+      },
+    ] : []),
   ],
 }
 
@@ -370,6 +382,7 @@ function VideoConsultation() {
   const createPeerConnection = (socket, targetSocketId) => {
     if (peerConnectionRef.current) peerConnectionRef.current.close()
 
+    console.log('[WebRTC] ICE servers config:', JSON.stringify(ICE_SERVERS, null, 2))
     const pc = new RTCPeerConnection(ICE_SERVERS)
     peerConnectionRef.current = pc
 
@@ -379,6 +392,7 @@ function VideoConsultation() {
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log('[WebRTC] ICE candidate:', event.candidate.type, event.candidate.candidate)
         socket.emit('ice-candidate', { targetSocketId, candidate: event.candidate })
       }
     }
@@ -390,7 +404,16 @@ function VideoConsultation() {
       }
     }
 
+    pc.onicegatheringstatechange = () => {
+      console.log('[WebRTC] ICE gathering state:', pc.iceGatheringState)
+    }
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('[WebRTC] ICE connection state:', pc.iceConnectionState)
+    }
+
     pc.onconnectionstatechange = () => {
+      console.log('[WebRTC] Connection state:', pc.connectionState)
       if (pc.connectionState === 'connected') setConnectionState('connected')
       else if (pc.connectionState === 'failed') setConnectionState('failed')
     }
