@@ -39,7 +39,7 @@ function DashboardLayout({ navItems }) {
   const closeMobileMenu = () => setIsMobileMenuOpen(false)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/30 to-sky-50/30">
+    <div className="min-h-[var(--app-height)] bg-gradient-to-br from-slate-50 via-teal-50/30 to-sky-50/30">
       {/* Sidebar */}
       <div
         className={cn(
@@ -50,7 +50,7 @@ function DashboardLayout({ navItems }) {
       />
       <div
         className={cn(
-          'fixed left-0 top-0 h-screen z-50 transition-transform duration-300 lg:translate-x-0',
+          'fixed left-0 top-0 h-[var(--app-height)] z-50 transition-transform duration-300 lg:translate-x-0',
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
         onTouchStart={(e) => { sidebarTouchStartX.current = e.touches[0].clientX }}
@@ -65,14 +65,14 @@ function DashboardLayout({ navItems }) {
       </div>
 
       {/* Main Content */}
-      <div className="lg:ml-64 min-h-screen flex flex-col">
+      <div className="lg:ml-64 min-h-[var(--app-height)] flex flex-col">
         <Header
           title={pageInfo.title}
           subtitle={pageInfo.subtitle}
           onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMobileMenuOpen={isMobileMenuOpen}
         />
-        <main className="flex-1 p-6">
+        <main className="flex-1 min-h-0 p-4 sm:p-6">
           <Outlet />
         </main>
       </div>

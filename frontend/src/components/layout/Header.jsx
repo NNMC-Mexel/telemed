@@ -66,10 +66,10 @@ function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
   }
 
   return (
-    <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-100 z-30">
-      <div className="flex items-center justify-between px-6 py-4">
+    <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-100 z-30 pt-[var(--safe-top)]">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
         {/* Left Side */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           {/* Mobile Menu Button */}
           <button
             onClick={onMenuClick}
@@ -79,18 +79,18 @@ function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
           </button>
 
           {/* Title */}
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
-            {subtitle && <p className="text-sm text-slate-500">{subtitle}</p>}
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-semibold text-slate-900 truncate">{title}</h1>
+            {subtitle && <p className="hidden sm:block text-sm text-slate-500 truncate">{subtitle}</p>}
           </div>
         </div>
 
         {/* Right Side */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {/* Search */}
           <div className={cn(
             'transition-all duration-300',
-            showSearch ? 'w-64' : 'w-auto'
+            showSearch ? 'w-[min(52vw,220px)] sm:w-64' : 'w-auto'
           )}>
             {showSearch ? (
               <div className="relative">
@@ -134,7 +134,7 @@ function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
                   className="fixed inset-0 z-40"
                   onClick={() => setShowNotifications(false)}
                 />
-                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-slideDown">
+                <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-slideDown">
                   <div className="p-4 border-b border-slate-100">
                     <h3 className="font-semibold text-slate-900">Уведомления</h3>
                   </div>
@@ -191,7 +191,7 @@ function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
           </div>
 
           {/* User */}
-          <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
+          <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-slate-200">
             <Avatar
               src={getMediaUrl(user?.avatar)}
               name={user?.fullName || user?.username}

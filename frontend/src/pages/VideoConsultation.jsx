@@ -634,7 +634,7 @@ function VideoConsultation() {
   }
 
   return (
-    <div className="h-screen bg-slate-900 flex flex-col sm:flex-row overflow-hidden">
+    <div className="h-[var(--app-height)] bg-slate-900 flex flex-col sm:flex-row overflow-hidden pt-[var(--safe-top)]">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-slate-900/40 backdrop-blur-sm sm:hidden"
@@ -794,7 +794,7 @@ function VideoConsultation() {
           />
 
           {/* Local Video Preview */}
-          <div className="absolute bottom-24 right-3 sm:right-4 w-28 sm:w-48 aspect-video rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 bg-slate-800">
+          <div className="absolute bottom-[calc(var(--safe-bottom)+6.5rem)] right-3 sm:bottom-24 sm:right-4 w-28 sm:w-48 aspect-video rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 bg-slate-800">
             <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
             {!isVideoOn && (
               <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
@@ -807,7 +807,7 @@ function VideoConsultation() {
           </div>
 
           {/* Controls */}
-          <div className="absolute bottom-0 inset-x-0 p-4 sm:p-6 flex flex-col items-center justify-center gap-3">
+          <div className="absolute bottom-0 inset-x-0 p-4 pb-[calc(var(--safe-bottom)+0.75rem)] sm:p-6 flex flex-col items-center justify-center gap-3">
             <div className="flex items-center gap-3 p-2 bg-slate-800/90 backdrop-blur rounded-2xl">
               <button
                 onClick={toggleMute}
@@ -859,7 +859,7 @@ function VideoConsultation() {
 
       {/* Sidebar */}
       <div className={cn(
-        "bg-white flex flex-col transition-all duration-300 border-l border-slate-200 fixed sm:static inset-y-0 right-0 z-30 h-full",
+        "bg-white flex flex-col transition-all duration-300 border-l border-slate-200 fixed sm:static inset-y-0 right-0 z-30 h-[var(--app-height)] sm:h-full pt-[var(--safe-top)] sm:pt-0",
         sidebarOpen ? "translate-x-0 w-full sm:w-96" : "translate-x-full sm:translate-x-0 sm:w-0 overflow-hidden"
       )}>
         {/* Sidebar Header */}
@@ -903,7 +903,7 @@ function VideoConsultation() {
         {/* Chat Tab */}
         {sidebarTab === 'chat' && (
           <>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
@@ -941,7 +941,7 @@ function VideoConsultation() {
               <div ref={chatEndRef} />
             </div>
 
-            <form onSubmit={sendMessage} className="p-4 border-t border-slate-100">
+            <form onSubmit={sendMessage} className="p-4 border-t border-slate-100 pb-[calc(var(--safe-bottom)+1rem)] sm:pb-4">
               <div className="flex items-center gap-2">
                 <input
                   type="text"

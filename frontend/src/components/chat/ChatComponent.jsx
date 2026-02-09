@@ -75,10 +75,10 @@ function ChatComponent({ userRole = 'patient' }) {
   }
 
   return (
-    <div className="h-[calc(100vh-200px)] flex bg-white rounded-2xl border border-slate-200 overflow-hidden">
+    <div className="h-full min-h-0 flex bg-white border-y border-slate-200 sm:border sm:rounded-2xl overflow-hidden">
       {/* Conversations List */}
       <div className={cn(
-        'w-full md:w-80 border-r border-slate-200 flex flex-col',
+        'w-full md:w-80 border-r border-slate-200 flex flex-col min-h-0',
         currentConversation && 'hidden md:flex'
       )}>
         {/* Search */}
@@ -96,7 +96,7 @@ function ChatComponent({ userRole = 'patient' }) {
         </div>
 
         {/* Conversations */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
@@ -168,7 +168,7 @@ function ChatComponent({ userRole = 'patient' }) {
 
       {/* Chat Area */}
       {currentConversation ? (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           {/* Chat Header */}
           <div className="p-4 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -209,10 +209,10 @@ function ChatComponent({ userRole = 'patient' }) {
               })()}
             </div>
             <div className="flex items-center gap-2">
-              <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+              <button className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-600">
                 <Phone className="w-5 h-5" />
               </button>
-              <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+              <button className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-600">
                 <Video className="w-5 h-5" />
               </button>
               <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
@@ -222,7 +222,7 @@ function ChatComponent({ userRole = 'patient' }) {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
@@ -264,12 +264,12 @@ function ChatComponent({ userRole = 'patient' }) {
           </div>
 
           {/* Message Input */}
-          <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-100">
+          <form onSubmit={handleSendMessage} className="p-3 sm:p-4 border-t border-slate-100 safe-bottom sm:pb-4">
             <div className="flex items-center gap-2">
-              <button type="button" className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+              <button type="button" className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-500">
                 <Paperclip className="w-5 h-5" />
               </button>
-              <button type="button" className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+              <button type="button" className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-500">
                 <Image className="w-5 h-5" />
               </button>
               <input
@@ -277,9 +277,9 @@ function ChatComponent({ userRole = 'patient' }) {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Написать сообщение..."
-                className="flex-1 px-4 py-2 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="flex-1 px-4 py-3 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
-              <button type="button" className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+              <button type="button" className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-500">
                 <Smile className="w-5 h-5" />
               </button>
               <Button 
