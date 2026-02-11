@@ -35,6 +35,7 @@ import {
 import Button from "../components/ui/Button";
 import { Card, CardContent } from "../components/ui/Card";
 import {
+    contentAPI,
     doctorsAPI,
     specializationsAPI,
     getMediaUrl,
@@ -111,6 +112,12 @@ const specializationIcons = {
     Эндокринолог: Pill,
     default: Stethoscope,
 };
+
+const stripHtml = (value = "") =>
+    value
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
 const steps = [
     {
@@ -456,6 +463,14 @@ function LandingPage() {
         satisfaction: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [landingContent, setLandingContent] = useState({
+        siteName: "MedConnect",
+        siteDescription:
+            "Получите квалифицированную медицинскую помощь не выходя из дома.",
+        aboutTitle: "MedConnect — ваш надёжный партнёр в заботе о здоровье",
+        aboutBody:
+            "Мы создали современную платформу телемедицины, которая делает качественную медицинскую помощь доступной каждому. Наша миссия — объединить пациентов и лучших врачей Казахстана.",
+    });
 
     // 3D Card Effect State
     const cardRef = useRef(null);
@@ -489,14 +504,12 @@ function LandingPage() {
         const fetchData = async () => {
             try {
                 // Загружаем врачей
-                const doctorsRes = await doctorsAPI.getAll();
+                const [doctorsRes, specsRes] = await Promise.all([
+                    doctorsAPI.getAll(),
+                    specializationsAPI.getAll(),
+                ]);
                 const { data: doctorsData } = normalizeResponse(doctorsRes);
-                setDoctors(doctorsData?.slice(0, 8) || []);
-
-                // Загружаем специализации
-                const specsRes = await specializationsAPI.getAll();
                 const { data: specsData } = normalizeResponse(specsRes);
-                setSpecializations(specsData?.slice(0, 6) || []);
 
                 // Подсчитываем статистику
                 const totalDoctors = doctorsData?.length || 0;
@@ -515,6 +528,30 @@ function LandingPage() {
                     avgRating: avgRating,
                     satisfaction: 98,
                 });
+
+                setDoctors(doctorsData?.slice(0, 8) || []);
+                setSpecializations(specsData?.slice(0, 6) || []);
+
+                // Загружаем редактируемый контент лендинга из Strapi
+                const [globalRes, aboutRes] = await Promise.all([
+                    contentAPI.getGlobal(),
+                    contentAPI.getAbout(),
+                ]);
+                const { data: globalData } = normalizeResponse(globalRes);
+                const { data: aboutData } = normalizeResponse(aboutRes);
+                const richTextBlock = (aboutData?.blocks || []).find(
+                    (block) => block?.__component === "shared.rich-text",
+                );
+
+                setLandingContent((prev) => ({
+                    ...prev,
+                    siteName: globalData?.siteName || prev.siteName,
+                    siteDescription:
+                        globalData?.siteDescription || prev.siteDescription,
+                    aboutTitle: aboutData?.title || prev.aboutTitle,
+                    aboutBody:
+                        stripHtml(richTextBlock?.body || "") || prev.aboutBody,
+                }));
             } catch (error) {
                 console.error("Error fetching landing data:", error);
             } finally {
@@ -558,8 +595,7 @@ function LandingPage() {
                                 </span>
                             </h1>
                             <p className='text-xl text-white/80 mb-8 max-w-lg leading-relaxed'>
-                                Получите квалифицированную медицинскую помощь не
-                                выходя из дома. Более{" "}
+                                {landingContent.siteDescription} Более{" "}
                                 {stats.doctors > 0 ? stats.doctors : "50"}{" "}
                                 врачей различных специализаций готовы помочь вам
                                 прямо сейчас.
@@ -732,7 +768,7 @@ function LandingPage() {
                             Почему мы
                         </span>
                         <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-4'>
-                            Почему выбирают MedConnect
+                            Почему выбирают {landingContent.siteName}
                         </h2>
                         <p className='text-xl text-slate-600 max-w-2xl mx-auto'>
                             Современные технологии для вашего здоровья и
@@ -955,14 +991,10 @@ function LandingPage() {
                                 О нас
                             </span>
                             <h2 className='text-3xl sm:text-4xl font-bold mb-6'>
-                                MedConnect — ваш надёжный партнёр в заботе о
-                                здоровье
+                                {landingContent.aboutTitle}
                             </h2>
                             <p className='text-white/80 text-lg mb-6 leading-relaxed'>
-                                Мы создали современную платформу телемедицины,
-                                которая делает качественную медицинскую помощь
-                                доступной каждому. Наша миссия — объединить
-                                пациентов и лучших врачей Казахстана.
+                                {landingContent.aboutBody}
                             </p>
                             <div className='space-y-4 mb-8'>
                                 <div className='flex items-center gap-3'>

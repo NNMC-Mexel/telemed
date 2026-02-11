@@ -68,7 +68,7 @@ export const ADMIN_NAV_ITEMS = [
   { path: '/admin/doctors', label: 'Врачи', icon: 'stethoscope' },
   { path: '/admin/appointments', label: 'Записи', icon: 'calendar' },
   { path: '/admin/specializations', label: 'Специализации', icon: 'tags' },
-  { path: '/admin/settings', label: 'Настройки', icon: 'settings' },
+  { path: '/admin/settings', label: 'Контент сайта', icon: 'settings' },
 ]
 
 // API Endpoints

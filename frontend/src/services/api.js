@@ -295,9 +295,28 @@ export const doctorsAPI = {
         api.get(
             `/api/doctors?filters[specialization][id][$eq]=${specializationId}&populate=*`
         ),
+
+    create: async (data) => {
+        try {
+            return await api.post("/api/doctors?status=published", { data });
+        } catch (error) {
+            // Fallback для окружений, где status query не поддержан
+            if (error?.response?.status === 400 || error?.response?.status === 404) {
+                return api.post("/api/doctors", {
+                    data: {
+                        ...data,
+                        publishedAt: new Date().toISOString(),
+                    },
+                });
+            }
+            throw error;
+        }
+    },
     
     // Обновление профиля врача (включая настройки расписания)
     update: (id, data) => api.put(`/api/doctors/${id}`, { data }),
+
+    delete: (id) => api.delete(`/api/doctors/${id}`),
     
     // Получение врача по user ID (используем поле userId)
     getByUserId: (userId) => 
@@ -312,6 +331,37 @@ export const specializationsAPI = {
     getAll: () => api.get("/api/specializations?populate=*&sort=sortOrder:asc,name:asc"),
 
     getOne: (id) => api.get(`/api/specializations/${id}?populate=*`),
+
+    create: async (data) => {
+        try {
+            return await api.post("/api/specializations?status=published", { data });
+        } catch (error) {
+            if (error?.response?.status === 400 || error?.response?.status === 404) {
+                return api.post("/api/specializations", {
+                    data: {
+                        ...data,
+                        publishedAt: new Date().toISOString(),
+                    },
+                });
+            }
+            throw error;
+        }
+    },
+
+    update: (id, data) => api.put(`/api/specializations/${id}`, { data }),
+
+    delete: (id) => api.delete(`/api/specializations/${id}`),
+};
+
+// ===========================================
+// API для контента лендинга
+// ===========================================
+
+export const contentAPI = {
+    getGlobal: () => api.get("/api/global?populate=*"),
+    updateGlobal: (data) => api.put("/api/global", { data }),
+    getAbout: () => api.get("/api/about?populate=*"),
+    updateAbout: (data) => api.put("/api/about", { data }),
 };
 
 // ===========================================

@@ -30,6 +30,9 @@ import PatientHistory from './pages/doctor/PatientHistory'
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
+import AdminDoctors from './pages/admin/AdminDoctors'
+import AdminSpecializations from './pages/admin/AdminSpecializations'
+import AdminContent from './pages/admin/AdminContent'
 
 // Other Pages
 import VideoConsultation from './pages/VideoConsultation'
@@ -190,10 +193,10 @@ function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<AdminUsers />} />
-          <Route path="doctors" element={<div className="p-6">Врачи (в разработке)</div>} />
+          <Route path="doctors" element={<AdminDoctors />} />
           <Route path="appointments" element={<div className="p-6">Записи (в разработке)</div>} />
-          <Route path="specializations" element={<div className="p-6">Специализации (в разработке)</div>} />
-          <Route path="settings" element={<div className="p-6">Настройки (в разработке)</div>} />
+          <Route path="specializations" element={<AdminSpecializations />} />
+          <Route path="settings" element={<AdminContent />} />
         </Route>
 
         {/* Video Consultation */}
