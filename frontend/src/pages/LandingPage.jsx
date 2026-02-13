@@ -55,52 +55,8 @@ const doctorCardColors = [
     "bg-gradient-to-br from-pink-400 to-pink-600",
 ];
 
-const features = [
-    {
-        icon: Video,
-        title: "Видеоконсультации",
-        description:
-            "HD качество связи без задержек. Безопасное P2P соединение для комфортного общения.",
-    },
-    {
-        icon: Shield,
-        title: "Безопасность данных",
-        description:
-            "Шифрование данных и соответствие стандартам медицинской безопасности.",
-    },
-    {
-        icon: Clock,
-        title: "Доступно 24/7",
-        description:
-            "Запишитесь на удобное время или получите срочную консультацию в любой момент.",
-    },
-    {
-        icon: FileText,
-        title: "Электронные документы",
-        description:
-            "Рецепты, заключения и направления в электронном виде сразу после консультации.",
-    },
-];
-
-const advantages = [
-    {
-        icon: HeartPulse,
-        title: "Опытные врачи",
-        description:
-            "Только сертифицированные специалисты с подтверждённым опытом",
-    },
-    {
-        icon: UserCheck,
-        title: "Удобно и быстро",
-        description: "Консультация из любой точки мира без очередей и ожидания",
-    },
-    {
-        icon: Headphones,
-        title: "Поддержка 24/7",
-        description:
-            "Служба поддержки всегда на связи для решения ваших вопросов",
-    },
-];
+const featureIcons = [Video, Shield, Clock, FileText];
+const advantageIcons = [HeartPulse, UserCheck, Headphones];
 
 // Иконки для специализаций
 const specializationIcons = {
@@ -119,28 +75,142 @@ const stripHtml = (value = "") =>
         .replace(/\s+/g, " ")
         .trim();
 
-const steps = [
-    {
-        number: "01",
-        title: "Выберите врача",
-        description: "Найдите специалиста по направлению, рейтингу или отзывам",
+const defaultLandingConfig = {
+    hero: {
+        badge: "Быстрая и удобная медицинская помощь",
+        titlePrefix: "Консультация с врачом",
+        titleHighlight: "онлайн",
+        description:
+            "Получите квалифицированную медицинскую помощь не выходя из дома. Наши специалисты готовы помочь вам прямо сейчас.",
+        primaryButtonLabel: "Найти врача",
+        secondaryButtonLabel: "Регистрация",
     },
-    {
-        number: "02",
-        title: "Запишитесь на приём",
-        description: "Выберите удобные дату и время для консультации",
+    heroCard: {
+        title: "Онлайн-консультация",
+        subtitle: "Выберите удобное время",
+        items: [
+            {
+                title: "Опытные врачи",
+                description:
+                    "Только сертифицированные специалисты с подтверждённым опытом",
+            },
+            {
+                title: "Удобно и быстро",
+                description:
+                    "Консультация из любой точки мира без очередей и ожидания",
+            },
+            {
+                title: "Поддержка 24/7",
+                description:
+                    "Служба поддержки всегда на связи для решения ваших вопросов",
+            },
+        ],
+        buttonLabel: "Записаться сейчас",
     },
-    {
-        number: "03",
-        title: "Оплатите онлайн",
-        description: "Безопасная оплата через Kaspi, Halyk или картой",
+    stats: [
+        { value: "1100+", label: "Консультаций" },
+        { value: "6+", label: "Врачей" },
+        { value: "4.9", label: "Средний рейтинг" },
+        { value: "98%", label: "Довольных" },
+    ],
+    featuresSection: {
+        badge: "Почему мы",
+        title: "Почему выбирают MedConnect",
+        subtitle: "Современные технологии для вашего здоровья и комфорта",
+        cards: [
+            {
+                title: "Видеоконсультации",
+                description:
+                    "HD качество связи без задержек. Безопасное P2P соединение для комфортного общения.",
+            },
+            {
+                title: "Безопасность данных",
+                description:
+                    "Шифрование данных и соответствие стандартам медицинской безопасности.",
+            },
+            {
+                title: "Доступно 24/7",
+                description:
+                    "Запишитесь на удобное время или получите срочную консультацию в любой момент.",
+            },
+            {
+                title: "Электронные документы",
+                description:
+                    "Рецепты, заключения и направления в электронном виде сразу после консультации.",
+            },
+        ],
     },
-    {
-        number: "04",
-        title: "Получите консультацию",
-        description: "Подключитесь к видеозвонку в назначенное время",
+    stepsSection: {
+        badge: "Как это работает",
+        title: "Всего 4 простых шага",
+        subtitle: "До консультации с врачом",
+        steps: [
+            {
+                title: "Выберите врача",
+                description:
+                    "Найдите специалиста по направлению, рейтингу или отзывам",
+            },
+            {
+                title: "Запишитесь на приём",
+                description: "Выберите удобные дату и время для консультации",
+            },
+            {
+                title: "Оплатите онлайн",
+                description: "Безопасная оплата через Kaspi, Halyk или картой",
+            },
+            {
+                title: "Получите консультацию",
+                description: "Подключитесь к видеозвонку в назначенное время",
+            },
+        ],
     },
-];
+    aboutSection: {
+        badge: "О нас",
+        title: "MedConnect — ваш надёжный партнёр в заботе о здоровье",
+        description:
+            "Мы создали современную платформу телемедицины, которая делает качественную медицинскую помощь доступной каждому.",
+        bullets: [
+            "Лицензированные врачи с подтверждённым опытом",
+            "Безопасная и защищённая платформа",
+            "Круглосуточная поддержка пациентов",
+            "Электронные рецепты и документы",
+        ],
+        buttonLabel: "Присоединиться",
+    },
+    contactSection: {
+        badge: "Контакты",
+        title: "Свяжитесь с нами",
+        subtitle: "Мы всегда на связи и готовы ответить на ваши вопросы",
+        phone: {
+            title: "Телефон",
+            note: "Пн-Пт: 8:00 — 20:00, Сб: 9:00 — 15:00",
+            value: "+7 (717) 270-12-34",
+        },
+        email: {
+            title: "Электронная почта",
+            note: "Ответим в течение 24 часов",
+            value: "info@medconnect.kz",
+        },
+        address: {
+            title: "Адрес",
+            note: "Приём по записи",
+            value: "г. Астана, просп. Абылай хана, 42",
+        },
+        quickCard: {
+            title: "Нужна быстрая консультация?",
+            description:
+                "Запишитесь на онлайн-консультацию с врачом прямо сейчас. Наши специалисты помогут вам в кратчайшие сроки.",
+            bullets: [
+                "Без очередей и ожидания",
+                "Консультация из любой точки",
+                "Запись результатов в личный кабинет",
+            ],
+            buttonLabel: "Записаться к врачу",
+        },
+        mapEmbedUrl:
+            "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2505.5!2d71.4926513!3d51.1492038!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4245817a521995c9%3A0xe653c982ba77912!2z0J3QsNGG0LjQvtC90LDQu9GM0L3Ri9C5INC90LDRg9GH0L3Ri9C5INC80LXQtNC40YbQuNC90YHQutC40Lkg0YbQtdC90YLRgA!5e0!3m2!1sru!2skz!4v1700000000000!5m2!1sru!2skz",
+    },
+};
 
 const testimonials = [
     {
@@ -467,9 +537,7 @@ function LandingPage() {
         siteName: "MedConnect",
         siteDescription:
             "Получите квалифицированную медицинскую помощь не выходя из дома.",
-        aboutTitle: "MedConnect — ваш надёжный партнёр в заботе о здоровье",
-        aboutBody:
-            "Мы создали современную платформу телемедицины, которая делает качественную медицинскую помощь доступной каждому. Наша миссия — объединить пациентов и лучших врачей Казахстана.",
+        config: defaultLandingConfig,
     });
 
     // 3D Card Effect State
@@ -533,24 +601,87 @@ function LandingPage() {
                 setSpecializations(specsData?.slice(0, 6) || []);
 
                 // Загружаем редактируемый контент лендинга из Strapi
-                const [globalRes, aboutRes] = await Promise.all([
-                    contentAPI.getGlobal(),
-                    contentAPI.getAbout(),
-                ]);
+                const globalRes = await contentAPI.getGlobal();
                 const { data: globalData } = normalizeResponse(globalRes);
-                const { data: aboutData } = normalizeResponse(aboutRes);
-                const richTextBlock = (aboutData?.blocks || []).find(
-                    (block) => block?.__component === "shared.rich-text",
-                );
+                const incomingConfig = globalData?.landingConfig || {};
+                const mergedConfig = {
+                    ...defaultLandingConfig,
+                    ...incomingConfig,
+                    hero: { ...defaultLandingConfig.hero, ...(incomingConfig.hero || {}) },
+                    heroCard: {
+                        ...defaultLandingConfig.heroCard,
+                        ...(incomingConfig.heroCard || {}),
+                        items:
+                            Array.isArray(incomingConfig.heroCard?.items) &&
+                            incomingConfig.heroCard.items.length > 0
+                                ? incomingConfig.heroCard.items
+                                : defaultLandingConfig.heroCard.items,
+                    },
+                    stats:
+                        Array.isArray(incomingConfig.stats) &&
+                        incomingConfig.stats.length > 0
+                            ? incomingConfig.stats
+                            : defaultLandingConfig.stats,
+                    featuresSection: {
+                        ...defaultLandingConfig.featuresSection,
+                        ...(incomingConfig.featuresSection || {}),
+                        cards:
+                            Array.isArray(incomingConfig.featuresSection?.cards) &&
+                            incomingConfig.featuresSection.cards.length > 0
+                                ? incomingConfig.featuresSection.cards
+                                : defaultLandingConfig.featuresSection.cards,
+                    },
+                    stepsSection: {
+                        ...defaultLandingConfig.stepsSection,
+                        ...(incomingConfig.stepsSection || {}),
+                        steps:
+                            Array.isArray(incomingConfig.stepsSection?.steps) &&
+                            incomingConfig.stepsSection.steps.length > 0
+                                ? incomingConfig.stepsSection.steps
+                                : defaultLandingConfig.stepsSection.steps,
+                    },
+                    aboutSection: {
+                        ...defaultLandingConfig.aboutSection,
+                        ...(incomingConfig.aboutSection || {}),
+                        bullets:
+                            Array.isArray(incomingConfig.aboutSection?.bullets) &&
+                            incomingConfig.aboutSection.bullets.length > 0
+                                ? incomingConfig.aboutSection.bullets
+                                : defaultLandingConfig.aboutSection.bullets,
+                    },
+                    contactSection: {
+                        ...defaultLandingConfig.contactSection,
+                        ...(incomingConfig.contactSection || {}),
+                        phone: {
+                            ...defaultLandingConfig.contactSection.phone,
+                            ...(incomingConfig.contactSection?.phone || {}),
+                        },
+                        email: {
+                            ...defaultLandingConfig.contactSection.email,
+                            ...(incomingConfig.contactSection?.email || {}),
+                        },
+                        address: {
+                            ...defaultLandingConfig.contactSection.address,
+                            ...(incomingConfig.contactSection?.address || {}),
+                        },
+                        quickCard: {
+                            ...defaultLandingConfig.contactSection.quickCard,
+                            ...(incomingConfig.contactSection?.quickCard || {}),
+                            bullets:
+                                Array.isArray(incomingConfig.contactSection?.quickCard?.bullets) &&
+                                incomingConfig.contactSection.quickCard.bullets.length > 0
+                                    ? incomingConfig.contactSection.quickCard.bullets
+                                    : defaultLandingConfig.contactSection.quickCard.bullets,
+                        },
+                    },
+                };
 
                 setLandingContent((prev) => ({
                     ...prev,
                     siteName: globalData?.siteName || prev.siteName,
                     siteDescription:
                         globalData?.siteDescription || prev.siteDescription,
-                    aboutTitle: aboutData?.title || prev.aboutTitle,
-                    aboutBody:
-                        stripHtml(richTextBlock?.body || "") || prev.aboutBody,
+                    config: mergedConfig,
                 }));
             } catch (error) {
                 console.error("Error fetching landing data:", error);
@@ -561,6 +692,8 @@ function LandingPage() {
 
         fetchData();
     }, []);
+
+    const config = landingContent.config || defaultLandingConfig;
 
     return (
         <div className='overflow-hidden'>
@@ -586,26 +719,23 @@ function LandingPage() {
                         <div className='text-white'>
                             <span className='inline-flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full text-sm font-medium mb-6 backdrop-blur-sm border border-white/20'>
                                 <Zap className='w-4 h-4 text-amber-400' />
-                                Быстрая и удобная медицинская помощь
+                                {config.hero.badge}
                             </span>
                             <h1 className='text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6'>
-                                Консультация с врачом{" "}
+                                {config.hero.titlePrefix}{" "}
                                 <span className='text-transparent bg-clip-text bg-gradient-to-r from-teal-200 to-cyan-200'>
-                                    онлайн
+                                    {config.hero.titleHighlight}
                                 </span>
                             </h1>
                             <p className='text-xl text-white/80 mb-8 max-w-lg leading-relaxed'>
-                                {landingContent.siteDescription} Более{" "}
-                                {stats.doctors > 0 ? stats.doctors : "50"}{" "}
-                                врачей различных специализаций готовы помочь вам
-                                прямо сейчас.
+                                {config.hero.description}
                             </p>
                             <div className='flex flex-col sm:flex-row gap-4'>
                                 <Link to='/doctors'>
                                     <Button
                                         size='lg'
                                         className=' text-teal-700 hover:bg-teal-50 shadow-lg shadow-black/10 font-semibold'>
-                                        Найти врача
+                                        {config.hero.primaryButtonLabel}
                                         <ArrowRight className='w-5 h-5 ml-2' />
                                     </Button>
                                 </Link>
@@ -613,45 +743,23 @@ function LandingPage() {
                                     <Button
                                         size='lg'
                                         className='bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg font-semibold'>
-                                        Регистрация
+                                        {config.hero.secondaryButtonLabel}
                                     </Button>
                                 </Link>
                             </div>
 
                             {/* Stats */}
                             <div className='grid grid-cols-2 sm:grid-cols-4 gap-6 mt-12 pt-12 border-t border-white/20'>
-                                <div>
-                                    <div className='text-3xl font-bold text-white'>
-                                        {stats.consultations || 500}+
+                                {(config.stats || []).slice(0, 4).map((item, idx) => (
+                                    <div key={idx}>
+                                        <div className='text-3xl font-bold text-white'>
+                                            {item.value}
+                                        </div>
+                                        <div className='text-sm text-white/60'>
+                                            {item.label}
+                                        </div>
                                     </div>
-                                    <div className='text-sm text-white/60'>
-                                        Консультаций
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className='text-3xl font-bold text-white'>
-                                        {stats.doctors || 50}+
-                                    </div>
-                                    <div className='text-sm text-white/60'>
-                                        Врачей
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className='text-3xl font-bold text-white'>
-                                        {stats.avgRating || "4.9"}
-                                    </div>
-                                    <div className='text-sm text-white/60'>
-                                        Средний рейтинг
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className='text-3xl font-bold text-white'>
-                                        {stats.satisfaction || 98}%
-                                    </div>
-                                    <div className='text-sm text-white/60'>
-                                        Довольных
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         </div>
 
@@ -701,16 +809,20 @@ function LandingPage() {
                                                         "translateZ(20px)",
                                                 }}>
                                                 <h3 className='text-lg font-semibold text-slate-900'>
-                                                    Онлайн-консультация
+                                                    {config.heroCard.title}
                                                 </h3>
                                                 <p className='text-slate-500'>
-                                                    Выберите удобное время
+                                                    {config.heroCard.subtitle}
                                                 </p>
                                             </div>
                                         </div>
 
                                         <div className='space-y-4 mb-6'>
-                                            {advantages.map((adv, idx) => (
+                                            {(config.heroCard.items || []).slice(0, 3).map((adv, idx) => {
+                                                const AdvantageIcon =
+                                                    advantageIcons[idx] ||
+                                                    advantageIcons[0];
+                                                return (
                                                 <div
                                                     key={idx}
                                                     className='flex items-center gap-3'
@@ -718,7 +830,7 @@ function LandingPage() {
                                                         transform: `translateZ(${15 - idx * 3}px)`,
                                                     }}>
                                                     <div className='w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center flex-shrink-0'>
-                                                        <adv.icon className='w-5 h-5 text-teal-600' />
+                                                        <AdvantageIcon className='w-5 h-5 text-teal-600' />
                                                     </div>
                                                     <div>
                                                         <p className='font-medium text-slate-900 text-sm'>
@@ -729,7 +841,8 @@ function LandingPage() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
 
                                         <Link
@@ -739,7 +852,7 @@ function LandingPage() {
                                                 transform: "translateZ(25px)",
                                             }}>
                                             <Button className='w-full'>
-                                                Записаться сейчас
+                                                {config.heroCard.buttonLabel}
                                             </Button>
                                         </Link>
                                     </CardContent>
@@ -765,36 +878,41 @@ function LandingPage() {
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='text-center mb-16'>
                         <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
-                            Почему мы
+                            {config.featuresSection.badge}
                         </span>
                         <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-4'>
-                            Почему выбирают {landingContent.siteName}
+                            {config.featuresSection.title}
                         </h2>
                         <p className='text-xl text-slate-600 max-w-2xl mx-auto'>
-                            Современные технологии для вашего здоровья и
-                            комфорта
+                            {config.featuresSection.subtitle}
                         </p>
                     </div>
 
                     <div className='grid md:grid-cols-2 lg:grid-cols-4 gap-8'>
-                        {features.map((feature, index) => (
-                            <Card
-                                key={index}
-                                hover
-                                className='text-center border-0 shadow-lg shadow-slate-200/50'>
-                                <CardContent className='pt-8'>
-                                    <div className='w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-teal-500 to-sky-500 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/30'>
-                                        <feature.icon className='w-8 h-8 text-white' />
-                                    </div>
-                                    <h3 className='text-lg font-semibold text-slate-900 mb-2'>
-                                        {feature.title}
-                                    </h3>
-                                    <p className='text-slate-600'>
-                                        {feature.description}
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        ))}
+                        {(config.featuresSection.cards || [])
+                            .slice(0, 4)
+                            .map((feature, index) => {
+                                const FeatureIcon =
+                                    featureIcons[index] || featureIcons[0];
+                                return (
+                                    <Card
+                                        key={index}
+                                        hover
+                                        className='text-center border-0 shadow-lg shadow-slate-200/50'>
+                                        <CardContent className='pt-8'>
+                                            <div className='w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-teal-500 to-sky-500 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/30'>
+                                                <FeatureIcon className='w-8 h-8 text-white' />
+                                            </div>
+                                            <h3 className='text-lg font-semibold text-slate-900 mb-2'>
+                                                {feature.title}
+                                            </h3>
+                                            <p className='text-slate-600'>
+                                                {feature.description}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
                     </div>
                 </div>
             </section>
@@ -897,23 +1015,25 @@ function LandingPage() {
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='text-center mb-16'>
                         <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
-                            Как это работает
+                            {config.stepsSection.badge}
                         </span>
                         <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-4'>
-                            Всего 4 простых шага
+                            {config.stepsSection.title}
                         </h2>
                         <p className='text-xl text-slate-600'>
-                            До консультации с врачом
+                            {config.stepsSection.subtitle}
                         </p>
                     </div>
 
                     <div className='grid md:grid-cols-2 lg:grid-cols-4 gap-8'>
-                        {steps.map((step, index) => (
+                        {(config.stepsSection.steps || [])
+                            .slice(0, 4)
+                            .map((step, index) => (
                             <div
                                 key={index}
                                 className='relative text-center lg:text-left'>
                                 <div className='text-7xl font-bold text-teal-100 mb-4'>
-                                    {step.number}
+                                    {String(index + 1).padStart(2, "0")}
                                 </div>
                                 <h3 className='text-xl font-semibold text-slate-900 mb-2'>
                                     {step.title}
@@ -921,7 +1041,12 @@ function LandingPage() {
                                 <p className='text-slate-600'>
                                     {step.description}
                                 </p>
-                                {index < steps.length - 1 && (
+                                {index <
+                                    (config.stepsSection.steps || []).slice(
+                                        0,
+                                        4,
+                                    ).length -
+                                        1 && (
                                     <ArrowRight className='hidden lg:block absolute top-8 -right-4 w-8 h-8 text-teal-300' />
                                 )}
                             </div>
@@ -988,46 +1113,33 @@ function LandingPage() {
                     <div className='grid lg:grid-cols-2 gap-12 items-center'>
                         <div className='text-white'>
                             <span className='inline-block px-4 py-1 bg-white/20 text-white rounded-full text-sm font-medium mb-6'>
-                                О нас
+                                {config.aboutSection.badge}
                             </span>
                             <h2 className='text-3xl sm:text-4xl font-bold mb-6'>
-                                {landingContent.aboutTitle}
+                                {config.aboutSection.title}
                             </h2>
                             <p className='text-white/80 text-lg mb-6 leading-relaxed'>
-                                {landingContent.aboutBody}
+                                {config.aboutSection.description}
                             </p>
                             <div className='space-y-4 mb-8'>
-                                <div className='flex items-center gap-3'>
-                                    <CheckCircle className='w-6 h-6 text-teal-300 flex-shrink-0' />
-                                    <span className='text-white/90'>
-                                        Лицензированные врачи с подтверждённым
-                                        опытом
-                                    </span>
-                                </div>
-                                <div className='flex items-center gap-3'>
-                                    <CheckCircle className='w-6 h-6 text-teal-300 flex-shrink-0' />
-                                    <span className='text-white/90'>
-                                        Безопасная и защищённая платформа
-                                    </span>
-                                </div>
-                                <div className='flex items-center gap-3'>
-                                    <CheckCircle className='w-6 h-6 text-teal-300 flex-shrink-0' />
-                                    <span className='text-white/90'>
-                                        Круглосуточная поддержка пациентов
-                                    </span>
-                                </div>
-                                <div className='flex items-center gap-3'>
-                                    <CheckCircle className='w-6 h-6 text-teal-300 flex-shrink-0' />
-                                    <span className='text-white/90'>
-                                        Электронные рецепты и документы
-                                    </span>
-                                </div>
+                                {(config.aboutSection.bullets || []).map(
+                                    (item, idx) => (
+                                        <div
+                                            className='flex items-center gap-3'
+                                            key={idx}>
+                                            <CheckCircle className='w-6 h-6 text-teal-300 flex-shrink-0' />
+                                            <span className='text-white/90'>
+                                                {item}
+                                            </span>
+                                        </div>
+                                    ),
+                                )}
                             </div>
                             <Link to='/register'>
                                 <Button
                                     size='lg'
                                     className=' text-teal-700 hover:bg-teal-50'>
-                                    Присоединиться
+                                    {config.aboutSection.buttonLabel}
                                     <ArrowRight className='w-5 h-5 ml-2' />
                                 </Button>
                             </Link>
@@ -1038,10 +1150,10 @@ function LandingPage() {
                                     <CardContent className='p-6 text-center'>
                                         <Users className='w-12 h-12 text-white mx-auto mb-4' />
                                         <div className='text-3xl font-bold text-white mb-1'>
-                                            {stats.consultations}+
+                                            {config.stats?.[0]?.value}
                                         </div>
                                         <p className='text-white/70'>
-                                            Консультаций проведено
+                                            {config.stats?.[0]?.label}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -1049,10 +1161,10 @@ function LandingPage() {
                                     <CardContent className='p-6 text-center'>
                                         <Award className='w-12 h-12 text-white mx-auto mb-4' />
                                         <div className='text-3xl font-bold text-white mb-1'>
-                                            {stats.avgRating || "4.9"}
+                                            {config.stats?.[2]?.value}
                                         </div>
                                         <p className='text-white/70'>
-                                            Средняя оценка
+                                            {config.stats?.[2]?.label}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -1060,10 +1172,10 @@ function LandingPage() {
                                     <CardContent className='p-6 text-center'>
                                         <Stethoscope className='w-12 h-12 text-white mx-auto mb-4' />
                                         <div className='text-3xl font-bold text-white mb-1'>
-                                            {stats.doctors || 50}+
+                                            {config.stats?.[1]?.value}
                                         </div>
                                         <p className='text-white/70'>
-                                            Врачей на платформе
+                                            {config.stats?.[1]?.label}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -1071,10 +1183,10 @@ function LandingPage() {
                                     <CardContent className='p-6 text-center'>
                                         <Heart className='w-12 h-12 text-white mx-auto mb-4' />
                                         <div className='text-3xl font-bold text-white mb-1'>
-                                            {stats.satisfaction}%
+                                            {config.stats?.[3]?.value}
                                         </div>
                                         <p className='text-white/70'>
-                                            Довольных пациентов
+                                            {config.stats?.[3]?.label}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -1089,13 +1201,13 @@ function LandingPage() {
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='text-center mb-16'>
                         <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
-                            Контакты
+                            {config.contactSection.badge}
                         </span>
                         <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-4'>
-                            Свяжитесь с нами
+                            {config.contactSection.title}
                         </h2>
                         <p className='text-xl text-slate-600 max-w-2xl mx-auto'>
-                            Мы всегда на связи и готовы ответить на ваши вопросы
+                            {config.contactSection.subtitle}
                         </p>
                     </div>
 
@@ -1107,15 +1219,17 @@ function LandingPage() {
                                 <Phone className='w-7 h-7 text-teal-600 group-hover:text-white transition-colors' />
                             </div>
                             <h3 className='text-lg font-semibold text-slate-900 mb-2'>
-                                Телефон
+                                {config.contactSection.phone.title}
                             </h3>
                             <p className='text-slate-500 text-sm mb-4'>
-                                Пн-Пт: 8:00 — 20:00, Сб: 9:00 — 15:00
+                                {config.contactSection.phone.note}
                             </p>
                             <a
-                                href='tel:+77172701234'
+                                href={`tel:${(config.contactSection.phone.value || "")
+                                    .replace(/\\s+/g, "")
+                                    .replace(/[()\\-]/g, "")}`}
                                 className='text-xl font-semibold text-teal-600 hover:text-teal-700 transition-colors flex items-center gap-2'>
-                                +7 (717) 270-12-34
+                                {config.contactSection.phone.value}
                                 <ExternalLink className='w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity' />
                             </a>
                         </div>
@@ -1127,15 +1241,15 @@ function LandingPage() {
                                 <Mail className='w-7 h-7 text-sky-600 group-hover:text-white transition-colors' />
                             </div>
                             <h3 className='text-lg font-semibold text-slate-900 mb-2'>
-                                Электронная почта
+                                {config.contactSection.email.title}
                             </h3>
                             <p className='text-slate-500 text-sm mb-4'>
-                                Ответим в течение 24 часов
+                                {config.contactSection.email.note}
                             </p>
                             <a
-                                href='mailto:info@medconnect.kz'
+                                href={`mailto:${config.contactSection.email.value}`}
                                 className='text-xl font-semibold text-sky-600 hover:text-sky-700 transition-colors flex items-center gap-2'>
-                                info@medconnect.kz
+                                {config.contactSection.email.value}
                                 <ExternalLink className='w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity' />
                             </a>
                         </div>
@@ -1147,13 +1261,13 @@ function LandingPage() {
                                 <MapPin className='w-7 h-7 text-violet-600 group-hover:text-white transition-colors' />
                             </div>
                             <h3 className='text-lg font-semibold text-slate-900 mb-2'>
-                                Адрес
+                                {config.contactSection.address.title}
                             </h3>
                             <p className='text-slate-500 text-sm mb-4'>
-                                Приём по записи
+                                {config.contactSection.address.note}
                             </p>
                             <p className='text-xl font-semibold text-violet-600'>
-                                г. Астана, просп. Абылай хана, 42
+                                {config.contactSection.address.value}
                             </p>
                         </div>
                     </div>
@@ -1164,7 +1278,7 @@ function LandingPage() {
                         <div className='lg:col-span-3 rounded-2xl overflow-hidden shadow-lg border border-slate-200 min-h-[320px]'>
                             <iframe
                                 title='MedConnect Location'
-                                src='https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2505.5!2d71.4926513!3d51.1492038!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4245817a521995c9%3A0xe653c982ba77912!2z0J3QsNGG0LjQvtC90LDQu9GM0L3Ri9C5INC90LDRg9GH0L3Ri9C5INC80LXQtNC40YbQuNC90YHQutC40Lkg0YbQtdC90YLRgA!5e0!3m2!1sru!2skz!4v1700000000000!5m2!1sru!2skz'
+                                src={config.contactSection.mapEmbedUrl}
                                 width='100%'
                                 height='100%'
                                 style={{ border: 0, minHeight: "320px" }}
@@ -1179,32 +1293,23 @@ function LandingPage() {
                         <div className='lg:col-span-2 bg-gradient-to-br from-teal-600 to-sky-700 rounded-2xl p-8 text-white flex flex-col justify-between'>
                             <div>
                                 <h3 className='text-2xl font-bold mb-4'>
-                                    Нужна быстрая консультация?
+                                    {config.contactSection.quickCard.title}
                                 </h3>
                                 <p className='text-white/80 mb-6 leading-relaxed'>
-                                    Запишитесь на онлайн-консультацию с врачом
-                                    прямо сейчас. Наши специалисты помогут вам в
-                                    кратчайшие сроки.
+                                    {config.contactSection.quickCard.description}
                                 </p>
                                 <div className='space-y-3 mb-8'>
-                                    <div className='flex items-center gap-3'>
-                                        <CheckCircle className='w-5 h-5 text-teal-300 flex-shrink-0' />
-                                        <span className='text-white/90 text-sm'>
-                                            Без очередей и ожидания
-                                        </span>
-                                    </div>
-                                    <div className='flex items-center gap-3'>
-                                        <CheckCircle className='w-5 h-5 text-teal-300 flex-shrink-0' />
-                                        <span className='text-white/90 text-sm'>
-                                            Консультация из любой точки
-                                        </span>
-                                    </div>
-                                    <div className='flex items-center gap-3'>
-                                        <CheckCircle className='w-5 h-5 text-teal-300 flex-shrink-0' />
-                                        <span className='text-white/90 text-sm'>
-                                            Запись результатов в личный кабинет
-                                        </span>
-                                    </div>
+                                    {(config.contactSection.quickCard.bullets ||
+                                        []).map((item, idx) => (
+                                        <div
+                                            className='flex items-center gap-3'
+                                            key={idx}>
+                                            <CheckCircle className='w-5 h-5 text-teal-300 flex-shrink-0' />
+                                            <span className='text-white/90 text-sm'>
+                                                {item}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                             <Link to='/doctors'>
@@ -1212,7 +1317,7 @@ function LandingPage() {
                                     size='lg'
                                     className='w-full  text-teal-700 hover:bg-teal-50 shadow-lg'
                                     rightIcon={<Send className='w-5 h-5' />}>
-                                    Записаться к врачу
+                                    {config.contactSection.quickCard.buttonLabel}
                                 </Button>
                             </Link>
                         </div>
