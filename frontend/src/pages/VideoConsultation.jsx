@@ -42,22 +42,21 @@ import { cn } from '../utils/helpers'
 import useAuthStore from '../stores/authStore'
 import api, { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl } from '../services/api'
 
+const _TURN_USER = import.meta.env.VITE_TURN_USERNAME || '';
+const _TURN_CRED = import.meta.env.VITE_TURN_CREDENTIAL || '';
+const _TURN_URL  = import.meta.env.VITE_TURN_URL     || ''; // turn:host:3478
+const _TURN_TCP  = import.meta.env.VITE_TURN_URL_TCP || ''; // turn:host:443?transport=tcp
+
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    ...(import.meta.env.VITE_TURN_URL ? [
-      {
-        urls: import.meta.env.VITE_TURN_URL,
-        username: import.meta.env.VITE_TURN_USERNAME || '',
-        credential: import.meta.env.VITE_TURN_CREDENTIAL || '',
-      },
-      {
-        urls: import.meta.env.VITE_TURN_URL + '?transport=tcp',
-        username: import.meta.env.VITE_TURN_USERNAME || '',
-        credential: import.meta.env.VITE_TURN_CREDENTIAL || '',
-      },
-    ] : []),
+    // TURN UDP (основной)
+    ...(_TURN_URL ? [{ urls: _TURN_URL,                          username: _TURN_USER, credential: _TURN_CRED }] : []),
+    // TURN TCP port 3478
+    ...(_TURN_URL ? [{ urls: _TURN_URL + '?transport=tcp',       username: _TURN_USER, credential: _TURN_CRED }] : []),
+    // TURN TCP port 443 (резерв для строгих корпоративных файрволов)
+    ...(_TURN_TCP ? [{ urls: _TURN_TCP,                          username: _TURN_USER, credential: _TURN_CRED }] : []),
   ],
 }
 
