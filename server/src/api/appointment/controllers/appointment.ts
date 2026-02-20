@@ -18,14 +18,35 @@ export default factories.createCoreController('api::appointment.appointment', ()
     } as any;
     const sort = (ctx.query?.sort as any) || ['dateTime:desc'];
 
-    // Parse roomId filter from query params
+    // Parse filters from query params
     const queryFilters = ctx.query?.filters as any;
     const roomIdFilter = queryFilters?.roomId?.$eq;
 
-    // Build additional filters
+    // Build additional filters (passed through from query)
     let additionalFilters: any = {};
     if (roomIdFilter) {
       additionalFilters.roomId = roomIdFilter;
+    }
+
+    // Apply dateTime range filter (used by getBookedSlots to check slot availability)
+    const dateTimeGte = queryFilters?.dateTime?.$gte;
+    const dateTimeLte = queryFilters?.dateTime?.$lte;
+    if (dateTimeGte || dateTimeLte) {
+      additionalFilters.dateTime = {};
+      if (dateTimeGte) additionalFilters.dateTime.$gte = dateTimeGte;
+      if (dateTimeLte) additionalFilters.dateTime.$lte = dateTimeLte;
+    }
+
+    // Apply statuse (ne) filter
+    const statuseNe = queryFilters?.statuse?.$ne;
+    if (statuseNe) {
+      additionalFilters.statuse = { $ne: statuseNe };
+    }
+
+    // Apply doctor filter (so patients only see bookings for the requested doctor)
+    const doctorIdFilter = queryFilters?.doctor?.id?.$eq;
+    if (doctorIdFilter) {
+      additionalFilters.doctor = { id: doctorIdFilter };
     }
 
     if (!isAdmin) {
