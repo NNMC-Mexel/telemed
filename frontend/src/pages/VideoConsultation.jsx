@@ -47,15 +47,20 @@ const _TURN_CRED = import.meta.env.VITE_TURN_CREDENTIAL || '';
 const _TURN_URL  = import.meta.env.VITE_TURN_URL     || ''; // turn:host:3478
 const _TURN_TCP  = import.meta.env.VITE_TURN_URL_TCP || ''; // turn:host:443?transport=tcp
 
+const _TURN_INTERNAL = import.meta.env.VITE_TURN_INTERNAL || '';
+
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    // TURN UDP (основной)
+    // TURN внутренний IP (для пользователей в кампусе — обходит hairpin NAT)
+    ...(_TURN_INTERNAL ? [{ urls: _TURN_INTERNAL,                          username: _TURN_USER, credential: _TURN_CRED }] : []),
+    ...(_TURN_INTERNAL ? [{ urls: _TURN_INTERNAL + '?transport=tcp',       username: _TURN_USER, credential: _TURN_CRED }] : []),
+    // TURN UDP публичный (основной для внешних пользователей)
     ...(_TURN_URL ? [{ urls: _TURN_URL,                          username: _TURN_USER, credential: _TURN_CRED }] : []),
-    // TURN TCP port 3478
+    // TURN TCP публичный
     ...(_TURN_URL ? [{ urls: _TURN_URL + '?transport=tcp',       username: _TURN_USER, credential: _TURN_CRED }] : []),
-    // TURN TCP port 443 (резерв для строгих корпоративных файрволов)
+    // TURNS TLS (резерв для строгих корпоративных файрволов)
     ...(_TURN_TCP ? [{ urls: _TURN_TCP,                          username: _TURN_USER, credential: _TURN_CRED }] : []),
   ],
 }

@@ -26,6 +26,11 @@ export default defineConfig(({ mode }) => {
     ? 'turns:medconnect.nnmc.kz:5349'
     : (process.env.VITE_TURN_URL_TCP || '')
 
+  // Внутренний IP TURN сервера (для пользователей в кампусе — обходит hairpin NAT)
+  const TURN_INTERNAL = isProduction
+    ? 'turn:192.168.101.25:3478'
+    : (process.env.VITE_TURN_INTERNAL || '')
+
   const TURN_USERNAME = isProduction
     ? 'medconnect'
     : (process.env.VITE_TURN_USERNAME || 'medconnect')
@@ -56,6 +61,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_SIGNALING_SERVER': JSON.stringify(SIGNALING_SERVER),
       'import.meta.env.VITE_TURN_URL': JSON.stringify(TURN_URL),
       'import.meta.env.VITE_TURN_URL_TCP': JSON.stringify(TURN_URL_TCP),
+      'import.meta.env.VITE_TURN_INTERNAL': JSON.stringify(TURN_INTERNAL),
       'import.meta.env.VITE_TURN_USERNAME': JSON.stringify(TURN_USERNAME),
       'import.meta.env.VITE_TURN_CREDENTIAL': JSON.stringify(TURN_CREDENTIAL),
     },
