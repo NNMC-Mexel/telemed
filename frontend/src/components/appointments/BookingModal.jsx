@@ -301,12 +301,44 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
     if (!doctor) return null;
 
+    const footerButtons = !isComplete ? (
+        <div className='flex items-center justify-between w-full'>
+            <Button
+                variant='ghost'
+                onClick={step === 1 ? resetAndClose : handleBack}
+                leftIcon={
+                    step > 1 ? (
+                        <ChevronLeft className='w-4 h-4' />
+                    ) : undefined
+                }>
+                {step === 1 ? "Отмена" : "Назад"}
+            </Button>
+
+            {step < 4 ? (
+                <Button
+                    onClick={handleNext}
+                    disabled={!canProceed()}
+                    rightIcon={<ChevronRight className='w-4 h-4' />}>
+                    Далее
+                </Button>
+            ) : (
+                <Button
+                    onClick={handleBook}
+                    isLoading={isProcessing}
+                    leftIcon={<CreditCard className='w-4 h-4' />}>
+                    Оплатить {formatPrice(doctorPrice)}
+                </Button>
+            )}
+        </div>
+    ) : undefined
+
     return (
         <Modal
             isOpen={isOpen}
             onClose={resetAndClose}
             title={isComplete ? "Запись подтверждена!" : "Запись к врачу"}
-            size='lg'>
+            size='lg'
+            footer={footerButtons}>
             {isComplete ? (
                 <div className='text-center py-8'>
                     <div className='w-20 h-20 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-6'>
@@ -734,37 +766,6 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         </div>
                     )}
 
-                    {/* Footer Actions */}
-                    <div className='flex items-center justify-between mt-8 pt-4 border-t border-slate-100'>
-                        <Button
-                            variant='ghost'
-                            onClick={step === 1 ? resetAndClose : handleBack}
-                            leftIcon={
-                                step > 1 ? (
-                                    <ChevronLeft className='w-4 h-4' />
-                                ) : undefined
-                            }>
-                            {step === 1 ? "Отмена" : "Назад"}
-                        </Button>
-
-                        {step < 4 ? (
-                            <Button
-                                onClick={handleNext}
-                                disabled={!canProceed()}
-                                rightIcon={
-                                    <ChevronRight className='w-4 h-4' />
-                                }>
-                                Далее
-                            </Button>
-                        ) : (
-                            <Button
-                                onClick={handleBook}
-                                isLoading={isProcessing}
-                                leftIcon={<CreditCard className='w-4 h-4' />}>
-                                Оплатить {formatPrice(doctorPrice)}
-                            </Button>
-                        )}
-                    </div>
                 </>
             )}
         </Modal>
