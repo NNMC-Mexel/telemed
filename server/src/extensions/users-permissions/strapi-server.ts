@@ -24,9 +24,56 @@ export default (plugin) => {
     // Вызываем оригинальную factory, чтобы получить все методы контроллера
     const originalController = originalAuthFactory(factoryContext);
     const originalRegister = originalController.register;
+    const originalLogin = originalController.login;
 
     return {
       ...originalController,
+
+      // Логин по телефону: если identifier выглядит как номер телефона —
+      // ищем пользователя по полю phone и подставляем его email
+      async login(ctx) {
+        const requestBody = ctx.request?.body || {};
+        const sourceBody =
+          requestBody?.data && typeof requestBody.data === 'object'
+            ? requestBody.data
+            : requestBody;
+
+        const { identifier } = sourceBody;
+
+        if (identifier) {
+          const trimmed = String(identifier).trim();
+          const digitsOnly = trimmed.replace(/\D/g, '');
+          const isPhone = digitsOnly.length >= 7 && /^[\d\s\+\-\(\)]+$/.test(trimmed);
+
+          if (isPhone) {
+            const localDigits = digitsOnly.slice(-10);
+
+            // Сначала точное совпадение
+            let foundUser = await strapi.query('plugin::users-permissions.user').findOne({
+              where: { phone: trimmed },
+              select: ['id', 'email', 'phone'],
+            });
+
+            // Если не нашли — ищем по последним 10 цифрам (обрабатывает +7/8 префикс)
+            if (!foundUser && localDigits.length === 10) {
+              const candidates = await strapi.query('plugin::users-permissions.user').findMany({
+                where: { phone: { $notNull: true } },
+                select: ['id', 'email', 'phone'],
+              });
+              foundUser = candidates.find(
+                (u) => u.phone && u.phone.replace(/\D/g, '').slice(-10) === localDigits
+              ) || null;
+            }
+
+            if (foundUser?.email) {
+              console.log(`[auth.login] Phone login: found user by phone, using email`);
+              ctx.request.body = { ...sourceBody, identifier: foundUser.email };
+            }
+          }
+        }
+
+        return originalLogin(ctx);
+      },
 
       async register(ctx) {
         console.log('[auth.register] Custom registration handler started');
