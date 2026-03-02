@@ -94,9 +94,9 @@ function PublicLayout() {
             {/* Header */}
             <header
                 className={cn(
-                    "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+                    "fixed top-0 left-0 right-0 z-50 transition-colors duration-300",
                     isScrolled || !isDarkHeaderPage
-                        ? "bg-white/95 backdrop-blur-md shadow-sm"
+                        ? "bg-white shadow-sm"
                         : "bg-transparent",
                 )}>
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -263,13 +263,8 @@ function PublicLayout() {
                 </div>
 
                 {/* Mobile Menu */}
-                <div
-                    className={cn(
-                        "lg:hidden bg-white border-t border-slate-100 transition-all duration-300 overflow-hidden",
-                        isMobileMenuOpen
-                            ? "max-h-96 opacity-100"
-                            : "max-h-0 opacity-0",
-                    )}>
+                {isMobileMenuOpen && (
+                <div className="lg:hidden bg-white border-t border-slate-100 animate-slideDown">
                     <nav className='flex flex-col p-4 gap-2'>
                         {navLinks.map((link) => (
                             <Link
@@ -328,6 +323,7 @@ function PublicLayout() {
                         </div>
                     </nav>
                 </div>
+                )}
             </header>
 
             {/* Main Content */}

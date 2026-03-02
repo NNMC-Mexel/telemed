@@ -42,7 +42,7 @@ function Sidebar({ navItems, onNavClick }) {
   }
 
   return (
-    <aside className="h-screen w-64 bg-white border-r border-slate-100 flex flex-col">
+    <aside className="h-(--app-height) w-64 bg-white border-r border-slate-100 flex flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-slate-100">
         <div className="flex items-center justify-between">
@@ -91,7 +91,7 @@ function Sidebar({ navItems, onNavClick }) {
       </nav>
 
       {/* User Section */}
-      <div className="p-4 border-t border-slate-100">
+      <div className="p-4 border-t border-slate-100 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))]">
         <div className="flex items-center gap-3 mb-4">
           <Avatar
             src={user?.avatar?.url}

@@ -821,7 +821,7 @@ function VideoConsultation() {
           </div>
 
           {/* Controls */}
-          <div className="absolute bottom-0 inset-x-0 p-4 pb-[calc(var(--safe-bottom)+0.75rem)] sm:p-6 flex flex-col items-center justify-center gap-3">
+          <div className="absolute bottom-0 inset-x-0 p-4 pb-[max(4.5rem,calc(env(safe-area-inset-bottom)+1rem))] sm:pb-6 flex flex-col items-center justify-center gap-3">
             <div className="flex items-center gap-3 p-2 bg-slate-800/90 backdrop-blur rounded-2xl">
               <button
                 onClick={toggleMute}
