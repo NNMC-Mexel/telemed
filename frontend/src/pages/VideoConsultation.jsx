@@ -105,7 +105,7 @@ function VideoConsultation() {
   const [appointment, setAppointment] = useState(null)
   const [linkCopied, setLinkCopied] = useState(false)
   const [remoteUser, setRemoteUser] = useState(null)
-  const [remoteVideoPortrait, setRemoteVideoPortrait] = useState(false)
+  const [remoteVideoPortrait, setRemoteVideoPortrait] = useState(true)
 
   // Notes state
   const [notesTab, setNotesTab] = useState('diagnosis')
@@ -643,7 +643,7 @@ function VideoConsultation() {
   }
 
   return (
-    <div className="h-[var(--app-height)] bg-slate-900 flex flex-col sm:flex-row overflow-hidden pt-[var(--safe-top)]">
+    <div className="h-[calc(var(--app-height)-var(--safe-top))] bg-slate-900 flex flex-col sm:flex-row overflow-hidden pt-[var(--safe-top)]">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-slate-900/40 backdrop-blur-sm sm:hidden"
@@ -652,7 +652,7 @@ function VideoConsultation() {
       )}
       {/* Main Video Area */}
       <div className={cn(
-        "flex-1 flex flex-col min-w-0 transition-all duration-300",
+        "flex-1 flex flex-col min-w-0 min-h-0 transition-all duration-300",
         sidebarOpen ? "mr-0" : "mr-0"
       )}>
         {/* Top Bar */}
@@ -797,6 +797,10 @@ function VideoConsultation() {
             autoPlay
             playsInline
             onLoadedMetadata={(e) => {
+              const { videoWidth, videoHeight } = e.target
+              setRemoteVideoPortrait(videoHeight > videoWidth)
+            }}
+            onResize={(e) => {
               const { videoWidth, videoHeight } = e.target
               setRemoteVideoPortrait(videoHeight > videoWidth)
             }}
