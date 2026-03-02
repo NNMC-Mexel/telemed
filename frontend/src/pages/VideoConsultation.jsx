@@ -62,6 +62,10 @@ const ICE_SERVERS = {
     ...(_TURN_URL ? [{ urls: _TURN_URL + '?transport=tcp',       username: _TURN_USER, credential: _TURN_CRED }] : []),
     // TURNS TLS (резерв для строгих корпоративных файрволов)
     ...(_TURN_TCP ? [{ urls: _TURN_TCP,                          username: _TURN_USER, credential: _TURN_CRED }] : []),
+    // Metered.ca Open Relay (временный резерв для тестирования)
+    { urls: 'turn:openrelay.metered.ca:80',                      username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp',       username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turns:openrelay.metered.ca:443',                    username: 'openrelayproject', credential: 'openrelayproject' },
   ],
 }
 
