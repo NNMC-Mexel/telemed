@@ -105,6 +105,7 @@ function VideoConsultation() {
   const [appointment, setAppointment] = useState(null)
   const [linkCopied, setLinkCopied] = useState(false)
   const [remoteUser, setRemoteUser] = useState(null)
+  const [remoteVideoPortrait, setRemoteVideoPortrait] = useState(false)
 
   // Notes state
   const [notesTab, setNotesTab] = useState('diagnosis')
@@ -795,8 +796,13 @@ function VideoConsultation() {
             ref={remoteVideoRef}
             autoPlay
             playsInline
+            onLoadedMetadata={(e) => {
+              const { videoWidth, videoHeight } = e.target
+              setRemoteVideoPortrait(videoHeight > videoWidth)
+            }}
             className={cn(
-              "w-full h-full object-cover",
+              "w-full h-full",
+              remoteVideoPortrait ? "object-contain" : "object-cover",
               connectionState === 'connected' ? '' : 'hidden'
             )}
           />
