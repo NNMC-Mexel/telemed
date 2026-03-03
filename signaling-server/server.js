@@ -143,6 +143,14 @@ io.on('connection', (socket) => {
     })
   })
 
+  // Ориентация устройства (portrait/landscape)
+  socket.on('orientation-update', ({ roomId, isPortrait }) => {
+    socket.to(roomId).emit('remote-orientation-update', {
+      socketId: socket.id,
+      isPortrait,
+    })
+  })
+
   // Отключение
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`)

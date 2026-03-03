@@ -106,6 +106,9 @@ function VideoConsultation() {
   const [linkCopied, setLinkCopied] = useState(false)
   const [remoteUser, setRemoteUser] = useState(null)
   const [remoteVideoPortrait, setRemoteVideoPortrait] = useState(true)
+  const [remoteIsPortrait, setRemoteIsPortrait] = useState(false)
+  const [containerHeight, setContainerHeight] = useState(0)
+  const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
   // Notes state
   const [notesTab, setNotesTab] = useState('diagnosis')
@@ -150,6 +153,29 @@ function VideoConsultation() {
   const chatEndRef = useRef(null)
 
   const isDoctor = user?.userRole === 'doctor'
+
+  // Track video container height for portrait rotation sizing
+  useEffect(() => {
+    if (!videoContainerRef.current) return
+    const observer = new ResizeObserver(entries => {
+      const entry = entries[0]
+      if (entry) setContainerHeight(entry.contentRect.height)
+    })
+    observer.observe(videoContainerRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  // Re-emit orientation when device rotates (mobile)
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      socketRef.current?.emit('orientation-update', {
+        roomId,
+        isPortrait: window.innerHeight > window.innerWidth,
+      })
+    }
+    window.addEventListener('orientationchange', handleOrientationChange)
+    return () => window.removeEventListener('orientationchange', handleOrientationChange)
+  }, [roomId])
 
   // Auto-scroll chat
   useEffect(() => {
@@ -260,8 +286,9 @@ function VideoConsultation() {
 
     const init = async () => {
       try {
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 1280, height: 720 },
+          video: isMobile ? { facingMode: 'user' } : { width: 1280, height: 720 },
           audio: true,
         })
 
@@ -287,6 +314,10 @@ function VideoConsultation() {
             userName: user?.fullName || user?.username,
             userRole: user?.userRole || 'patient',
           })
+          socket.emit('orientation-update', {
+            roomId,
+            isPortrait: window.innerHeight > window.innerWidth,
+          })
           setConnectionState('waiting')
         })
 
@@ -306,6 +337,11 @@ function VideoConsultation() {
         socket.on('user-joined', async (data) => {
           setRemoteUser(data)
           setConnectionState('connecting')
+          // Re-send our orientation to the newly joined user
+          socket.emit('orientation-update', {
+            roomId,
+            isPortrait: window.innerHeight > window.innerWidth,
+          })
 
           const pc = createPeerConnection(socket, data.socketId)
 
@@ -366,6 +402,10 @@ function VideoConsultation() {
             senderName: data.senderName,
             time: new Date(data.timestamp),
           }])
+        })
+
+        socket.on('remote-orientation-update', ({ isPortrait }) => {
+          setRemoteIsPortrait(isPortrait)
         })
 
       } catch (err) {
@@ -792,24 +832,41 @@ function VideoConsultation() {
           )}
 
           {/* Remote Video */}
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            onLoadedMetadata={(e) => {
-              const { videoWidth, videoHeight } = e.target
-              setRemoteVideoPortrait(videoHeight > videoWidth)
-            }}
-            onResize={(e) => {
-              const { videoWidth, videoHeight } = e.target
-              setRemoteVideoPortrait(videoHeight > videoWidth)
-            }}
-            className={cn(
-              "w-full h-full",
-              remoteVideoPortrait ? "object-contain" : "object-cover",
-              connectionState === 'connected' ? '' : 'hidden'
-            )}
-          />
+          {/* needsRotation: remote is portrait but stream is landscape (phone sent rotated pixels) */}
+          {(() => {
+            const needsRotation = !isMobileDevice && remoteIsPortrait && !remoteVideoPortrait
+            const h = containerHeight || 600
+            return (
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                onLoadedMetadata={(e) => {
+                  const { videoWidth, videoHeight } = e.target
+                  setRemoteVideoPortrait(videoHeight > videoWidth)
+                }}
+                onResize={(e) => {
+                  const { videoWidth, videoHeight } = e.target
+                  setRemoteVideoPortrait(videoHeight > videoWidth)
+                }}
+                className={cn(
+                  connectionState === 'connected' ? '' : 'hidden',
+                  needsRotation ? 'absolute object-cover' : 'w-full h-full',
+                  !needsRotation && (remoteVideoPortrait ? 'object-contain' : 'object-cover'),
+                )}
+                style={needsRotation ? {
+                  // Rotate landscape stream 90° to display portrait content correctly.
+                  // Before rotation: element width = h (container height), height = h * 9/16
+                  // After rotation:  visual width = h * 9/16, visual height = h  ✓
+                  top: '50%',
+                  left: '50%',
+                  width: `${h}px`,
+                  height: `${Math.round(h * 9 / 16)}px`,
+                  transform: 'translate(-50%, -50%) rotate(-90deg)',
+                } : undefined}
+              />
+            )
+          })()}
 
           {/* Local Video Preview */}
           <div className="absolute bottom-[calc(var(--safe-bottom)+6.5rem)] right-3 sm:bottom-24 sm:right-4 w-28 sm:w-48 aspect-video rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 bg-slate-800">
