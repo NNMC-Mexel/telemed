@@ -5,7 +5,6 @@ import {
   MicOff,
   Video,
   VideoOff,
-  Phone,
   MessageCircle,
   Maximize,
   Minimize,
@@ -834,6 +833,8 @@ function VideoConsultation() {
             </div>
           )}
 
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-36 bg-gradient-to-t from-slate-950/85 via-slate-950/35 to-transparent" />
+
           {/* Remote Video — always absolute so controls/preview stay on top via DOM order + z-index */}
           <video
             ref={remoteVideoRef}
@@ -862,20 +863,23 @@ function VideoConsultation() {
                   width: `${h}px`,
                   height: `${Math.round(h * 9 / 16)}px`,
                   transform: 'translate(-50%, -50%) rotate(90deg)',
-                  objectFit: 'cover',
+                  objectFit: 'contain',
+                  objectPosition: 'center top',
                 }
               }
-              // Default: fill container naturally (restores mobile layout)
+              const shouldPreserveFullFrame = remoteVideoPortrait || remoteIsPortrait || sidebarOpen
+
               return {
                 width: '100%',
                 height: '100%',
-                objectFit: remoteVideoPortrait ? 'contain' : 'cover',
+                objectFit: shouldPreserveFullFrame ? 'contain' : 'cover',
+                objectPosition: shouldPreserveFullFrame ? 'center top' : 'center center',
               }
             })()}
           />
 
           {/* Local Video Preview */}
-          <div className="absolute z-10 bottom-[calc(var(--safe-bottom)+6.5rem)] right-3 sm:bottom-24 sm:right-4 w-28 sm:w-48 aspect-video rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 bg-slate-800">
+          <div className="absolute z-10 top-3 right-3 sm:top-4 sm:right-4 w-28 sm:w-48 aspect-video rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 bg-slate-800">
             <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
             {!isVideoOn && (
               <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
@@ -888,39 +892,45 @@ function VideoConsultation() {
           </div>
 
           {/* Controls */}
-          <div className="absolute z-10 bottom-0 inset-x-0 p-4 pb-[max(4.5rem,calc(env(safe-area-inset-bottom)+1rem))] sm:pb-6 flex flex-col items-center justify-center gap-3">
-            <div className="flex items-center gap-3 p-2 bg-slate-800/90 backdrop-blur rounded-2xl">
+          <div className="absolute z-20 left-1/2 -translate-x-1/2 bottom-[calc(var(--safe-bottom)+1rem)] sm:bottom-6 flex flex-col items-center justify-center gap-3 px-3 w-[min(100%-1.5rem,34rem)]">
+            <div className="flex w-full sm:w-auto items-center justify-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-slate-900/88 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-white/10">
               <button
                 onClick={toggleMute}
+                title={isMuted ? 'Включить микрофон' : 'Выключить микрофон'}
                 className={cn(
-                  'w-12 h-12 rounded-xl flex items-center justify-center transition-all',
+                  'flex-1 sm:flex-none min-w-0 h-12 sm:w-14 rounded-xl flex items-center justify-center gap-2 transition-all',
                   isMuted
                     ? 'bg-rose-500 text-white hover:bg-rose-600'
                     : 'bg-slate-700 text-white hover:bg-slate-600'
                 )}
               >
                 {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                <span className="hidden sm:inline text-sm font-medium">{isMuted ? 'Микро выкл' : 'Микро'}</span>
               </button>
 
               <button
                 onClick={toggleVideo}
+                title={isVideoOn ? 'Выключить камеру' : 'Включить камеру'}
                 className={cn(
-                  'w-12 h-12 rounded-xl flex items-center justify-center transition-all',
+                  'flex-1 sm:flex-none min-w-0 h-12 sm:w-14 rounded-xl flex items-center justify-center gap-2 transition-all',
                   !isVideoOn
                     ? 'bg-rose-500 text-white hover:bg-rose-600'
                     : 'bg-slate-700 text-white hover:bg-slate-600'
                 )}
               >
                 {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                <span className="hidden sm:inline text-sm font-medium">{isVideoOn ? 'Камера' : 'Камера выкл'}</span>
               </button>
 
               <div className="w-px h-8 bg-slate-600" />
 
               <button
                 onClick={endCall}
-                className="w-14 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl flex items-center justify-center transition-all"
+                title="Выйти из звонка"
+                className="flex-1 sm:flex-none min-w-0 h-12 sm:w-auto sm:px-5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl flex items-center justify-center gap-2 transition-all font-medium"
               >
-                <Phone className="w-5 h-5 rotate-[135deg]" />
+                <PhoneOff className="w-5 h-5" />
+                <span className="hidden sm:inline text-sm font-medium">Выйти</span>
               </button>
             </div>
 
