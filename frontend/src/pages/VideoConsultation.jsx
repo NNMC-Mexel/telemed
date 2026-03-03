@@ -288,7 +288,9 @@ function VideoConsultation() {
       try {
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: isMobile ? { facingMode: 'user' } : { width: 1280, height: 720 },
+          video: isMobile
+            ? { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 1280 } }
+            : { width: 1280, height: 720 },
           audio: true,
         })
 
@@ -831,45 +833,47 @@ function VideoConsultation() {
             </div>
           )}
 
-          {/* Remote Video */}
-          {/* needsRotation: remote is portrait but stream is landscape (phone sent rotated pixels) */}
-          {(() => {
-            const needsRotation = !isMobileDevice && remoteIsPortrait && !remoteVideoPortrait
-            const h = containerHeight || 600
-            return (
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                onLoadedMetadata={(e) => {
-                  const { videoWidth, videoHeight } = e.target
-                  setRemoteVideoPortrait(videoHeight > videoWidth)
-                }}
-                onResize={(e) => {
-                  const { videoWidth, videoHeight } = e.target
-                  setRemoteVideoPortrait(videoHeight > videoWidth)
-                }}
-                className={cn(
-                  connectionState === 'connected' ? '' : 'hidden',
-                  needsRotation ? 'absolute object-cover' : 'w-full h-full',
-                  !needsRotation && (remoteVideoPortrait ? 'object-contain' : 'object-cover'),
-                )}
-                style={needsRotation ? {
-                  // Rotate landscape stream 90° to display portrait content correctly.
-                  // Before rotation: element width = h (container height), height = h * 9/16
-                  // After rotation:  visual width = h * 9/16, visual height = h  ✓
+          {/* Remote Video — always absolute so controls/preview stay on top via DOM order + z-index */}
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            onLoadedMetadata={(e) => {
+              const { videoWidth, videoHeight } = e.target
+              setRemoteVideoPortrait(videoHeight > videoWidth)
+            }}
+            onResize={(e) => {
+              const { videoWidth, videoHeight } = e.target
+              setRemoteVideoPortrait(videoHeight > videoWidth)
+            }}
+            className={cn(connectionState === 'connected' ? '' : 'hidden')}
+            style={(() => {
+              const needsRotation = !isMobileDevice && remoteIsPortrait && !remoteVideoPortrait
+              const h = containerHeight || 600
+              if (needsRotation) {
+                // Stream is landscape but content is portrait (old device/browser).
+                // Rotate 90° so it displays upright.
+                // CSS w=h, CSS h=h*(9/16) → after rotation visual w=h*(9/16), visual h=h ✓
+                return {
+                  position: 'absolute',
                   top: '50%',
                   left: '50%',
                   width: `${h}px`,
                   height: `${Math.round(h * 9 / 16)}px`,
                   transform: 'translate(-50%, -50%) rotate(-90deg)',
-                } : undefined}
-              />
-            )
-          })()}
+                  objectFit: 'cover',
+                }
+              }
+              return {
+                position: 'absolute',
+                inset: 0,
+                objectFit: remoteVideoPortrait ? 'contain' : 'cover',
+              }
+            })()}
+          />
 
           {/* Local Video Preview */}
-          <div className="absolute bottom-[calc(var(--safe-bottom)+6.5rem)] right-3 sm:bottom-24 sm:right-4 w-28 sm:w-48 aspect-video rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 bg-slate-800">
+          <div className="absolute z-10 bottom-[calc(var(--safe-bottom)+6.5rem)] right-3 sm:bottom-24 sm:right-4 w-28 sm:w-48 aspect-video rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 bg-slate-800">
             <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
             {!isVideoOn && (
               <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
@@ -882,7 +886,7 @@ function VideoConsultation() {
           </div>
 
           {/* Controls */}
-          <div className="absolute bottom-0 inset-x-0 p-4 pb-[max(4.5rem,calc(env(safe-area-inset-bottom)+1rem))] sm:pb-6 flex flex-col items-center justify-center gap-3">
+          <div className="absolute z-10 bottom-0 inset-x-0 p-4 pb-[max(4.5rem,calc(env(safe-area-inset-bottom)+1rem))] sm:pb-6 flex flex-col items-center justify-center gap-3">
             <div className="flex items-center gap-3 p-2 bg-slate-800/90 backdrop-blur rounded-2xl">
               <button
                 onClick={toggleMute}
