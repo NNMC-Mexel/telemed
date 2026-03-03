@@ -91,6 +91,100 @@ function PublicLayout() {
 
     return (
         <div className='min-h-screen flex flex-col'>
+            {/* Mobile Menu Overlay */}
+            <div
+                className={cn(
+                    'fixed inset-0 bg-slate-900/50 z-40 lg:hidden transition-opacity duration-300',
+                    isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                )}
+                onClick={() => setIsMobileMenuOpen(false)}
+            />
+
+            {/* Mobile Menu Panel (slides from left) */}
+            <div
+                className={cn(
+                    'fixed left-0 top-0 h-(--app-height) w-72 bg-white z-50 transition-transform duration-300 lg:hidden flex flex-col',
+                    isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+                )}
+            >
+                {/* Panel Header: Logo + Close */}
+                <div className='p-6 border-b border-slate-100 flex items-center justify-between shrink-0'>
+                    <Link to='/' onClick={() => setIsMobileMenuOpen(false)} className='flex items-center gap-3'>
+                        <div className='w-10 h-10 bg-linear-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center'>
+                            <Activity className='w-6 h-6 text-white' />
+                        </div>
+                        <div>
+                            <h1 className='font-bold text-slate-900'>MedConnect</h1>
+                            <p className='text-xs text-slate-500'>Телемедицина</p>
+                        </div>
+                    </Link>
+                    <button
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className='p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors'
+                    >
+                        <X className='w-5 h-5' />
+                    </button>
+                </div>
+
+                {/* Nav Links */}
+                <nav className='flex-1 p-4 space-y-1 overflow-y-auto'>
+                    {navLinks.map((link) => (
+                        <Link
+                            key={link.href}
+                            to={link.isAnchor ? '#' : link.href}
+                            onClick={(e) => {
+                                handleNavClick(e, link)
+                                setIsMobileMenuOpen(false)
+                            }}
+                            className={cn(
+                                'flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors',
+                                location.pathname === link.href && !link.isAnchor
+                                    ? 'bg-teal-50 text-teal-700'
+                                    : 'text-slate-700 hover:bg-slate-50',
+                            )}
+                        >
+                            {link.label}
+                        </Link>
+                    ))}
+                </nav>
+
+                {/* Auth Buttons */}
+                <div className='p-4 border-t border-slate-100 shrink-0 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))]'>
+                    {isAuthenticated ? (
+                        <Link to={getDashboardLink()} onClick={() => setIsMobileMenuOpen(false)}>
+                            <Button className='w-full'>Личный кабинет</Button>
+                        </Link>
+                    ) : (
+                        <div className='flex flex-col gap-2'>
+                            <p className='text-xs text-slate-500 mb-1 px-1'>
+                                Вход в личный кабинет
+                            </p>
+                            <Link to='/login?type=patient' onClick={() => setIsMobileMenuOpen(false)}>
+                                <Button
+                                    variant='secondary'
+                                    className='w-full justify-start'
+                                    leftIcon={<UserCircle className='w-4 h-4' />}
+                                >
+                                    Войти как пациент
+                                </Button>
+                            </Link>
+                            <Link to='/login?type=doctor' onClick={() => setIsMobileMenuOpen(false)}>
+                                <Button
+                                    variant='secondary'
+                                    className='w-full justify-start'
+                                    leftIcon={<Stethoscope className='w-4 h-4' />}
+                                >
+                                    Войти как врач
+                                </Button>
+                            </Link>
+                            <Link to='/register' onClick={() => setIsMobileMenuOpen(false)} className='mt-2'>
+                                <Button className='w-full'>Регистрация</Button>
+                            </Link>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Header */}
             <header
                 className={cn(
@@ -244,86 +338,17 @@ function PublicLayout() {
 
                         {/* Mobile Menu Button */}
                         <button
-                            onClick={() =>
-                                setIsMobileMenuOpen(!isMobileMenuOpen)
-                            }
+                            onClick={() => setIsMobileMenuOpen(true)}
                             className={cn(
                                 "lg:hidden p-2 rounded-lg transition-colors",
                                 showDarkHeader
                                     ? "text-white hover:bg-white/10"
                                     : "text-slate-700 hover:bg-slate-100",
                             )}>
-                            {isMobileMenuOpen ? (
-                                <X className='w-6 h-6' />
-                            ) : (
-                                <Menu className='w-6 h-6' />
-                            )}
+                            <Menu className='w-6 h-6' />
                         </button>
                     </div>
                 </div>
-
-                {/* Mobile Menu */}
-                {isMobileMenuOpen && (
-                <div className="lg:hidden bg-white border-t border-slate-100 animate-slideDown">
-                    <nav className='flex flex-col p-4 gap-2'>
-                        {navLinks.map((link) => (
-                            <Link
-                                key={link.href}
-                                to={link.isAnchor ? "#" : link.href}
-                                onClick={(e) => handleNavClick(e, link)}
-                                className={cn(
-                                    "px-4 py-3 rounded-xl text-sm font-medium transition-colors",
-                                    location.pathname === link.href &&
-                                        !link.isAnchor
-                                        ? "bg-teal-50 text-teal-700"
-                                        : "text-slate-700 hover:bg-slate-50",
-                                )}>
-                                {link.label}
-                            </Link>
-                        ))}
-                        <div className='pt-4 mt-2 border-t border-slate-100 flex flex-col gap-2'>
-                            {isAuthenticated ? (
-                                <Link to={getDashboardLink()}>
-                                    <Button className='w-full'>
-                                        Личный кабинет
-                                    </Button>
-                                </Link>
-                            ) : (
-                                <>
-                                    <p className='text-xs text-slate-500 mb-2 px-1'>
-                                        Вход в личный кабинет
-                                    </p>
-                                    <Link to='/login?type=patient'>
-                                        <Button
-                                            variant='secondary'
-                                            className='w-full justify-start'
-                                            leftIcon={
-                                                <UserCircle className='w-4 h-4' />
-                                            }>
-                                            Войти как пациент
-                                        </Button>
-                                    </Link>
-                                    <Link to='/login?type=doctor'>
-                                        <Button
-                                            variant='secondary'
-                                            className='w-full justify-start'
-                                            leftIcon={
-                                                <Stethoscope className='w-4 h-4' />
-                                            }>
-                                            Войти как врач
-                                        </Button>
-                                    </Link>
-                                    <Link to='/register' className='mt-2'>
-                                        <Button className='w-full'>
-                                            Регистрация
-                                        </Button>
-                                    </Link>
-                                </>
-                            )}
-                        </div>
-                    </nav>
-                </div>
-                )}
             </header>
 
             {/* Main Content */}
