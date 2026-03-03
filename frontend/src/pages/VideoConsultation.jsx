@@ -313,6 +313,7 @@ function VideoConsultation() {
             userId: user?.id,
             userName: user?.fullName || user?.username,
             userRole: user?.userRole || 'patient',
+            isPortrait: window.innerHeight > window.innerWidth,
           })
           socket.emit('orientation-update', {
             roomId,
@@ -330,6 +331,7 @@ function VideoConsultation() {
           if (participants.length > 0) {
             const peer = participants[0]
             setRemoteUser(peer)
+            setRemoteIsPortrait(peer.isPortrait ?? false)
             createPeerConnection(socket, peer.socketId)
           }
         })
@@ -337,6 +339,7 @@ function VideoConsultation() {
         socket.on('user-joined', async (data) => {
           setRemoteUser(data)
           setConnectionState('connecting')
+          setRemoteIsPortrait(data.isPortrait ?? false)
           // Re-send our orientation to the newly joined user
           socket.emit('orientation-update', {
             roomId,

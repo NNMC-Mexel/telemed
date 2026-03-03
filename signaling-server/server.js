@@ -48,9 +48,9 @@ io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`)
 
   // Присоединение к комнате
-  socket.on('join-room', ({ roomId, userId, userName, userRole }) => {
+  socket.on('join-room', ({ roomId, userId, userName, userRole, isPortrait }) => {
     console.log(`User ${userName} (${userId}) joining room ${roomId}`)
-    
+
     // Создаём комнату если не существует
     if (!rooms.has(roomId)) {
       rooms.set(roomId, {
@@ -58,27 +58,29 @@ io.on('connection', (socket) => {
         participants: new Map(),
       })
     }
-    
+
     const room = rooms.get(roomId)
-    
+
     // Добавляем участника
     room.participants.set(socket.id, {
       id: userId,
       name: userName,
       role: userRole,
+      isPortrait: isPortrait ?? false,
       socketId: socket.id,
     })
-    
+
     // Присоединяемся к комнате Socket.io
     socket.join(roomId)
     socket.roomId = roomId
-    
-    // Уведомляем других участников
+
+    // Уведомляем других участников (включая ориентацию экрана)
     socket.to(roomId).emit('user-joined', {
       socketId: socket.id,
       userId,
       userName,
       userRole,
+      isPortrait: isPortrait ?? false,
     })
     
     // Отправляем список текущих участников новому пользователю
