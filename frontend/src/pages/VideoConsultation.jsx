@@ -288,9 +288,7 @@ function VideoConsultation() {
       try {
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: isMobile
-            ? { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 1280 } }
-            : { width: 1280, height: 720 },
+          video: isMobile ? { facingMode: 'user' } : { width: 1280, height: 720 },
           audio: true,
         })
 
@@ -851,8 +849,8 @@ function VideoConsultation() {
               const needsRotation = !isMobileDevice && remoteIsPortrait && !remoteVideoPortrait
               const h = containerHeight || 600
               if (needsRotation) {
-                // Stream is landscape but content is portrait (old device/browser).
-                // Rotate 90° so it displays upright.
+                // iOS portrait: stream is landscape 1280×720, person's head is on LEFT.
+                // rotate(90deg) = clockwise: moves LEFT edge to TOP → person upright.
                 // CSS w=h, CSS h=h*(9/16) → after rotation visual w=h*(9/16), visual h=h ✓
                 return {
                   position: 'absolute',
@@ -860,13 +858,14 @@ function VideoConsultation() {
                   left: '50%',
                   width: `${h}px`,
                   height: `${Math.round(h * 9 / 16)}px`,
-                  transform: 'translate(-50%, -50%) rotate(-90deg)',
+                  transform: 'translate(-50%, -50%) rotate(90deg)',
                   objectFit: 'cover',
                 }
               }
+              // Default: fill container naturally (restores mobile layout)
               return {
-                position: 'absolute',
-                inset: 0,
+                width: '100%',
+                height: '100%',
                 objectFit: remoteVideoPortrait ? 'contain' : 'cover',
               }
             })()}
