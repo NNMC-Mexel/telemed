@@ -112,7 +112,7 @@ function AdminDoctors() {
 
       const { data: doctorsData } = normalizeResponse(doctorsRes)
       const { data: specsData } = normalizeResponse(specsRes)
-      const usersRes = await api.get('/api/users?populate[role][fields][0]=id&populate[role][fields][1]=type&populate[role][fields][2]=name')
+      const usersRes = await api.get('/api/users?populate[role][fields][0]=id&populate[role][fields][1]=type&populate[role][fields][2]=name&pagination[limit]=1000')
       const usersData = Array.isArray(usersRes.data) ? usersRes.data : []
       const usersMap = new Map(usersData.map((user) => [user.id, user]))
       let detectedDoctorRoleId =

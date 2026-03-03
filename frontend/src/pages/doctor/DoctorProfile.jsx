@@ -48,10 +48,10 @@ function DoctorProfile() {
         if (!user?.id) return;
 
         try {
-            // Получаем всех врачей и ищем по userId на клиенте
-            let response = await api.get(`/api/doctors?populate=*`);
-            const allDoctors = response.data?.data || [];
-            let doctorData = allDoctors.find(d => d.userId === user.id);
+            const response = await api.get(
+                `/api/doctors?filters[userId][$eq]=${user.id}&populate=*&pagination[limit]=1`
+            );
+            let doctorData = response.data?.data?.[0];
             
             // Если профиль врача не найден - создаём его автоматически
             if (!doctorData && user.userRole === 'doctor') {
@@ -87,7 +87,7 @@ function DoctorProfile() {
 
                 // Получаем отзывы и вычисляем рейтинг
                 try {
-                    const reviewsRes = await api.get(`/api/reviews?populate=*`);
+                    const reviewsRes = await api.get(`/api/reviews?populate=*&pagination[limit]=1000`);
                     const { data: allReviews } = normalizeResponse(reviewsRes);
                     const doctorReviews = (allReviews || []).filter(
                         (r) => r.doctor?.id === doctorData.id

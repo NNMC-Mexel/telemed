@@ -38,11 +38,11 @@ function AdminDashboard() {
     setIsLoading(true)
     try {
       // Получаем пользователей
-      const usersRes = await api.get('/api/users?populate=*')
+      const usersRes = await api.get('/api/users?populate=*&pagination[limit]=1000')
       const usersData = usersRes.data || []
       
       // Получаем врачей
-      const doctorsRes = await api.get('/api/doctors?populate=*&sort=rating:desc')
+      const doctorsRes = await api.get('/api/doctors?populate=*&sort=rating:desc&pagination[limit]=1000')
       const { data: doctorsData } = normalizeResponse(doctorsRes)
       
       // Получаем записи
@@ -50,7 +50,7 @@ function AdminDashboard() {
       const { data: appointmentsData } = normalizeResponse(appointmentsRes)
       
       // Получаем все завершённые записи для подсчёта дохода
-      const completedRes = await api.get('/api/appointments?filters[status][$eq]=completed')
+      const completedRes = await api.get('/api/appointments?filters[status][$eq]=completed&pagination[limit]=1000')
       const { data: completedData } = normalizeResponse(completedRes)
       
       // Подсчитываем статистику

@@ -48,14 +48,10 @@ function DoctorDashboard() {
 
     const fetchDoctorData = async () => {
         try {
-            // Получаем ВСЕХ врачей и фильтруем на клиенте по userId
-            console.log("Fetching all doctors, looking for userId:", user.id);
-            const doctorRes = await api.get(`/api/doctors?populate=*`);
-            const allDoctors = doctorRes.data?.data || [];
-            console.log("All doctors:", allDoctors);
-
-            // Ищем врача по userId
-            const doctorData = allDoctors.find((d) => d.userId === user.id);
+            const doctorRes = await api.get(
+                `/api/doctors?filters[userId][$eq]=${user.id}&populate=*&pagination[limit]=1`,
+            );
+            const doctorData = doctorRes.data?.data?.[0];
             console.log("Found doctor for userId", user.id, ":", doctorData);
             setDoctor(doctorData);
 
@@ -64,7 +60,7 @@ function DoctorDashboard() {
 
                 // Получаем ВСЕ записи и фильтруем на клиенте
                 const appointmentsRes = await api.get(
-                    `/api/appointments?populate=*`,
+                    `/api/appointments?populate=*&pagination[limit]=1000`,
                 );
                 console.log("All appointments response:", appointmentsRes.data);
 
@@ -87,7 +83,7 @@ function DoctorDashboard() {
                 setAppointments(doctorAppointments);
 
                 // Получаем отзывы (все, фильтруем на клиенте)
-                const reviewsRes = await api.get(`/api/reviews?populate=*`);
+                const reviewsRes = await api.get(`/api/reviews?populate=*&pagination[limit]=1000`);
                 const { data: allReviews } = normalizeResponse(reviewsRes);
                 const allDoctorReviews = (allReviews || [])
                     .filter((r) => r.doctor?.id === doctorData.id);

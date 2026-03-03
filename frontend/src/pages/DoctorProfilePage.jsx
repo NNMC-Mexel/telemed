@@ -49,7 +49,7 @@ function DoctorProfilePage() {
             setDoctor(doctorData);
 
             // Получаем отзывы врача
-            const reviewsRes = await api.get(`/api/reviews?populate=*`);
+            const reviewsRes = await api.get(`/api/reviews?populate=*&pagination[limit]=1000`);
             const { data: allReviews } = normalizeResponse(reviewsRes);
             const doctorReviews = (allReviews || []).filter(
                 (r) => r.doctor?.id === doctorData?.id,

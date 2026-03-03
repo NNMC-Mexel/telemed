@@ -44,6 +44,7 @@ const getApiUrl = () => {
 };
 
 let API_URL = getApiUrl();
+const LARGE_COLLECTION_LIMIT = "1000";
 
 // ВАЖНО: Переопределяем API_URL в runtime, если мы на продакшн домене
 // Это гарантирует, что даже если сборка была сделана неправильно,
@@ -272,6 +273,7 @@ export const doctorsAPI = {
         const query = new URLSearchParams();
         query.append("populate", "*");
         query.append("sort", "rating:desc");
+        query.append("pagination[limit]", LARGE_COLLECTION_LIMIT);
 
         // Убрал фильтр isActive - показываем всех врачей
         // Можно добавить обратно: query.append('filters[isActive][$eq]', 'true')
@@ -293,7 +295,7 @@ export const doctorsAPI = {
 
     getBySpecialization: (specializationId) =>
         api.get(
-            `/api/doctors?filters[specialization][id][$eq]=${specializationId}&populate=*`
+            `/api/doctors?filters[specialization][id][$eq]=${specializationId}&populate=*&pagination[limit]=${LARGE_COLLECTION_LIMIT}`
         ),
 
     create: async (data) => {
@@ -320,7 +322,7 @@ export const doctorsAPI = {
     
     // Получение врача по user ID (используем поле userId)
     getByUserId: (userId) => 
-        api.get(`/api/doctors?filters[userId][$eq]=${userId}&populate=*`),
+        api.get(`/api/doctors?filters[userId][$eq]=${userId}&populate=*&pagination[limit]=1`),
 };
 
 // ===========================================
@@ -328,7 +330,10 @@ export const doctorsAPI = {
 // ===========================================
 
 export const specializationsAPI = {
-    getAll: () => api.get("/api/specializations?populate=*&sort=sortOrder:asc,name:asc"),
+    getAll: () =>
+        api.get(
+            `/api/specializations?populate=*&sort=sortOrder:asc,name:asc&pagination[limit]=${LARGE_COLLECTION_LIMIT}`
+        ),
 
     getOne: (id) => api.get(`/api/specializations/${id}?populate=*`),
 
@@ -575,6 +580,7 @@ export const reviewsAPI = {
         query.append("filters[isPublished][$eq]", "true");
         query.append("populate", "*");
         query.append("sort", "createdAt:desc");
+        query.append("pagination[limit]", LARGE_COLLECTION_LIMIT);
 
         return api.get(`/api/reviews?${query}`);
     },
@@ -597,6 +603,7 @@ export const notificationsAPI = {
         query.append("filters[user][id][$eq]", userId);
         query.append("sort", "createdAt:desc");
         query.append("populate", "*");
+        query.append("pagination[limit]", "100");
         try {
             return await api.get(`/api/notifications?${query}`);
         } catch (error) {

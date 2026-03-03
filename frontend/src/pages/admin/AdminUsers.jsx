@@ -50,7 +50,7 @@ function AdminUsers() {
   const fetchUsers = async () => {
     setIsLoading(true)
     try {
-      const response = await api.get('/api/users?populate=*')
+      const response = await api.get('/api/users?populate=*&pagination[limit]=1000')
       setUsers(response.data || [])
     } catch (error) {
       console.error('Error fetching users:', error)

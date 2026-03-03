@@ -116,10 +116,10 @@ function DoctorSchedule() {
     const fetchDoctorAndAppointments = async () => {
         setIsLoading(true);
         try {
-            // Получаем всех врачей и ищем по userId на клиенте
-            let doctorRes = await api.get(`/api/doctors?populate=*`);
-            const allDoctors = doctorRes.data?.data || [];
-            let doctorData = allDoctors.find(d => d.userId === user.id);
+            let doctorRes = await api.get(
+                `/api/doctors?filters[userId][$eq]=${user.id}&populate=*&pagination[limit]=1`
+            );
+            let doctorData = doctorRes.data?.data?.[0];
 
             // Если профиль врача не найден - создаём его автоматически
             if (!doctorData && user.userRole === 'doctor') {
@@ -181,7 +181,7 @@ function DoctorSchedule() {
                 const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
                 const weekEnd = addDays(weekStart, 7);
 
-                const appointmentsRes = await api.get(`/api/appointments?populate=*`);
+                const appointmentsRes = await api.get(`/api/appointments?populate=*&pagination[limit]=1000`);
                 const { data: allAppointments } = normalizeResponse(appointmentsRes);
                 
                 // Фильтруем на клиенте по врачу и дате
