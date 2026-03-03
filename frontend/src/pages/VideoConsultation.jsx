@@ -835,7 +835,7 @@ function VideoConsultation() {
 
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-36 bg-gradient-to-t from-slate-950/85 via-slate-950/35 to-transparent" />
 
-          {/* Remote Video — always absolute so controls/preview stay on top via DOM order + z-index */}
+          {/* Remote Video — always preserve full frame; black side bars come from the container background */}
           <video
             ref={remoteVideoRef}
             autoPlay
@@ -848,7 +848,7 @@ function VideoConsultation() {
               const { videoWidth, videoHeight } = e.target
               setRemoteVideoPortrait(videoHeight > videoWidth)
             }}
-            className={cn(connectionState === 'connected' ? '' : 'hidden')}
+            className={cn(connectionState === 'connected' ? 'absolute inset-0' : 'hidden')}
             style={(() => {
               const needsRotation = !isMobileDevice && remoteIsPortrait && !remoteVideoPortrait
               const h = containerHeight || 600
@@ -864,16 +864,16 @@ function VideoConsultation() {
                   height: `${Math.round(h * 9 / 16)}px`,
                   transform: 'translate(-50%, -50%) rotate(90deg)',
                   objectFit: 'contain',
-                  objectPosition: 'center top',
+                  objectPosition: 'center center',
                 }
               }
-              const shouldPreserveFullFrame = remoteVideoPortrait || remoteIsPortrait || sidebarOpen
-
               return {
+                position: 'absolute',
+                inset: 0,
                 width: '100%',
                 height: '100%',
-                objectFit: shouldPreserveFullFrame ? 'contain' : 'cover',
-                objectPosition: shouldPreserveFullFrame ? 'center top' : 'center center',
+                objectFit: 'contain',
+                objectPosition: 'center center',
               }
             })()}
           />
@@ -892,58 +892,57 @@ function VideoConsultation() {
           </div>
 
           {/* Controls */}
-          <div className="absolute z-20 left-1/2 -translate-x-1/2 bottom-[calc(var(--safe-bottom)+1rem)] sm:bottom-6 flex flex-col items-center justify-center gap-3 px-3 w-[min(100%-1.5rem,34rem)]">
-            <div className="flex w-full sm:w-auto items-center justify-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-slate-900/88 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-white/10">
+          <div className="pointer-events-none absolute inset-x-0 bottom-[max(1rem,calc(env(safe-area-inset-bottom)+1rem))] z-20 flex flex-col items-center gap-2 px-3">
+            {isDoctor && (
+              <button
+                onClick={() => setShowCompleteConfirm(true)}
+                className="pointer-events-auto inline-flex max-w-full items-center gap-2 rounded-full bg-slate-800/92 px-4 py-2 text-sm font-medium text-white shadow-xl ring-1 ring-white/10 backdrop-blur-xl transition-all hover:bg-emerald-600"
+              >
+                <Check className="w-4 h-4" />
+                <span className="truncate">Завершить встречу</span>
+              </button>
+            )}
+
+            <div className="pointer-events-auto flex items-center justify-center gap-2 rounded-3xl bg-slate-950/90 px-3 py-3 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl">
               <button
                 onClick={toggleMute}
                 title={isMuted ? 'Включить микрофон' : 'Выключить микрофон'}
+                aria-label={isMuted ? 'Включить микрофон' : 'Выключить микрофон'}
                 className={cn(
-                  'flex-1 sm:flex-none min-w-0 h-12 sm:w-14 rounded-xl flex items-center justify-center gap-2 transition-all',
+                  'h-12 w-12 rounded-2xl flex items-center justify-center transition-all',
                   isMuted
                     ? 'bg-rose-500 text-white hover:bg-rose-600'
                     : 'bg-slate-700 text-white hover:bg-slate-600'
                 )}
               >
                 {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                <span className="hidden sm:inline text-sm font-medium">{isMuted ? 'Микро выкл' : 'Микро'}</span>
               </button>
 
               <button
                 onClick={toggleVideo}
                 title={isVideoOn ? 'Выключить камеру' : 'Включить камеру'}
+                aria-label={isVideoOn ? 'Выключить камеру' : 'Включить камеру'}
                 className={cn(
-                  'flex-1 sm:flex-none min-w-0 h-12 sm:w-14 rounded-xl flex items-center justify-center gap-2 transition-all',
+                  'h-12 w-12 rounded-2xl flex items-center justify-center transition-all',
                   !isVideoOn
                     ? 'bg-rose-500 text-white hover:bg-rose-600'
                     : 'bg-slate-700 text-white hover:bg-slate-600'
                 )}
               >
                 {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-                <span className="hidden sm:inline text-sm font-medium">{isVideoOn ? 'Камера' : 'Камера выкл'}</span>
               </button>
 
-              <div className="w-px h-8 bg-slate-600" />
+              <div className="mx-1 h-8 w-px bg-slate-700" />
 
               <button
                 onClick={endCall}
                 title="Выйти из звонка"
-                className="flex-1 sm:flex-none min-w-0 h-12 sm:w-auto sm:px-5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl flex items-center justify-center gap-2 transition-all font-medium"
+                aria-label="Выйти из звонка"
+                className="h-12 w-16 rounded-2xl bg-rose-500 text-white flex items-center justify-center transition-all hover:bg-rose-600"
               >
                 <PhoneOff className="w-5 h-5" />
-                <span className="hidden sm:inline text-sm font-medium">Выйти</span>
               </button>
             </div>
-
-            {/* Force complete button — far right for doctor only */}
-            {isDoctor && (
-              <button
-                onClick={() => setShowCompleteConfirm(true)}
-                className="h-10 px-4 bg-slate-700/80 hover:bg-emerald-600 text-white/80 hover:text-white rounded-xl flex items-center gap-2 transition-all text-sm font-medium backdrop-blur sm:absolute sm:right-6 sm:bottom-8"
-              >
-                <Check className="w-4 h-4" />
-                Завершить встречу
-              </button>
-            )}
           </div>
         </div>
       </div>
