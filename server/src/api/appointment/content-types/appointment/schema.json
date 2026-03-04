@@ -78,6 +78,9 @@
       "relation": "oneToMany",
       "target": "api::medical-document.medical-document",
       "mappedBy": "appointment"
+    },
+    "chatLog": {
+      "type": "json"
     }
   }
 }

@@ -406,21 +406,16 @@ function DoctorProfilePage() {
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className='flex items-center gap-4 p-4 bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl border border-violet-100'>
-                                            <div className='w-12 h-12 bg-violet-100 rounded-xl flex items-center justify-center'>
-                                                <MessageCircle className='w-6 h-6 text-violet-600' />
+                                        <div className='flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 opacity-50'>
+                                            <div className='w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center'>
+                                                <MessageCircle className='w-6 h-6 text-slate-400' />
                                             </div>
-                                            <div>
-                                                <p className='font-semibold text-slate-900'>
+                                            <div className='flex-1'>
+                                                <p className='font-semibold text-slate-400'>
                                                     Чат-консультация
                                                 </p>
-                                                <p className='text-lg font-bold text-violet-600'>
-                                                    {formatPrice(
-                                                        Math.round(
-                                                            (doctor.price ||
-                                                                8000) * 0.7,
-                                                        ),
-                                                    )}
+                                                <p className='text-sm font-medium text-slate-400'>
+                                                    В разработке
                                                 </p>
                                             </div>
                                         </div>

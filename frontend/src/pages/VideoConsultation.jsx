@@ -115,6 +115,10 @@ function VideoConsultation() {
   const [planText, setPlanText] = useState('')
   const [prescriptionsText, setPrescriptionsText] = useState('')
   const [diagnosisFile, setDiagnosisFile] = useState(null)
+  const [planFile, setPlanFile] = useState(null)
+  const [prescriptionsFile, setPrescriptionsFile] = useState(null)
+  const [isUploadingPlanFile, setIsUploadingPlanFile] = useState(false)
+  const [isUploadingPrescriptionsFile, setIsUploadingPrescriptionsFile] = useState(false)
   const [isSavingDiagnosis, setIsSavingDiagnosis] = useState(false)
   const [isSavingPlan, setIsSavingPlan] = useState(false)
   const [isSavingPrescriptions, setIsSavingPrescriptions] = useState(false)
@@ -227,12 +231,15 @@ function VideoConsultation() {
           if (doc.type === 'certificate' && !ids.certificate) {
             ids.certificate = docId
             setDiagnosisText(doc.description || '')
+            if (doc.file) setDiagnosisFile(doc.file)
           } else if (doc.type === 'other' && !ids.other) {
             ids.other = docId
             setPlanText(doc.description || '')
+            if (doc.file) setPlanFile(doc.file)
           } else if (doc.type === 'prescription' && !ids.prescription) {
             ids.prescription = docId
             setPrescriptionsText(doc.description || '')
+            if (doc.file) setPrescriptionsFile(doc.file)
           }
         }
         setExistingDocIds(ids)
@@ -396,10 +403,23 @@ function VideoConsultation() {
           }
         })
 
+        // История чата при переподключении (восстановление после refresh)
+        socket.on('chat-history', (history) => {
+          const currentUserId = String(user?.id ?? '')
+          setMessages(history.map(data => ({
+            id: data.id,
+            sender: data.userId != null && String(data.userId) === currentUserId ? 'me' : 'other',
+            text: data.message,
+            senderName: data.senderName,
+            time: new Date(data.timestamp),
+          })))
+        })
+
         socket.on('chat-message', (data) => {
+          const currentUserId = String(user?.id ?? '')
           setMessages(prev => [...prev, {
             id: data.id,
-            sender: data.senderId === socket.id ? 'me' : 'other',
+            sender: (data.userId != null && String(data.userId) === currentUserId) || data.senderId === socket.id ? 'me' : 'other',
             text: data.message,
             senderName: data.senderName,
             time: new Date(data.timestamp),
@@ -408,6 +428,12 @@ function VideoConsultation() {
 
         socket.on('remote-orientation-update', ({ isPortrait }) => {
           setRemoteIsPortrait(isPortrait)
+        })
+
+        // Врач принудительно завершил звонок — пациент видит модалку с оценкой
+        socket.on('call-force-ended', () => {
+          cleanupCall()
+          setShowRatingModal(true)
         })
 
       } catch (err) {
@@ -525,7 +551,23 @@ function VideoConsultation() {
     socketRef.current?.disconnect()
   }
 
+  const saveChatLog = async (chatMessages) => {
+    if (!appointment?.documentId || !chatMessages?.length) return
+    try {
+      await appointmentsAPI.update(appointment.documentId, {
+        chatLog: chatMessages.map(m => ({
+          senderName: m.senderName,
+          text: m.text,
+          time: m.time instanceof Date ? m.time.toISOString() : m.time,
+        })),
+      })
+    } catch (err) {
+      console.error('Error saving chat log:', err)
+    }
+  }
+
   const endCall = () => {
+    saveChatLog(messages)
     cleanupCall()
     if (isDoctor) {
       navigate('/doctor')
@@ -539,7 +581,9 @@ function VideoConsultation() {
     if (!appointment?.documentId) return
     setIsCompletingCall(true)
     try {
+      await saveChatLog(messages)
       await appointmentsAPI.update(appointment.documentId, { status: 'completed' })
+      socketRef.current?.emit('force-end-call', { roomId })
       cleanupCall()
       navigate('/doctor')
     } catch (err) {
@@ -595,6 +639,34 @@ function VideoConsultation() {
     }
   }
 
+  const handlePlanFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingPlanFile(true)
+    try {
+      const uploaded = await uploadFile(file)
+      setPlanFile(uploaded)
+    } catch (err) {
+      console.error('Error uploading plan file:', err)
+    } finally {
+      setIsUploadingPlanFile(false)
+    }
+  }
+
+  const handlePrescriptionsFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingPrescriptionsFile(true)
+    try {
+      const uploaded = await uploadFile(file)
+      setPrescriptionsFile(uploaded)
+    } catch (err) {
+      console.error('Error uploading prescriptions file:', err)
+    } finally {
+      setIsUploadingPrescriptionsFile(false)
+    }
+  }
+
   const saveDiagnosis = async () => {
     if (!appointment?.id) return
     setIsSavingDiagnosis(true)
@@ -627,18 +699,20 @@ function VideoConsultation() {
   }
 
   const savePlan = async () => {
-    if (!appointment?.id || !planText.trim()) return
+    if (!appointment?.id || (!planText.trim() && !planFile)) return
     setIsSavingPlan(true)
     try {
       if (existingDocIds.other) {
         await documentsAPI.update(existingDocIds.other, {
           description: planText,
+          ...(planFile?.id && { file: planFile.id }),
         })
       } else {
         const res = await documentsAPI.create({
           title: 'План обследования',
           type: 'other',
           description: planText,
+          ...(planFile?.id && { file: planFile.id }),
           appointment: appointment.id,
           user: appointment.patient?.id,
           doctor: appointment.doctor?.id,
@@ -656,18 +730,20 @@ function VideoConsultation() {
   }
 
   const savePrescriptions = async () => {
-    if (!appointment?.id || !prescriptionsText.trim()) return
+    if (!appointment?.id || (!prescriptionsText.trim() && !prescriptionsFile)) return
     setIsSavingPrescriptions(true)
     try {
       if (existingDocIds.prescription) {
         await documentsAPI.update(existingDocIds.prescription, {
           description: prescriptionsText,
+          ...(prescriptionsFile?.id && { file: prescriptionsFile.id }),
         })
       } else {
         const res = await documentsAPI.create({
           title: 'Назначения',
           type: 'prescription',
           description: prescriptionsText,
+          ...(prescriptionsFile?.id && { file: prescriptionsFile.id }),
           appointment: appointment.id,
           user: appointment.patient?.id,
           doctor: appointment.doctor?.id,
@@ -1141,19 +1217,44 @@ function VideoConsultation() {
               {notesTab === 'plan' && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-3">План обследования</label>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-medium text-slate-700">План обследования</label>
+                      <label className="flex items-center gap-1.5 text-xs text-teal-600 cursor-pointer hover:text-teal-700">
+                        <Upload className="w-3.5 h-3.5" />
+                        {isUploadingPlanFile ? 'Загрузка...' : 'Загрузить файл'}
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={handlePlanFile}
+                          disabled={isUploadingPlanFile}
+                        />
+                      </label>
+                    </div>
                     <textarea
                       value={planText}
                       onChange={(e) => setPlanText(e.target.value)}
                       className="w-full h-48 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                       placeholder="Введите план обследования пациента..."
                     />
+                    {planFile && (
+                      <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg text-sm">
+                        <FileText className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-600 truncate">{planFile.name}</span>
+                        <button
+                          onClick={() => setPlanFile(null)}
+                          className="ml-auto p-1 hover:bg-slate-200 rounded"
+                        >
+                          <X className="w-3 h-3 text-slate-400" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <Button
                       onClick={savePlan}
                       leftIcon={<Save className="w-4 h-4" />}
-                      disabled={isSavingPlan || !planText.trim()}
+                      disabled={isSavingPlan || (!planText.trim() && !planFile)}
                       className="flex-1"
                     >
                       {isSavingPlan ? 'Сохранение...' : 'Сохранить'}
@@ -1170,19 +1271,44 @@ function VideoConsultation() {
               {notesTab === 'prescriptions' && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-3">Назначения</label>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-medium text-slate-700">Назначения</label>
+                      <label className="flex items-center gap-1.5 text-xs text-teal-600 cursor-pointer hover:text-teal-700">
+                        <Upload className="w-3.5 h-3.5" />
+                        {isUploadingPrescriptionsFile ? 'Загрузка...' : 'Загрузить файл'}
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={handlePrescriptionsFile}
+                          disabled={isUploadingPrescriptionsFile}
+                        />
+                      </label>
+                    </div>
                     <textarea
                       value={prescriptionsText}
                       onChange={(e) => setPrescriptionsText(e.target.value)}
                       className="w-full h-48 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                       placeholder="Введите назначения и рекомендации..."
                     />
+                    {prescriptionsFile && (
+                      <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg text-sm">
+                        <FileText className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-600 truncate">{prescriptionsFile.name}</span>
+                        <button
+                          onClick={() => setPrescriptionsFile(null)}
+                          className="ml-auto p-1 hover:bg-slate-200 rounded"
+                        >
+                          <X className="w-3 h-3 text-slate-400" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <Button
                       onClick={savePrescriptions}
                       leftIcon={<Save className="w-4 h-4" />}
-                      disabled={isSavingPrescriptions || !prescriptionsText.trim()}
+                      disabled={isSavingPrescriptions || (!prescriptionsText.trim() && !prescriptionsFile)}
                       className="flex-1"
                     >
                       {isSavingPrescriptions ? 'Сохранение...' : 'Сохранить'}
@@ -1390,13 +1516,6 @@ function VideoConsultation() {
 
             {/* Buttons */}
             <div className="flex gap-3">
-              <Button
-                variant="secondary"
-                className="flex-1"
-                onClick={skipRating}
-              >
-                Пропустить
-              </Button>
               <Button
                 className="flex-1"
                 onClick={submitRating}

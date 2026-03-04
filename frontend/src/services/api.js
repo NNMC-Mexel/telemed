@@ -394,7 +394,7 @@ export const appointmentsAPI = {
 
     getOne: (id) =>
         api.get(
-            `/api/appointments/${id}?populate[doctor][populate][0]=specialization&populate[doctor][populate][1]=photo&populate[patient][fields][0]=id&populate[patient][fields][1]=fullName&populate[patient][fields][2]=email&populate[patient][fields][3]=username&populate[patient][fields][4]=phone`
+            `/api/appointments/${id}?populate[doctor][populate][0]=specialization&populate[doctor][populate][1]=photo&populate[patient][fields][0]=id&populate[patient][fields][1]=fullName&populate[patient][fields][2]=email&populate[patient][fields][3]=username&populate[patient][fields][4]=phone&populate[medical_documents][populate][file]=*`
         ),
 
     create: (data) => {

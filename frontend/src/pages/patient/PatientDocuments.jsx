@@ -574,44 +574,48 @@ function PatientDocuments() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setSelectedDocument(null)}>Закрыть</Button>
-            <Button leftIcon={<Download className="w-4 h-4" />} onClick={() => handleDownload(selectedDocument)}>
-              Скачать
-            </Button>
+            {selectedDocument?.file && (
+              <Button leftIcon={<Download className="w-4 h-4" />} onClick={() => handleDownload(selectedDocument)}>
+                Скачать
+              </Button>
+            )}
           </>
         }
       >
         {selectedDocument && (
           <div className="space-y-4">
             <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-              <div className="flex justify-between">
-                <span className="text-slate-600">Тип документа</span>
+              <div className="flex justify-between gap-3">
+                <span className="text-slate-600 shrink-0">Тип документа</span>
                 <Badge className={(documentTypes[selectedDocument.type] || documentTypes.other).color}>
                   {(documentTypes[selectedDocument.type] || documentTypes.other).label}
                 </Badge>
               </div>
               {selectedDocument.doctor?.fullName && (
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Врач</span>
-                  <span className="font-medium text-slate-900">{selectedDocument.doctor.fullName}</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-600 shrink-0">Врач</span>
+                  <span className="font-medium text-slate-900 text-right wrap-break-word min-w-0">{selectedDocument.doctor.fullName}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span className="text-slate-600">Дата</span>
+              <div className="flex justify-between gap-3">
+                <span className="text-slate-600 shrink-0">Дата</span>
                 <span className="font-medium text-slate-900">{formatDate(selectedDocument.createdAt)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Размер файла</span>
-                <span className="font-medium text-slate-900">{getFileSize(selectedDocument.file)}</span>
-              </div>
+              {selectedDocument.file && (
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-600 shrink-0">Размер файла</span>
+                  <span className="font-medium text-slate-900">{getFileSize(selectedDocument.file)}</span>
+                </div>
+              )}
               {selectedDocument.description && (
                 <div className="pt-2 border-t">
                   <span className="text-slate-600 block mb-1">Описание</span>
-                  <p className="text-slate-900">{selectedDocument.description}</p>
+                  <p className="text-slate-900 wrap-break-word whitespace-pre-wrap">{selectedDocument.description}</p>
                 </div>
               )}
             </div>
 
-            {isImagePreview ? (
+            {selectedDocument.file && (isImagePreview ? (
               <img src={getMediaUrl(selectedDocument.file)} alt={selectedDocument.title} className="w-full rounded-xl" />
             ) : isPdfPreview ? (
               <div className="bg-slate-100 rounded-xl aspect-[3/4] overflow-hidden">
@@ -648,14 +652,14 @@ function PatientDocuments() {
                 )}
               </div>
             ) : (
-              <div className="bg-slate-100 rounded-xl aspect-[3/4] flex items-center justify-center">
-                <div className="text-center">
-                  <FileText className="w-16 h-16 mx-auto text-slate-400 mb-3" />
-                  <p className="text-slate-500">Предпросмотр недоступен</p>
-                  <p className="text-sm text-slate-400 mt-1">Скачайте файл для просмотра</p>
+              <div className="bg-slate-50 rounded-xl p-4 flex items-center gap-3 border border-slate-200">
+                <FileText className="w-8 h-8 text-slate-400 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-slate-700">{selectedDocument.file.name || 'Файл'}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{getFileSize(selectedDocument.file)}</p>
                 </div>
               </div>
-            )}
+            ))}
           </div>
         )}
       </Modal>

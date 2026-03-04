@@ -41,8 +41,10 @@ const rooms = new Map()
 // Структура комнаты:
 // {
 //   id: string,
-//   participants: Map<socketId, { id, name, role }>
+//   participants: Map<socketId, { id, name, role }>,
+//   messages: [{ id, message, senderName, userId, senderId, timestamp }]
 // }
+const MAX_CHAT_HISTORY = 200
 
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`)
@@ -56,6 +58,7 @@ io.on('connection', (socket) => {
       rooms.set(roomId, {
         id: roomId,
         participants: new Map(),
+        messages: [],
       })
     }
 
@@ -95,7 +98,12 @@ io.on('connection', (socket) => {
     })
     
     socket.emit('room-participants', existingParticipants)
-    
+
+    // Отправляем историю чата новому участнику
+    if (room.messages.length > 0) {
+      socket.emit('chat-history', room.messages)
+    }
+
     console.log(`Room ${roomId} now has ${room.participants.size} participants`)
   })
 
@@ -127,13 +135,24 @@ io.on('connection', (socket) => {
 
   // Чат в комнате
   socket.on('chat-message', ({ roomId, message, senderName }) => {
-    io.to(roomId).emit('chat-message', {
+    const room = rooms.get(roomId)
+    const participant = room?.participants.get(socket.id)
+    const msgData = {
       id: Date.now(),
       message,
       senderName,
       senderId: socket.id,
+      userId: participant?.id,
       timestamp: new Date().toISOString(),
-    })
+    }
+    // Сохраняем в историю комнаты
+    if (room) {
+      room.messages.push(msgData)
+      if (room.messages.length > MAX_CHAT_HISTORY) {
+        room.messages.shift()
+      }
+    }
+    io.to(roomId).emit('chat-message', msgData)
   })
 
   // Переключение медиа (mute/unmute, video on/off)
@@ -179,6 +198,11 @@ io.on('connection', (socket) => {
         console.log(`Room ${roomId} deleted (empty)`)
       }
     }
+  })
+
+  // Принудительное завершение звонка врачом
+  socket.on('force-end-call', ({ roomId }) => {
+    socket.to(roomId).emit('call-force-ended')
   })
 
   // Покинуть комнату

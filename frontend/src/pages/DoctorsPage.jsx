@@ -90,9 +90,11 @@ function DoctorsPage() {
     setShowBookingModal(true)
   }
 
+  const isInDashboard = basePath === '/patient'
+
   return (
-    <div className="pt-28 pb-16 bg-slate-50 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className={isInDashboard ? 'animate-fadeIn' : 'pt-28 pb-16 bg-slate-50 min-h-screen'}>
+      <div className={isInDashboard ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'}>
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Найти врача</h1>

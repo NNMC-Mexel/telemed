@@ -606,34 +606,24 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                 </div>
                             </button>
 
-                            <button
-                                onClick={() => setConsultationType("chat")}
-                                className={cn(
-                                    "w-full p-4 rounded-xl border-2 text-left transition-all",
-                                    consultationType === "chat"
-                                        ? "border-teal-600 bg-teal-50"
-                                        : "border-slate-200 hover:border-slate-300"
-                                )}>
+                            <div className='w-full p-4 rounded-xl border-2 border-slate-200 text-left opacity-50 cursor-not-allowed select-none'>
                                 <div className='flex flex-col sm:flex-row sm:items-center gap-4 min-w-0'>
-                                    <div
-                                        className={cn(
-                                            "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                                            consultationType === "chat"
-                                                ? "bg-teal-600 text-white"
-                                                : "bg-slate-100 text-slate-600"
-                                        )}>
+                                    <div className='w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-slate-100 text-slate-400'>
                                         <MessageCircle className='w-6 h-6' />
                                     </div>
                                     <div className='flex-1 min-w-0'>
-                                        <h4 className='font-semibold text-slate-900'>
+                                        <h4 className='font-semibold text-slate-400'>
                                             Чат-консультация
                                         </h4>
-                                        <p className='text-sm text-slate-500'>
+                                        <p className='text-sm text-slate-400'>
                                             Переписка с врачом в течение дня
                                         </p>
                                     </div>
+                                    <span className='text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg self-start sm:self-auto shrink-0'>
+                                        В разработке
+                                    </span>
                                 </div>
-                            </button>
+                            </div>
                         </div>
                     )}
 
