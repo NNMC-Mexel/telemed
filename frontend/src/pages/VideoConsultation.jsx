@@ -147,6 +147,9 @@ function VideoConsultation() {
   const peerConnectionRef = useRef(null)
   const socketRef = useRef(null)
   const videoContainerRef = useRef(null)
+  const activeSocketRef = useRef(null)
+  const reconnectAttemptsRef = useRef(0)
+  const reconnectTimerRef = useRef(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
@@ -394,6 +397,9 @@ function VideoConsultation() {
         })
 
         socket.on('user-left', () => {
+          // User genuinely left — reset reconnect state
+          reconnectAttemptsRef.current = 0
+          clearTimeout(reconnectTimerRef.current)
           setRemoteUser(null)
           setConnectionState('waiting')
           if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null
@@ -456,8 +462,42 @@ function VideoConsultation() {
     }
   }, [roomId, user])
 
+  const handleReconnect = () => {
+    if (reconnectAttemptsRef.current >= 3) {
+      console.log('[WebRTC] Max reconnect attempts reached')
+      setConnectionState('failed')
+      return
+    }
+    reconnectAttemptsRef.current++
+    console.log(`[WebRTC] ICE failure — reconnect attempt ${reconnectAttemptsRef.current}/3`)
+    setConnectionState('reconnecting')
+
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close()
+      peerConnectionRef.current = null
+    }
+
+    // Re-join room after random delay to avoid both sides colliding
+    const delay = 1000 + Math.random() * 1500
+    setTimeout(() => {
+      const socket = activeSocketRef.current
+      if (socket?.connected) {
+        socket.emit('join-room', {
+          roomId,
+          userId: user?.id,
+          userName: user?.fullName || user?.username,
+          userRole: user?.userRole || 'patient',
+          isPortrait: window.innerHeight > window.innerWidth,
+        })
+      } else {
+        setConnectionState('failed')
+      }
+    }, delay)
+  }
+
   const createPeerConnection = (socket, targetSocketId) => {
     if (peerConnectionRef.current) peerConnectionRef.current.close()
+    activeSocketRef.current = socket
 
     console.log('[WebRTC] ICE servers config:', JSON.stringify(ICE_SERVERS, null, 2))
     const pc = new RTCPeerConnection(ICE_SERVERS)
@@ -486,13 +526,37 @@ function VideoConsultation() {
     }
 
     pc.oniceconnectionstatechange = () => {
-      console.log('[WebRTC] ICE connection state:', pc.iceConnectionState)
+      const state = pc.iceConnectionState
+      console.log('[WebRTC] ICE connection state:', state)
+
+      if (state === 'disconnected') {
+        // Transient — often self-recovers within a few seconds
+        clearTimeout(reconnectTimerRef.current)
+        reconnectTimerRef.current = setTimeout(() => {
+          if (peerConnectionRef.current === pc &&
+              pc.iceConnectionState !== 'connected' &&
+              pc.iceConnectionState !== 'completed') {
+            handleReconnect()
+          }
+        }, 4000)
+      } else if (state === 'connected' || state === 'completed') {
+        clearTimeout(reconnectTimerRef.current)
+        reconnectAttemptsRef.current = 0
+      } else if (state === 'failed') {
+        clearTimeout(reconnectTimerRef.current)
+        handleReconnect()
+      }
     }
 
     pc.onconnectionstatechange = () => {
-      console.log('[WebRTC] Connection state:', pc.connectionState)
-      if (pc.connectionState === 'connected') setConnectionState('connected')
-      else if (pc.connectionState === 'failed') setConnectionState('failed')
+      const state = pc.connectionState
+      console.log('[WebRTC] Connection state:', state)
+      if (state === 'connected') {
+        setConnectionState('connected')
+        reconnectAttemptsRef.current = 0
+        clearTimeout(reconnectTimerRef.current)
+      }
+      // 'failed' is handled via oniceconnectionstatechange
     }
 
     return pc
@@ -892,6 +956,18 @@ function VideoConsultation() {
                   <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
                   <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {connectionState === 'reconnecting' && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <Loader2 className="w-10 h-10 text-amber-400 animate-spin" />
+                </div>
+                <p className="text-white text-xl font-medium mb-2">Восстановление связи...</p>
+                <p className="text-slate-400 text-sm">Попытка {reconnectAttemptsRef.current} из 3</p>
               </div>
             </div>
           )}
