@@ -1248,7 +1248,7 @@ function VideoConsultation() {
                         <input
                           type="file"
                           className="hidden"
-                          accept=".pdf,.doc,.docx"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                           onChange={handleDiagnosisFile}
                         />
                       </label>

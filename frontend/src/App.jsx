@@ -37,6 +37,8 @@ import AdminContent from './pages/admin/AdminContent'
 // Other Pages
 import VideoConsultation from './pages/VideoConsultation'
 import NotificationsPage from './pages/NotificationsPage'
+import PaymentSuccess from './pages/PaymentSuccess'
+import PaymentFailure from './pages/PaymentFailure'
 
 // Stores
 import useAuthStore from './stores/authStore'
@@ -208,6 +210,17 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Payment Callbacks (ePay redirect) */}
+        <Route
+          path="/payment/success"
+          element={
+            <ProtectedRoute>
+              <PaymentSuccess />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/payment/failure" element={<PaymentFailure />} />
 
         {/* 404 */}
         <Route path="*" element={<Navigate to="/" replace />} />

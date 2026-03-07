@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import {
     format,
     addDays,
@@ -17,6 +18,7 @@ import {
     Check,
     Video,
     MessageCircle,
+    X,
 } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
@@ -103,27 +105,52 @@ const paymentMethods = [
         name: "Kaspi QR",
         icon: "🏦",
         description: "Оплата через Kaspi.kz",
+        badge: null,
     },
     {
         id: "halyk",
         name: "Halyk Bank",
         icon: "🏛️",
-        description: "Карта Halyk Bank",
+        description: "QR-оплата через Halyk Home Bank",
+        badge: "Рекомендуем",
     },
     {
         id: "card",
         name: "Банковская карта",
         icon: "💳",
-        description: "Visa / Mastercard",
+        description: "Visa / Mastercard · для международных платежей",
+        badge: null,
     },
 ];
 
-// DEV MODE - симуляция оплаты в режиме разработки
-const IS_DEV_MODE =
-    import.meta.env.DEV || import.meta.env.VITE_DEV_MODE === "true";
+const isMobileDevice = () =>
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+const SIGNALING_URL =
+    import.meta.env.VITE_SIGNALING_SERVER || "http://localhost:1341";
+
+// Load (or reload) ePay widget script — always fresh to avoid stale session state
+const loadHalykScript = () =>
+    new Promise((resolve, reject) => {
+        // Remove previous script + state to avoid "payment expired" on re-attempts
+        const prev = document.querySelector('script[src*="payment-api"]');
+        if (prev) prev.remove();
+        delete window.halyk;
+
+        const isTest = import.meta.env.VITE_EPAY_TEST !== "false";
+        const src = isTest
+            ? "https://test-epay.epayment.kz/payform/payment-api.js"
+            : "https://epay.homebank.kz/payform/payment-api.js";
+        const script = document.createElement("script");
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = () =>
+            reject(new Error("Не удалось загрузить платёжный модуль"));
+        document.body.appendChild(script);
+    });
 
 function BookingModal({ isOpen, onClose, doctor }) {
-    const { user } = useAuthStore();
+    const { user, token } = useAuthStore();
     const { createAppointment, fetchTimeSlots, timeSlots } =
         useAppointmentStore();
     const toast = useToast();
@@ -138,6 +165,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const [error, setError] = useState(null);
     const [bookedSlots, setBookedSlots] = useState([]);
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
+    // Halyk QR flow state
+    const [halykQR, setHalykQR] = useState(null); // { qrcode, homebankLink, billNumber }
+    const [halykQRStatus, setHalykQRStatus] = useState("pending"); // pending | paid | rejected | expired
 
     const dates = Array.from({ length: 14 }, (_, i) => addDays(new Date(), i));
     
@@ -217,27 +248,34 @@ function BookingModal({ isOpen, onClose, doctor }) {
         if (step > 1) setStep(step - 1);
     };
 
-    const handleBook = async () => {
+    // Shared: fresh slot check + build dateTime
+    const verifySlotAndBuildDateTime = async () => {
+        const dateStr = format(selectedDate, "yyyy-MM-dd");
+        const freshBooked = await getBookedSlots(doctor.id, dateStr);
+        setBookedSlots(freshBooked);
+
+        if (freshBooked.includes(selectedTime)) {
+            toast.error(
+                "К сожалению, выбранное время было забронировано другим пациентом. Пожалуйста, выберите другое свободное время."
+            );
+            setSelectedTime(null);
+            setStep(1);
+            return null;
+        }
+
+        const dateTime = new Date(selectedDate);
+        const [hours, minutes] = selectedTime.split(":");
+        dateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        return dateTime;
+    };
+
+    // Kaspi: create appointment immediately, show instructions in success screen
+    const handleKaspiPayment = async () => {
         setIsProcessing(true);
         setError(null);
-
         try {
-            // Перепроверяем занятые слоты перед бронированием
-            const dateStr = format(selectedDate, "yyyy-MM-dd");
-            const freshBooked = await getBookedSlots(doctor.id, dateStr);
-            setBookedSlots(freshBooked);
-
-            if (freshBooked.includes(selectedTime)) {
-                toast.error("К сожалению, выбранное время было забронировано другим пациентом. Пожалуйста, выберите другое свободное время.");
-                setSelectedTime(null);
-                setStep(1);
-                setIsProcessing(false);
-                return;
-            }
-
-            const dateTime = new Date(selectedDate);
-            const [hours, minutes] = selectedTime.split(":");
-            dateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            const dateTime = await verifySlotAndBuildDateTime();
+            if (!dateTime) return;
 
             const result = await createAppointment({
                 patient: user.id,
@@ -258,12 +296,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 const msg = result.error || "Ошибка создания записи";
                 toast.error(msg);
                 setError(msg);
-                // Если время занято — сразу возвращаем на выбор времени
                 if (msg.includes("забронировано") || msg.includes("занято")) {
-                    // Добавляем слот в занятые, чтобы он исчез из списка
-                    if (selectedTime) {
-                        setBookedSlots(prev => [...prev, selectedTime]);
-                    }
+                    setBookedSlots((prev) => [...prev, selectedTime]);
                     setSelectedTime(null);
                     setStep(1);
                 }
@@ -275,6 +309,206 @@ function BookingModal({ isOpen, onClose, doctor }) {
         }
     };
 
+    // ePay (Halyk/Card): redirect to ePay widget, appointment created on success page
+    const handleEPayPayment = async () => {
+        setIsProcessing(true);
+        setError(null);
+        try {
+            const dateTime = await verifySlotAndBuildDateTime();
+            if (!dateTime) {
+                setIsProcessing(false);
+                return;
+            }
+
+            // ePay requires numeric-only invoiceId (no letters/hyphens)
+            const invoiceId = String(Date.now());
+            const roomId = `room-${Date.now()}-${Math.random()
+                .toString(36)
+                .substr(2, 9)}`;
+
+            const successUrl = `${window.location.origin}/payment/success`;
+            const failureUrl = `${window.location.origin}/payment/failure`;
+
+            // Save booking data — appointment is created after ePay redirects back
+            sessionStorage.setItem(
+                "pendingBooking",
+                JSON.stringify({
+                    invoiceId,
+                    roomId,
+                    doctorId: doctor.id,
+                    doctorName,
+                    patientId: user.id,
+                    dateTime: dateTime.toISOString(),
+                    type: consultationType,
+                    price: doctorPrice,
+                    paymentMethod,
+                })
+            );
+
+            // Get OAuth token from our backend (keeps ClientSecret server-side)
+            const tokenRes = await fetch(
+                `${SIGNALING_URL}/api/payment/epay-token`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        invoiceId,
+                        amount: doctorPrice,
+                    }),
+                }
+            );
+
+            if (!tokenRes.ok) {
+                const err = await tokenRes.json().catch(() => ({}));
+                throw new Error(
+                    err.error || "Не удалось инициализировать оплату"
+                );
+            }
+
+            const { auth, terminalId } = await tokenRes.json();
+
+            // Load ePay widget script
+            await loadHalykScript();
+
+            // Open ePay payment form — auth must be the full OAuth response object
+            window.halyk.pay({
+                auth,
+                invoiceId,
+                invoiceIdAlt: `${invoiceId}-alt`,
+                amount: doctorPrice,
+                currency: "KZT",
+                terminal: terminalId,
+                language: "RU",
+                description: `Консультация у ${doctorName}`,
+                accountId: String(user.id),
+                name: user.fullName || user.username || "",
+                email: user.email || "",
+                phone: user.phone || "",
+                backLink: successUrl,
+                failureBackLink: failureUrl,
+                postLink: "",
+                failurePostLink: "",
+            });
+            // ePay now controls the page — no setIsProcessing(false) needed
+        } catch (err) {
+            console.error("ePay error:", err);
+            setError(
+                err.message ||
+                    "Ошибка инициализации оплаты. Попробуйте другой способ."
+            );
+            setIsProcessing(false);
+            sessionStorage.removeItem("pendingBooking");
+        }
+    };
+
+    // Halyk Bank: uses official ePay QR by API for both mobile and desktop.
+    // Mobile gets a "Open in Halyk" button (homebankLink deeplink).
+    // Desktop shows a scannable QR code.
+    // Both poll the server for payment status and create the appointment on PAID.
+    const handleHalykPayment = async () => {
+        setIsProcessing(true);
+        setError(null);
+        try {
+            const dateTime = await verifySlotAndBuildDateTime();
+            if (!dateTime) {
+                setIsProcessing(false);
+                return;
+            }
+
+            const roomId = `room-${Date.now()}-${Math.random()
+                .toString(36)
+                .substr(2, 9)}`;
+
+            const bookingData = {
+                roomId,
+                doctorId: doctor.id,
+                doctorName,
+                patientId: user.id,
+                patientName: user.fullName || user.username || "",
+                patientEmail: user.email || "",
+                patientPhone: user.phone || "",
+                dateTime: dateTime.toISOString(),
+                type: consultationType,
+                price: doctorPrice,
+            };
+
+            // Call server: get OAuth token + generate QR via ePay QR API
+            const res = await fetch(
+                `${SIGNALING_URL}/api/payment/create-halyk-qr`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ bookingData, userToken: token }),
+                }
+            );
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || "Не удалось сгенерировать QR-код");
+            }
+
+            const { billNumber, qrcode, homebankLink } = await res.json();
+            setHalykQR({ billNumber, qrcode, homebankLink });
+            setHalykQRStatus("pending");
+
+            // Start polling for payment status every 3 seconds
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch(
+                        `${SIGNALING_URL}/api/payment/halyk-qr-status/${billNumber}`
+                    );
+                    if (!statusRes.ok) {
+                        clearInterval(pollInterval);
+                        return;
+                    }
+                    const { status } = await statusRes.json();
+
+                    if (status === "PAID") {
+                        clearInterval(pollInterval);
+                        setHalykQRStatus("paid");
+                        // Give UI a moment then show success
+                        setTimeout(() => {
+                            setHalykQR(null);
+                            setIsComplete(true);
+                        }, 1500);
+                    } else if (status === "REJECTED" || status === "CLOSED") {
+                        clearInterval(pollInterval);
+                        setHalykQRStatus("rejected");
+                    }
+                    // Other statuses (NEW, SCANNED, BLOCKED) → keep polling
+                } catch {
+                    // Network error during poll — ignore and retry
+                }
+            }, 3000);
+
+            // Auto-expire after 20 minutes (ePay QR TTL)
+            setTimeout(() => {
+                clearInterval(pollInterval);
+                setHalykQRStatus((s) =>
+                    s === "pending" || s === "scanned" ? "expired" : s
+                );
+            }, 20 * 60 * 1000);
+        } catch (err) {
+            console.error("Halyk QR error:", err);
+            setError(
+                err.message ||
+                    "Ошибка генерации QR-кода. Попробуйте другой способ."
+            );
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleBook = () => {
+        if (paymentMethod === "kaspi") {
+            handleKaspiPayment();
+        } else if (paymentMethod === "halyk") {
+            handleHalykPayment();
+        } else {
+            handleEPayPayment();
+        }
+    };
+
     const resetAndClose = () => {
         setStep(1);
         setSelectedDate(null);
@@ -283,6 +517,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
         setPaymentMethod(null);
         setIsComplete(false);
         setError(null);
+        setHalykQR(null);
+        setHalykQRStatus("pending");
         onClose();
     };
 
@@ -326,11 +562,157 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     onClick={handleBook}
                     isLoading={isProcessing}
                     leftIcon={<CreditCard className='w-4 h-4' />}>
-                    Оплатить {formatPrice(doctorPrice)}
+                    {paymentMethod === "kaspi"
+                        ? `Записаться · ${formatPrice(doctorPrice)}`
+                        : paymentMethod === "halyk"
+                        ? isMobileDevice()
+                            ? `Открыть Halyk · ${formatPrice(doctorPrice)}`
+                            : `Получить QR · ${formatPrice(doctorPrice)}`
+                        : `Оплатить · ${formatPrice(doctorPrice)}`}
                 </Button>
             )}
         </div>
     ) : undefined
+
+    // Halyk QR modal — official ePay QR by API
+    if (halykQR) {
+        const isPaid = halykQRStatus === "paid";
+        const isRejected = halykQRStatus === "rejected";
+        const isExpired = halykQRStatus === "expired";
+        const mobile = isMobileDevice();
+
+        return (
+            <Modal
+                isOpen={isOpen}
+                onClose={() => {
+                    setHalykQR(null);
+                    setHalykQRStatus("pending");
+                }}
+                title="Оплата через Halyk Bank"
+                size="lg">
+                <div className="flex flex-col items-center text-center py-4 space-y-5">
+                    {isPaid ? (
+                        <>
+                            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center">
+                                <Check className="w-10 h-10 text-emerald-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-semibold text-slate-900 mb-1">
+                                    Оплата прошла!
+                                </h3>
+                                <p className="text-slate-500 text-sm">
+                                    Создаём вашу запись…
+                                </p>
+                            </div>
+                        </>
+                    ) : isRejected ? (
+                        <>
+                            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                                <X className="w-10 h-10 text-red-500" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-semibold text-slate-900 mb-1">
+                                    Оплата отклонена
+                                </h3>
+                                <p className="text-slate-500 text-sm">
+                                    Попробуйте снова или выберите другой способ.
+                                </p>
+                            </div>
+                            <Button onClick={() => { setHalykQR(null); setHalykQRStatus("pending"); }}>
+                                Попробовать снова
+                            </Button>
+                        </>
+                    ) : isExpired ? (
+                        <>
+                            <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center">
+                                <span className="text-3xl">⏰</span>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-semibold text-slate-900 mb-1">
+                                    QR-код истёк
+                                </h3>
+                                <p className="text-slate-500 text-sm">
+                                    Время действия QR-кода (20 мин) вышло. Получите новый.
+                                </p>
+                            </div>
+                            <Button onClick={() => { setHalykQR(null); setHalykQRStatus("pending"); }}>
+                                Получить новый QR
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center">
+                                <span className="text-3xl">🏛️</span>
+                            </div>
+
+                            {/* Mobile: show button to open Halyk app */}
+                            {mobile && halykQR.homebankLink ? (
+                                <div className="space-y-3 w-full max-w-xs">
+                                    <h3 className="text-lg font-semibold text-slate-900">
+                                        Оплатите в Halyk Home Bank
+                                    </h3>
+                                    <a
+                                        href={halykQR.homebankLink}
+                                        className="block w-full py-3 px-6 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-colors">
+                                        Открыть Halyk Home Bank
+                                    </a>
+                                    <p className="text-xs text-slate-400">
+                                        После оплаты в приложении вернитесь сюда — запись создастся автоматически.
+                                    </p>
+                                </div>
+                            ) : null}
+
+                            {/* QR code — shown on desktop, or on mobile if no homebankLink */}
+                            {(!mobile || !halykQR.homebankLink) && halykQR.qrcode && (
+                                <div className="space-y-3">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-slate-900 mb-1">
+                                            Отсканируйте QR-код
+                                        </h3>
+                                        <p className="text-slate-500 text-sm">
+                                            Откройте{" "}
+                                            <strong>Halyk Home Bank</strong> →{" "}
+                                            Платежи → Сканировать QR
+                                        </p>
+                                    </div>
+                                    <div className="p-4 bg-white rounded-2xl shadow-md border border-slate-200 inline-block">
+                                        <QRCodeSVG
+                                            value={halykQR.qrcode}
+                                            size={200}
+                                            bgColor="#ffffff"
+                                            fgColor="#0f172a"
+                                            level="M"
+                                            includeMargin={false}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Amount + polling indicator */}
+                            <div className="bg-teal-50 rounded-xl px-4 py-3 text-sm text-teal-800 max-w-xs w-full">
+                                <p className="font-semibold mb-1">
+                                    К оплате: {formatPrice(doctorPrice)}
+                                </p>
+                                <div className="flex items-center justify-center gap-2 text-teal-600 mt-1">
+                                    <div className="w-3 h-3 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                                    <span className="text-xs">Ожидаем оплату…</span>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    setHalykQR(null);
+                                    setHalykQRStatus("pending");
+                                }}
+                                className="text-sm text-slate-400 hover:text-slate-600 flex items-center gap-1">
+                                <X className="w-4 h-4" /> Выбрать другой способ оплаты
+                            </button>
+                        </>
+                    )}
+                </div>
+            </Modal>
+        );
+    }
 
     return (
         <Modal
@@ -345,7 +727,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         <Check className='w-10 h-10 text-emerald-600' />
                     </div>
                     <h3 className='text-xl font-semibold text-slate-900 mb-2'>
-                        Вы успешно записаны!
+                        Запись создана!
                     </h3>
                     <p className='text-slate-600 mb-6'>
                         Консультация с {doctorName}
@@ -356,12 +738,28 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             })}{" "}
                         в {selectedTime}
                     </p>
+
+                    {/* Kaspi payment instructions */}
+                    {paymentMethod === "kaspi" && (
+                        <div className='bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-left'>
+                            <p className='text-sm font-semibold text-amber-900 mb-2'>
+                                🏦 Оплата через Kaspi QR
+                            </p>
+                            <p className='text-sm text-amber-800 mb-1'>
+                                Переведите{" "}
+                                <strong>{formatPrice(doctorPrice)}</strong>{" "}
+                                через Kaspi.kz на реквизиты клиники.
+                            </p>
+                            <p className='text-xs text-amber-700'>
+                                После оплаты запись будет подтверждена
+                                администратором в течение 30 минут.
+                            </p>
+                        </div>
+                    )}
+
                     <div className='bg-slate-50 rounded-xl p-4 mb-6 text-left'>
                         <p className='text-sm text-slate-600 mb-2'>
                             📧 Подтверждение отправлено на вашу почту
-                        </p>
-                        <p className='text-sm text-slate-600 mb-2'>
-                            📱 SMS-напоминание придёт за 30 минут до приёма
                         </p>
                         <p className='text-sm text-slate-600'>
                             🔗 Ссылка на видеоконсультацию появится в личном
@@ -634,16 +1032,6 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                 Способ оплаты
                             </label>
 
-                            {/* DEV MODE Banner */}
-                            {IS_DEV_MODE && (
-                                <div className='p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4'>
-                                    <p className='text-sm text-amber-800 flex items-center gap-2'>
-                                        🧪 <strong>DEV MODE:</strong> Оплата
-                                        симулируется, деньги не списываются
-                                    </p>
-                                </div>
-                            )}
-
                             {paymentMethods.map((method) => (
                                 <button
                                     key={method.id}
@@ -658,26 +1046,38 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                         <div className='text-3xl'>
                                             {method.icon}
                                         </div>
-                                        <div>
+                                        <div className='flex-1 min-w-0'>
                                             <h4 className='font-semibold text-slate-900'>
                                                 {method.name}
                                             </h4>
                                             <p className='text-sm text-slate-500'>
                                                 {method.description}
                                             </p>
+                                            {method.id === "halyk" && (
+                                                <p className='text-xs text-slate-400 mt-0.5'>
+                                                    {isMobileDevice()
+                                                        ? "📱 Откроется форма оплаты"
+                                                        : "🖥️ Отобразится QR-код для сканирования"}
+                                                </p>
+                                            )}
                                         </div>
+                                        {method.badge && (
+                                            <span className='text-xs font-medium text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full shrink-0'>
+                                                {method.badge}
+                                            </span>
+                                        )}
                                         {paymentMethod === method.id && (
-                                            <Check className='w-5 h-5 text-teal-600 ml-auto' />
+                                            <Check className='w-5 h-5 text-teal-600 shrink-0' />
                                         )}
                                     </div>
                                 </button>
                             ))}
 
-                            <div className='mt-6 p-4 bg-slate-50 rounded-xl'>
+                            <div className='mt-2 p-4 bg-slate-50 rounded-xl'>
                                 <p className='text-sm text-slate-600'>
-                                    💡 После оплаты запись будет подтверждена
-                                    автоматически. Возврат средств возможен не
-                                    позднее чем за 24 часа до приёма.
+                                    🔒 Оплата защищена шифрованием. Возврат
+                                    средств возможен не позднее чем за 24 часа
+                                    до приёма.
                                 </p>
                             </div>
                         </div>

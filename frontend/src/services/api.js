@@ -405,9 +405,9 @@ export const appointmentsAPI = {
         const strapiData = {
             dateTime: data.dateTime,
             type: data.type || "video",
-            statuse: "confirmed", // Сразу подтверждаем - клиент оплатил
+            statuse: data.status || "confirmed",
             price: data.price,
-            paymentStatus: data.paymentStatus || "paid", // Считаем оплаченным
+            paymentStatus: data.paymentStatus || "paid",
             roomId: data.roomId,
             // Strapi v5 - пробуем разные форматы связей
             patient: patientId,
