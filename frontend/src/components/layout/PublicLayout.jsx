@@ -103,7 +103,7 @@ function PublicLayout() {
             {/* Mobile Menu Panel (slides from left) */}
             <div
                 className={cn(
-                    'fixed left-0 top-0 h-(--app-height) w-72 bg-white z-50 transition-transform duration-300 lg:hidden flex flex-col',
+                    'fixed left-0 top-0 h-(--app-height) w-72 bg-white z-60 transition-transform duration-300 lg:hidden flex flex-col',
                     isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >

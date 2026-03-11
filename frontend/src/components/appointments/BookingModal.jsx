@@ -105,7 +105,8 @@ const paymentMethods = [
         name: "Kaspi QR",
         icon: "🏦",
         description: "Оплата через Kaspi.kz",
-        badge: null,
+        badge: "Скоро",
+        disabled: true,
     },
     {
         id: "halyk",
@@ -113,6 +114,7 @@ const paymentMethods = [
         icon: "🏛️",
         description: "QR-оплата через Halyk Home Bank",
         badge: "Рекомендуем",
+        disabled: false,
     },
     {
         id: "card",
@@ -120,6 +122,7 @@ const paymentMethods = [
         icon: "💳",
         description: "Visa / Mastercard · для международных платежей",
         badge: null,
+        disabled: false,
     },
 ];
 
@@ -780,51 +783,42 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 </div>
             ) : (
                 <>
-                    {/* Progress Steps - Compact for mobile */}
-                    <div className='flex items-center justify-between mb-6 overflow-x-auto'>
+                    {/* Progress Steps */}
+                    <div className='flex items-center mb-6'>
                         {[
                             { num: 1, label: "Дата" },
                             { num: 2, label: "Тип" },
                             { num: 3, label: "Оплата" },
                             { num: 4, label: "Готово" },
-                        ].map((s, i) => (
-                            <div
-                                key={s.num}
-                                className='flex items-center flex-shrink-0'>
-                                <div
-                                    className={cn(
+                        ].flatMap((s, i) => {
+                            const items = [
+                                <div key={s.num} className='flex flex-col items-center gap-1 shrink-0'>
+                                    <div className={cn(
                                         "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
                                         step >= s.num
                                             ? "bg-teal-600 text-white"
                                             : "bg-slate-200 text-slate-500"
                                     )}>
-                                    {step > s.num ? (
-                                        <Check className='w-4 h-4' />
-                                    ) : (
-                                        s.num
-                                    )}
-                                </div>
-                                <span
-                                    className={cn(
-                                        "ml-1 text-xs hidden sm:inline",
-                                        step >= s.num
-                                            ? "text-slate-900"
-                                            : "text-slate-400"
+                                        {step > s.num ? <Check className='w-4 h-4' /> : s.num}
+                                    </div>
+                                    <span className={cn(
+                                        "text-xs",
+                                        step >= s.num ? "text-slate-700" : "text-slate-400"
                                     )}>
-                                    {s.label}
-                                </span>
-                                {i < 3 && (
-                                    <div
-                                        className={cn(
-                                            "w-4 sm:w-8 h-0.5 mx-1",
-                                            step > s.num
-                                                ? "bg-teal-600"
-                                                : "bg-slate-200"
-                                        )}
-                                    />
-                                )}
-                            </div>
-                        ))}
+                                        {s.label}
+                                    </span>
+                                </div>
+                            ];
+                            if (i < 3) {
+                                items.push(
+                                    <div key={`line-${i}`} className={cn(
+                                        "flex-1 h-0.5 mb-4 transition-colors",
+                                        step > s.num ? "bg-teal-600" : "bg-slate-200"
+                                    )} />
+                                );
+                            }
+                            return items;
+                        })}
                     </div>
 
                     {error && (
@@ -1035,40 +1029,60 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             {paymentMethods.map((method) => (
                                 <button
                                     key={method.id}
-                                    onClick={() => setPaymentMethod(method.id)}
+                                    onClick={() => !method.disabled && setPaymentMethod(method.id)}
+                                    disabled={method.disabled}
                                     className={cn(
                                         "w-full p-4 rounded-xl border-2 text-left transition-all",
-                                        paymentMethod === method.id
+                                        method.disabled
+                                            ? "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
+                                            : paymentMethod === method.id
                                             ? "border-teal-600 bg-teal-50"
-                                            : "border-slate-200 hover:border-slate-300"
+                                            : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                                     )}>
                                     <div className='flex items-center gap-4'>
-                                        <div className='text-3xl'>
+                                        <div className={cn(
+                                            "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-2xl",
+                                            method.disabled
+                                                ? "bg-slate-100"
+                                                : paymentMethod === method.id
+                                                ? "bg-teal-100"
+                                                : "bg-slate-100"
+                                        )}>
                                             {method.icon}
                                         </div>
                                         <div className='flex-1 min-w-0'>
-                                            <h4 className='font-semibold text-slate-900'>
-                                                {method.name}
-                                            </h4>
-                                            <p className='text-sm text-slate-500'>
-                                                {method.description}
+                                            <div className='flex items-center justify-between gap-2'>
+                                                <h4 className={cn(
+                                                    "font-semibold",
+                                                    method.disabled ? "text-slate-400" : "text-slate-900"
+                                                )}>
+                                                    {method.name}
+                                                </h4>
+                                                {paymentMethod === method.id && !method.disabled && (
+                                                    <Check className='w-5 h-5 text-teal-600 shrink-0' />
+                                                )}
+                                            </div>
+                                            <p className={cn(
+                                                "text-sm",
+                                                method.disabled ? "text-slate-400" : "text-slate-500"
+                                            )}>
+                                                {method.id === "halyk"
+                                                    ? isMobileDevice()
+                                                        ? "QR-оплата · Halyk Home Bank"
+                                                        : "QR-оплата · сканирование в приложении"
+                                                    : method.description}
                                             </p>
-                                            {method.id === "halyk" && (
-                                                <p className='text-xs text-slate-400 mt-0.5'>
-                                                    {isMobileDevice()
-                                                        ? "📱 Откроется форма оплаты"
-                                                        : "🖥️ Отобразится QR-код для сканирования"}
-                                                </p>
+                                            {method.badge && (
+                                                <span className={cn(
+                                                    "inline-block mt-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
+                                                    method.disabled
+                                                        ? "text-slate-400 bg-slate-200"
+                                                        : "text-teal-700 bg-teal-100"
+                                                )}>
+                                                    {method.badge}
+                                                </span>
                                             )}
                                         </div>
-                                        {method.badge && (
-                                            <span className='text-xs font-medium text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full shrink-0'>
-                                                {method.badge}
-                                            </span>
-                                        )}
-                                        {paymentMethod === method.id && (
-                                            <Check className='w-5 h-5 text-teal-600 shrink-0' />
-                                        )}
                                     </div>
                                 </button>
                             ))}
