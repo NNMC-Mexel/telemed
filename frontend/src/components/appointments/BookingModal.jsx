@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { io } from "socket.io-client";
 import { QRCodeSVG } from "qrcode.react";
 import {
     format,
@@ -19,6 +20,7 @@ import {
     Video,
     MessageCircle,
     X,
+    Lock,
 } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
@@ -173,6 +175,18 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const [halykQR, setHalykQR] = useState(null); // { qrcode, homebankLink, billNumber }
     const [halykQRStatus, setHalykQRStatus] = useState("pending"); // pending | paid | rejected | expired
 
+    // Real-time slot reservations: Map<time, expiresAt>
+    const [reservedByOthers, setReservedByOthers] = useState(new Map())
+    const socketRef = useRef(null)
+
+    // Countdown ticks to refresh remaining time labels
+    const [, setTick] = useState(0)
+    useEffect(() => {
+        if (reservedByOthers.size === 0) return
+        const id = setInterval(() => setTick(t => t + 1), 30000)
+        return () => clearInterval(id)
+    }, [reservedByOthers.size])
+
     const dates = Array.from({ length: 14 }, (_, i) => addDays(new Date(), i));
     
     // Получаем рабочие дни врача (по умолчанию Пн-Пт)
@@ -218,6 +232,65 @@ function BookingModal({ isOpen, onClose, doctor }) {
         };
         loadSlots();
     }, [selectedDate, doctor?.id, fetchTimeSlots]);
+
+    // Socket: join slot-watch room when doctor + date are known, leave on cleanup
+    useEffect(() => {
+        if (!isOpen || !doctor?.id || !selectedDate) return
+
+        const dateStr = format(selectedDate, "yyyy-MM-dd")
+
+        const socket = io(SIGNALING_URL, { transports: ["websocket"] })
+        socketRef.current = socket
+
+        socket.emit("join-slot-watch", { doctorId: doctor.id, date: dateStr })
+
+        socket.on("current-reservations", (reservations) => {
+            const now = Date.now()
+            const map = new Map()
+            reservations.forEach(({ time, expiresAt }) => {
+                if (expiresAt > now) map.set(time, expiresAt)
+            })
+            setReservedByOthers(map)
+        })
+
+        socket.on("slot-reserved", ({ time, expiresAt }) => {
+            setReservedByOthers(prev => {
+                const next = new Map(prev)
+                next.set(time, expiresAt)
+                return next
+            })
+        })
+
+        socket.on("slot-released", ({ time }) => {
+            setReservedByOthers(prev => {
+                const next = new Map(prev)
+                next.delete(time)
+                return next
+            })
+        })
+
+        return () => {
+            socket.emit("leave-slot-watch", { doctorId: doctor.id, date: dateStr })
+            socket.disconnect()
+            socketRef.current = null
+        }
+    }, [isOpen, doctor?.id, selectedDate])
+
+    // Emit reserve / release when selected time changes
+    useEffect(() => {
+        const socket = socketRef.current
+        if (!socket || !doctor?.id || !selectedDate) return
+        const dateStr = format(selectedDate, "yyyy-MM-dd")
+        if (selectedTime) {
+            socket.emit("reserve-slot", {
+                doctorId: doctor.id,
+                date: dateStr,
+                time: selectedTime,
+                userId: user?.id,
+            })
+        }
+        // release is handled server-side when a new reserve comes in from same socket
+    }, [selectedTime])
 
     const getAvailableSlots = () => {
         if (!selectedDate) return [];
@@ -929,29 +1002,41 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                             </p>
                                         </div>
                                     ) : (
+                                        <>
                                         <div className='grid grid-cols-4 sm:grid-cols-7 gap-2'>
                                             {availableSlots.map((time) => {
-                                                const isSelected =
-                                                    selectedTime === time;
+                                                const isSelected = selectedTime === time;
+                                                const heldExpiresAt = reservedByOthers.get(time);
+                                                // Only treat as held-by-others if it's not our own selected slot
+                                                const isHeld = !isSelected && !!heldExpiresAt && heldExpiresAt > Date.now();
+                                                const minsLeft = isHeld ? Math.max(1, Math.ceil((heldExpiresAt - Date.now()) / 60000)) : 0;
                                                 return (
                                                     <button
                                                         key={time}
-                                                        onClick={() =>
-                                                            setSelectedTime(
-                                                                time
-                                                            )
-                                                        }
+                                                        onClick={() => !isHeld && setSelectedTime(time)}
+                                                        disabled={isHeld}
+                                                        title={isHeld ? `Кто-то выбирает этот слот (~${minsLeft} мин)` : undefined}
                                                         className={cn(
-                                                            "py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                                                            "py-2 px-1 rounded-lg text-xs font-medium transition-all flex flex-col items-center gap-0.5",
                                                             isSelected
                                                                 ? "bg-teal-600 text-white"
+                                                                : isHeld
+                                                                ? "bg-amber-50 border border-amber-300 text-amber-700 cursor-not-allowed"
                                                                 : "bg-white border border-slate-200 hover:border-teal-500 hover:bg-teal-50"
                                                         )}>
+                                                        {isHeld && <Lock className="w-3 h-3 opacity-70" />}
                                                         {time}
                                                     </button>
                                                 );
                                             })}
                                         </div>
+                                        {[...reservedByOthers.keys()].some(t => t !== selectedTime) && (
+                                            <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                                                <Lock className="w-3 h-3" />
+                                                Слоты с замком временно заняты другим пользователем
+                                            </p>
+                                        )}
+                                        </>
                                     )}
                                 </div>
                             )}

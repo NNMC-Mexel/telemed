@@ -74,6 +74,26 @@ const STRAPI_API_URL = process.env.STRAPI_API_URL || 'http://localhost:1340'
 // =====================================================
 const pendingQRPayments = new Map()
 
+// =====================================================
+// Real-time slot reservations (cinema-style)
+// Map key: `${doctorId}|${date}|${time}`
+// Map value: { socketId, userId, expiresAt, timer }
+// =====================================================
+const pendingSlotReservations = new Map()
+const SLOT_RESERVATION_TTL = 5 * 60 * 1000 // 5 minutes
+
+function releaseSlotBySocket(socketId) {
+  for (const [key, val] of pendingSlotReservations) {
+    if (val.socketId === socketId) {
+      clearTimeout(val.timer)
+      pendingSlotReservations.delete(key)
+      const [doctorId, date, time] = key.split('|')
+      io.to(`slots:${doctorId}:${date}`).emit('slot-released', { time })
+      console.log(`[Slots] Auto-released ${key} (socket ${socketId} disconnected)`)
+    }
+  }
+}
+
 // Cleanup entries older than 25 minutes (ePay QR expires in 20 min)
 setInterval(() => {
   const cutoff = Date.now() - 25 * 60 * 1000
@@ -459,10 +479,64 @@ io.on('connection', (socket) => {
     })
   })
 
+  // ── Real-time slot watching ──────────────────────────────────────
+
+  socket.on('join-slot-watch', ({ doctorId, date }) => {
+    const room = `slots:${doctorId}:${date}`
+    socket.join(room)
+    // Send existing reservations for this doctor+date
+    const reservations = []
+    for (const [key, val] of pendingSlotReservations) {
+      const [dId, d, time] = key.split('|')
+      if (dId === String(doctorId) && d === date) {
+        reservations.push({ time, expiresAt: val.expiresAt })
+      }
+    }
+    socket.emit('current-reservations', reservations)
+  })
+
+  socket.on('leave-slot-watch', ({ doctorId, date }) => {
+    socket.leave(`slots:${doctorId}:${date}`)
+  })
+
+  socket.on('reserve-slot', ({ doctorId, date, time, userId }) => {
+    const key = `${doctorId}|${date}|${time}`
+    // Release any previously held slot by this socket
+    for (const [k, v] of pendingSlotReservations) {
+      if (v.socketId === socket.id && k !== key) {
+        clearTimeout(v.timer)
+        pendingSlotReservations.delete(k)
+        const [dId, d, t] = k.split('|')
+        io.to(`slots:${dId}:${d}`).emit('slot-released', { time: t })
+      }
+    }
+    const expiresAt = Date.now() + SLOT_RESERVATION_TTL
+    const timer = setTimeout(() => {
+      pendingSlotReservations.delete(key)
+      io.to(`slots:${doctorId}:${date}`).emit('slot-released', { time })
+      console.log(`[Slots] TTL expired: ${key}`)
+    }, SLOT_RESERVATION_TTL)
+    pendingSlotReservations.set(key, { socketId: socket.id, userId, expiresAt, timer })
+    io.to(`slots:${doctorId}:${date}`).emit('slot-reserved', { time, expiresAt })
+    console.log(`[Slots] Reserved ${key} by socket ${socket.id}`)
+  })
+
+  socket.on('release-slot', ({ doctorId, date, time }) => {
+    const key = `${doctorId}|${date}|${time}`
+    const val = pendingSlotReservations.get(key)
+    if (val && val.socketId === socket.id) {
+      clearTimeout(val.timer)
+      pendingSlotReservations.delete(key)
+      io.to(`slots:${doctorId}:${date}`).emit('slot-released', { time })
+      console.log(`[Slots] Released ${key}`)
+    }
+  })
+
   // Отключение
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`)
-    
+    releaseSlotBySocket(socket.id)
+
     // Находим комнату пользователя
     const roomId = socket.roomId
     if (roomId && rooms.has(roomId)) {
