@@ -39,6 +39,8 @@ import VideoConsultation from './pages/VideoConsultation'
 import NotificationsPage from './pages/NotificationsPage'
 import PaymentSuccess from './pages/PaymentSuccess'
 import PaymentFailure from './pages/PaymentFailure'
+import PrivacyPage from './pages/PrivacyPage'
+import TermsPage from './pages/TermsPage'
 
 // Stores
 import useAuthStore from './stores/authStore'
@@ -125,6 +127,8 @@ function App() {
           <Route path="/doctors/:id" element={<DoctorProfilePage />} />
           <Route path="/specializations" element={<DoctorsPage />} />
           <Route path="/about" element={<LandingPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
         </Route>
 
         {/* Auth Routes */}

@@ -1172,12 +1172,33 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                 </button>
                             ))}
 
-                            <div className='mt-2 p-4 bg-slate-50 rounded-xl'>
+                            {/* ePay / Halyk informer — required by Halyk Bank internet-acquiring agreement */}
+                            <div className='mt-2 p-4 bg-slate-50 rounded-xl space-y-3'>
                                 <p className='text-sm text-slate-600'>
-                                    🔒 Оплата защищена шифрованием. Возврат
-                                    средств возможен не позднее чем за 24 часа
-                                    до приёма.
+                                    🔒 Оплата защищена шифрованием (3-D Secure). Возврат
+                                    средств возможен не позднее чем за 24 часа до приёма.{' '}
+                                    <a
+                                        href='/terms#refund'
+                                        target='_blank'
+                                        rel='noopener noreferrer'
+                                        className='text-teal-600 hover:underline'
+                                    >
+                                        Политика возврата
+                                    </a>
                                 </p>
+                                <div className='flex items-center gap-3 pt-2 border-t border-slate-200'>
+                                    <a
+                                        href='https://epay.homebank.kz/'
+                                        target='_blank'
+                                        rel='noopener noreferrer'
+                                        className='flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 transition-colors'
+                                    >
+                                        <div className='w-8 h-8 rounded-lg bg-[#FF6B00] flex items-center justify-center shrink-0'>
+                                            <span className='text-white font-bold text-[10px] leading-none'>ePay</span>
+                                        </div>
+                                        <span>Платёжный партнёр —<br /><strong className='text-slate-600'>Halyk Bank / ePay</strong></span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     )}
