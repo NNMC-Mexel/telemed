@@ -4,7 +4,32 @@ export default ({ env }) => {
   return [
     'strapi::logger',
     'strapi::errors',
-    'strapi::security',
+    {
+      name: 'strapi::security',
+      config: {
+        contentSecurityPolicy: {
+          useDefaults: true,
+          directives: {
+            'connect-src': ["'self'", 'https:'],
+            'img-src': [
+              "'self'",
+              'data:',
+              'blob:',
+              'market-assets.strapi.io',
+              // MinIO public URL — allow Strapi admin to load uploaded images
+              env('MINIO_PUBLIC_URL', 'http://localhost:9000'),
+            ],
+            'media-src': [
+              "'self'",
+              'data:',
+              'blob:',
+              env('MINIO_PUBLIC_URL', 'http://localhost:9000'),
+            ],
+            upgradeInsecureRequests: null,
+          },
+        },
+      },
+    },
     {
       name: 'strapi::cors',
       config: {
