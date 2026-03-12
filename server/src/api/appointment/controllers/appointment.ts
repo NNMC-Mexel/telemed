@@ -6,6 +6,24 @@
  */
 import { factories } from '@strapi/strapi';
 
+// ── Slot mutex: prevents two concurrent creates for the same doctor+time ──
+const slotLocks = new Map<string, Promise<void>>();
+
+function withSlotLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prev = slotLocks.get(key) || Promise.resolve();
+  const next = prev.then(fn, fn); // run fn after previous finishes (even if it threw)
+  // Store the chain (void version) so next caller waits for us
+  slotLocks.set(key, next.then(() => {}, () => {}));
+  // Cleanup after completion to avoid memory leak
+  next.finally(() => {
+    // Only delete if we're still the last in chain
+    if (slotLocks.get(key) === next.then(() => {}, () => {})) {
+      slotLocks.delete(key);
+    }
+  });
+  return next;
+}
+
 export default factories.createCoreController('api::appointment.appointment', () => ({
   async find(ctx) {
     const user = ctx.state.user;
@@ -183,56 +201,66 @@ export default factories.createCoreController('api::appointment.appointment', ()
       }
     }
 
-    // --- Check for time slot conflicts ---
-    if (body.dateTime && doctorDocId) {
-      const requestedTime = new Date(body.dateTime);
+    // --- Atomic check + create using mutex (prevents race condition) ---
+    const lockKey = `${doctorDocId}:${body.dateTime}`;
 
-      // Find doctor to get slotDuration
-      const doctorRecord = await strapi.documents('api::doctor.doctor').findOne({
-        documentId: doctorDocId,
-        fields: ['id', 'slotDuration'],
-      });
-      const slotMinutes = (doctorRecord as any)?.slotDuration || 30;
+    const result = await withSlotLock(lockKey, async () => {
+      if (body.dateTime && doctorDocId) {
+        const requestedTime = new Date(body.dateTime);
 
-      // Check for existing active appointments at the same time for this doctor
-      const slotStart = new Date(requestedTime);
-      const slotEnd = new Date(requestedTime.getTime() + slotMinutes * 60 * 1000);
+        // Find doctor to get slotDuration
+        const doctorRecord = await strapi.documents('api::doctor.doctor').findOne({
+          documentId: doctorDocId,
+          fields: ['id', 'slotDuration'],
+        });
+        const slotMinutes = (doctorRecord as any)?.slotDuration || 30;
 
-      const existing = await strapi.documents('api::appointment.appointment').findMany({
-        filters: {
-          doctor: { documentId: doctorDocId },
-          dateTime: {
-            $gte: slotStart.toISOString(),
-            $lt: slotEnd.toISOString(),
+        // Check for existing active appointments at the same time for this doctor
+        const slotStart = new Date(requestedTime);
+        const slotEnd = new Date(requestedTime.getTime() + slotMinutes * 60 * 1000);
+
+        const existing = await strapi.documents('api::appointment.appointment').findMany({
+          filters: {
+            doctor: { documentId: doctorDocId },
+            dateTime: {
+              $gte: slotStart.toISOString(),
+              $lt: slotEnd.toISOString(),
+            },
+            statuse: { $in: ['pending', 'confirmed', 'in_progress'] },
           },
-          statuse: { $in: ['pending', 'confirmed', 'in_progress'] },
+        });
+
+        if (existing.length > 0) {
+          return { conflict: true };
+        }
+      }
+
+      // Create appointment inside the lock — no one else can create for same slot
+      const appointment = await strapi.documents('api::appointment.appointment').create({
+        data: {
+          dateTime: body.dateTime,
+          type: body.type || 'video',
+          statuse: body.statuse || body.status || 'pending',
+          price: body.price,
+          roomId: body.roomId,
+          paymentStatus: body.paymentStatus || 'pending',
+          patient: patientDocId,
+          doctor: doctorDocId,
+        },
+        status: 'published',
+        populate: {
+          doctor: { populate: ['specialization', 'photo'] },
+          patient: { fields: ['id', 'fullName', 'email', 'phone'] },
         },
       });
 
-      if (existing.length > 0) {
-        return ctx.badRequest('К сожалению, это время уже было забронировано другим пациентом. Пожалуйста, выберите другое свободное время.');
-      }
-    }
-
-    // Create appointment via document service (bypasses REST API sanitizer)
-    const appointment = await strapi.documents('api::appointment.appointment').create({
-      data: {
-        dateTime: body.dateTime,
-        type: body.type || 'video',
-        statuse: body.statuse || body.status || 'pending',
-        price: body.price,
-        roomId: body.roomId,
-        paymentStatus: body.paymentStatus || 'pending',
-        patient: patientDocId,
-        doctor: doctorDocId,
-      },
-      status: 'published',
-      populate: {
-        doctor: { populate: ['specialization', 'photo'] },
-        patient: { fields: ['id', 'fullName', 'email', 'phone'] },
-      },
+      return { conflict: false, appointment };
     });
 
-    return { data: appointment };
+    if (result.conflict) {
+      return ctx.badRequest('К сожалению, это время уже было забронировано другим пациентом. Пожалуйста, выберите другое свободное время.');
+    }
+
+    return { data: result.appointment };
   },
 }));

@@ -309,6 +309,53 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
   }
 })
 
+// POST /api/slot/verify
+// Final check before payment: ensures the slot is held by THIS user AND not booked in Strapi DB
+app.post('/api/slot/verify', async (req, res) => {
+  try {
+    const { doctorId, date, time, socketId } = req.body
+    if (!doctorId || !date || !time) {
+      return res.status(400).json({ available: false, reason: 'Missing doctorId, date or time' })
+    }
+
+    const key = `${doctorId}|${date}|${time}`
+
+    // 1. Check socket reservation — slot must be held by this user's socket
+    const reservation = pendingSlotReservations.get(key)
+    if (reservation && reservation.socketId !== socketId && reservation.expiresAt > Date.now()) {
+      return res.json({ available: false, reason: 'Это время выбрано другим пациентом' })
+    }
+
+    // 2. Check Strapi DB — slot must not be already booked
+    const dateTime = new Date(`${date}T${time}:00`)
+    const slotEnd = new Date(dateTime.getTime() + 60 * 60 * 1000) // 1h window
+    const strapiCheck = await fetch(
+      `${STRAPI_API_URL}/api/appointments?filters[doctor][id][$eq]=${doctorId}` +
+      `&filters[dateTime][$gte]=${dateTime.toISOString()}` +
+      `&filters[dateTime][$lt]=${slotEnd.toISOString()}` +
+      `&filters[statuse][$in][0]=pending&filters[statuse][$in][1]=confirmed&filters[statuse][$in][2]=in_progress`,
+      { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` } }
+    ).catch(() => null)
+
+    if (strapiCheck?.ok) {
+      const strapiData = await strapiCheck.json()
+      const existing = strapiData?.data || []
+      if (existing.length > 0) {
+        // Slot is already booked in DB — also update socket reservations
+        if (!pendingSlotReservations.has(key)) {
+          io.to(`slots:${doctorId}:${date}`).emit('slot-booked', { time })
+        }
+        return res.json({ available: false, reason: 'Это время уже забронировано' })
+      }
+    }
+
+    res.json({ available: true })
+  } catch (err) {
+    console.error('[Slot verify] error:', err.message)
+    res.status(500).json({ available: false, reason: 'Ошибка проверки' })
+  }
+})
+
 // POST /api/payment/epay-callback  (ePay postLink — works in production)
 app.post('/api/payment/epay-callback', (req, res) => {
   console.log('[ePay callback]', JSON.stringify(req.body))
@@ -501,6 +548,21 @@ io.on('connection', (socket) => {
 
   socket.on('reserve-slot', ({ doctorId, date, time, userId }) => {
     const key = `${doctorId}|${date}|${time}`
+
+    // Check if slot is already held by ANOTHER socket
+    const existing = pendingSlotReservations.get(key)
+    if (existing && existing.socketId !== socket.id && existing.expiresAt > Date.now()) {
+      // Slot is held by someone else — reject
+      socket.emit('reserve-slot-result', {
+        success: false,
+        time,
+        reason: 'Это время уже выбрано другим пациентом',
+        heldUntil: existing.expiresAt,
+      })
+      console.log(`[Slots] REJECTED ${key} — already held by socket ${existing.socketId}`)
+      return
+    }
+
     // Release any previously held slot by this socket
     for (const [k, v] of pendingSlotReservations) {
       if (v.socketId === socket.id && k !== key) {
@@ -518,6 +580,7 @@ io.on('connection', (socket) => {
     }, SLOT_RESERVATION_TTL)
     pendingSlotReservations.set(key, { socketId: socket.id, userId, expiresAt, timer })
     io.to(`slots:${doctorId}:${date}`).emit('slot-reserved', { time, expiresAt })
+    socket.emit('reserve-slot-result', { success: true, time, expiresAt })
     console.log(`[Slots] Reserved ${key} by socket ${socket.id}`)
   })
 

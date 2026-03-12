@@ -269,6 +269,24 @@ function BookingModal({ isOpen, onClose, doctor }) {
             })
         })
 
+        // When our own reservation is rejected by the server
+        socket.on("reserve-slot-result", ({ success, time, reason }) => {
+            if (!success) {
+                toast.error(reason || "Это время уже выбрано другим пациентом")
+                setSelectedTime(null)
+            }
+        })
+
+        // When a slot is confirmed booked (DB record exists)
+        socket.on("slot-booked", ({ time }) => {
+            setBookedSlots(prev => prev.includes(time) ? prev : [...prev, time])
+            setReservedByOthers(prev => {
+                const next = new Map(prev)
+                next.delete(time)
+                return next
+            })
+        })
+
         return () => {
             socket.emit("leave-slot-watch", { doctorId: doctor.id, date: dateStr })
             socket.disconnect()
@@ -324,9 +342,11 @@ function BookingModal({ isOpen, onClose, doctor }) {
         if (step > 1) setStep(step - 1);
     };
 
-    // Shared: fresh slot check + build dateTime
+    // Shared: fresh slot check (DB + socket reservation) + build dateTime
     const verifySlotAndBuildDateTime = async () => {
         const dateStr = format(selectedDate, "yyyy-MM-dd");
+
+        // 1. Check booked slots in Strapi DB
         const freshBooked = await getBookedSlots(doctor.id, dateStr);
         setBookedSlots(freshBooked);
 
@@ -337,6 +357,36 @@ function BookingModal({ isOpen, onClose, doctor }) {
             setSelectedTime(null);
             setStep(1);
             return null;
+        }
+
+        // 2. Server-side atomic verify: checks both socket reservation + DB
+        try {
+            const verifyRes = await fetch(
+                `${SIGNALING_URL}/api/slot/verify`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        doctorId: doctor.id,
+                        date: dateStr,
+                        time: selectedTime,
+                        socketId: socketRef.current?.id,
+                    }),
+                }
+            );
+            const verifyData = await verifyRes.json();
+            if (!verifyData.available) {
+                toast.error(
+                    verifyData.reason ||
+                        "Это время уже недоступно. Выберите другое."
+                );
+                setSelectedTime(null);
+                setStep(1);
+                return null;
+            }
+        } catch {
+            // If verify endpoint is unreachable, proceed with caution
+            // (Strapi mutex will still protect against duplicates)
         }
 
         const dateTime = new Date(selectedDate);
