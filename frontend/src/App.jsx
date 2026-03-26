@@ -11,6 +11,8 @@ import DoctorsPage from './pages/DoctorsPage'
 import DoctorProfilePage from './pages/DoctorProfilePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 // Patient Pages
 import PatientDashboard from './pages/patient/PatientDashboard'
@@ -148,6 +150,8 @@ function App() {
             </PublicRoute>
           }
         />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Patient Routes */}
         <Route

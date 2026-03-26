@@ -4,6 +4,28 @@ export default ({ env }) => ({
       register: {
         allowedFields: ['userRole', 'fullName', 'phone', 'iin', 'doctorData'],
       },
+      // URL фронтенда для сброса пароля (Strapi подставит ?code=XXX)
+      resetPasswordURL: env('FRONTEND_URL', 'http://localhost:5173') + '/reset-password',
+    },
+  },
+
+  // Email provider (Yandex SMTP via nodemailer)
+  email: {
+    config: {
+      provider: 'nodemailer',
+      providerOptions: {
+        host: env('SMTP_HOST', 'smtp.yandex.ru'),
+        port: env.int('SMTP_PORT', 465),
+        secure: true,
+        auth: {
+          user: env('SMTP_USER'),
+          pass: env('SMTP_PASS'),
+        },
+      },
+      settings: {
+        defaultFrom: `MedConnect <${env('SMTP_FROM', 'dev-renys@yandex.kz')}>`,
+        defaultReplyTo: env('SMTP_FROM', 'dev-renys@yandex.kz'),
+      },
     },
   },
 
