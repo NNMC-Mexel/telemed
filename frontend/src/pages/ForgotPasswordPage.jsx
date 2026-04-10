@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react'
 import Button from '../components/ui/Button'
@@ -11,6 +11,22 @@ function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [isSent, setIsSent] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const cooldownRef = useRef(null)
+
+  useEffect(() => {
+    return () => { if (cooldownRef.current) clearInterval(cooldownRef.current) }
+  }, [])
+
+  const startCooldown = () => {
+    setResendCooldown(60)
+    cooldownRef.current = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) { clearInterval(cooldownRef.current); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -23,16 +39,9 @@ function ForgotPasswordPage() {
     setError(null)
 
     try {
-      // Проверяем, существует ли пользователь с таким email
-      const checkRes = await api.get(`/api/auth/check-email?email=${encodeURIComponent(email)}`)
-      if (!checkRes.data?.exists) {
-        setError('Пользователь с таким email не найден')
-        setIsLoading(false)
-        return
-      }
-
       await api.post('/api/auth/forgot-password', { email })
       setIsSent(true)
+      startCooldown()
     } catch (err) {
       const message = err.response?.data?.error?.message || 'Ошибка отправки. Попробуйте позже.'
       setError(message)
@@ -79,8 +88,9 @@ function ForgotPasswordPage() {
                   variant="outline"
                   onClick={() => { setIsSent(false); setEmail('') }}
                   className="w-full"
+                  disabled={resendCooldown > 0}
                 >
-                  Отправить повторно
+                  {resendCooldown > 0 ? `Повторить через ${resendCooldown} сек` : 'Отправить повторно'}
                 </Button>
               </div>
             ) : (

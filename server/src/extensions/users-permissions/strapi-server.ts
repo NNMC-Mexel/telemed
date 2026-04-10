@@ -46,23 +46,36 @@ export default (plugin) => {
           const isPhone = digitsOnly.length >= 7 && /^[\d\s\+\-\(\)]+$/.test(trimmed);
 
           if (isPhone) {
-            const localDigits = digitsOnly.slice(-10);
+            // Build exact-match candidates from the same digit string to avoid
+            // loading ALL users into memory (collision + performance risk).
+            // We try up to 4 known formats used in Kazakhstan:
+            //   +7XXXXXXXXXX  (international)
+            //    7XXXXXXXXXX  (without +)
+            //    8XXXXXXXXXX  (Russian-style)
+            //     XXXXXXXXXX  (local 10-digit)
+            const localDigits = digitsOnly.slice(-10); // last 10 digits
+            const phoneCandidates: string[] = [trimmed];
 
-            // Сначала точное совпадение
-            let foundUser = await strapi.query('plugin::users-permissions.user').findOne({
-              where: { phone: trimmed },
-              select: ['id', 'email', 'phone'],
-            });
+            if (localDigits.length === 10) {
+              const variants = [
+                `+7${localDigits}`,
+                `7${localDigits}`,
+                `8${localDigits}`,
+                localDigits,
+              ];
+              // Add variants not already in the list
+              variants.forEach((v) => {
+                if (!phoneCandidates.includes(v)) phoneCandidates.push(v);
+              });
+            }
 
-            // Если не нашли — ищем по последним 10 цифрам (обрабатывает +7/8 префикс)
-            if (!foundUser && localDigits.length === 10) {
-              const candidates = await strapi.query('plugin::users-permissions.user').findMany({
-                where: { phone: { $notNull: true } },
+            let foundUser: any = null;
+            for (const phoneVariant of phoneCandidates) {
+              foundUser = await strapi.query('plugin::users-permissions.user').findOne({
+                where: { phone: phoneVariant },
                 select: ['id', 'email', 'phone'],
               });
-              foundUser = candidates.find(
-                (u) => u.phone && u.phone.replace(/\D/g, '').slice(-10) === localDigits
-              ) || null;
+              if (foundUser) break;
             }
 
             if (foundUser?.email) {
@@ -126,13 +139,13 @@ export default (plugin) => {
           }
 
           if (!targetRole) {
-            console.warn(`[auth.register] Role not found for userRole=${userRole}, keeping default`);
-          } else {
-            console.log(`[auth.register] Found role: id=${targetRole.id}, name=${targetRole.name}, type=${targetRole.type}`);
+            // Hard fail — assigning the wrong role (authenticated) is a security risk
+            throw new Error(`Role '${userRole}' not found in Strapi. Check roles configuration.`);
           }
 
-          // Fallback: если роль не найдена, используем authenticated
-          const roleId = targetRole?.id || responseBody.user.role?.id;
+          console.log(`[auth.register] Found role: id=${targetRole.id}, name=${targetRole.name}, type=${targetRole.type}`);
+
+          const roleId = targetRole.id;
 
           // 2. Обновляем user: userRole + fullName + phone + iin + правильная Strapi-роль
           await strapi.query('plugin::users-permissions.user').update({
@@ -197,9 +210,19 @@ export default (plugin) => {
             ctx.body = responseBody;
           }
 
+          // Audit log — registration
+          strapi.log.info(JSON.stringify({
+            audit: 'USER_REGISTERED',
+            userId,
+            userRole,
+            ts: new Date().toISOString(),
+          }));
+
           console.log('[auth.register] Registration complete');
         } catch (error) {
-          console.error('[auth.register] Error during extended registration:', error);
+          // Log only the message to avoid leaking JWT secrets or stack traces
+          const safeMessage = error instanceof Error ? error.message : String(error);
+          console.error('[auth.register] Error during extended registration:', safeMessage);
         }
       },
     };

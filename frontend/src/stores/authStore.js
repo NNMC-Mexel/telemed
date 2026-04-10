@@ -2,6 +2,23 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import api, { authAPI } from '../services/api'
 
+// Decode JWT expiry without external library (no signature verification — just expiry)
+function getJwtExpiry(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null
+  } catch {
+    return null
+  }
+}
+
+function isTokenExpired(token) {
+  if (!token) return true
+  const expiry = getJwtExpiry(token)
+  if (!expiry) return false // can't determine, assume valid
+  return Date.now() >= expiry
+}
+
 const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -89,6 +106,12 @@ const useAuthStore = create(
       fetchUser: async () => {
         const token = get().token
         if (!token) return
+
+        // Logout immediately if token is expired — no need to hit the server
+        if (isTokenExpired(token)) {
+          get().logout()
+          return
+        }
         
         set({ isLoading: true })
         try {
@@ -145,9 +168,15 @@ const useAuthStore = create(
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)
-        // Восстанавливаем isAuthenticated из сохранённого состояния
         if (state?.token && state?.user) {
-          state.isAuthenticated = true
+          // On rehydration, discard expired tokens immediately
+          if (isTokenExpired(state.token)) {
+            state.token = null
+            state.user = null
+            state.isAuthenticated = false
+          } else {
+            state.isAuthenticated = true
+          }
         }
       },
     }
