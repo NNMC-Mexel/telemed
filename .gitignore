@@ -6,8 +6,23 @@ node_modules/
 # Build output
 frontend/dist/
 
+# Environment files (secrets — never commit)
+.env
+.env.local
+.env.production
+.env.staging
+**/.env
+**/.env.local
+**/.env.production
+**/.env.staging
 
 # Archives
 *.zip
 *.tar.gz
 *.rar
+
+# Security reports
+SECURITY_FIXES.txt
+
+# Personal legal notes
+LEGAL_NOTES.md

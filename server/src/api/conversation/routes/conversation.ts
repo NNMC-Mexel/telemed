@@ -9,7 +9,9 @@ export default factories.createCoreRouter('api::conversation.conversation', {
       policies: ['global::is-conversation-member'],
     },
     update: {
-      policies: ['global::is-conversation-member'],
+      // Only admin can update conversation metadata (add/remove participants etc.)
+      // Members interact via messages, not by mutating the conversation itself
+      policies: ['global::is-admin'],
     },
     delete: {
       policies: ['global::is-admin'],

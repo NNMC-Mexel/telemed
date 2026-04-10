@@ -16,7 +16,6 @@ export default ({ env }) => {
               'data:',
               'blob:',
               'market-assets.strapi.io',
-              // MinIO public URL — allow Strapi admin to load uploaded images
               env('MINIO_PUBLIC_URL', 'http://localhost:9000'),
             ],
             'media-src': [
@@ -28,20 +27,26 @@ export default ({ env }) => {
             upgradeInsecureRequests: null,
           },
         },
+        // HSTS: tell browsers to always use HTTPS for 2 years
+        hsts: isProduction
+          ? { maxAge: 63072000, includeSubDomains: true, preload: true }
+          : false,
       },
     },
     {
       name: 'strapi::cors',
       config: {
         enabled: true,
-        headers: '*',
-        // Production: medconnect.nnmc.kz (frontend)
-        // Development: localhost ports
+        // Explicit allowed headers — never use '*'
+        headers: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        credentials: true,
+        maxAge: 7200,
         origin: isProduction
           ? [
               'https://medconnect.nnmc.kz',
               'https://www.medconnect.nnmc.kz',
-              'https://medconnectserver.nnmc.kz',
+              // Removed: medconnectserver.nnmc.kz (that's the API itself, not a valid origin)
             ]
           : [
               'http://localhost:5173',
@@ -51,6 +56,7 @@ export default ({ env }) => {
             ],
       },
     },
+    { name: 'global::rate-limit', config: {} },
     'strapi::poweredBy',
     'strapi::query',
     'strapi::body',

@@ -73,20 +73,33 @@ const useChatStore = create((set, get) => ({
     }
   },
 
-  // Create or get conversation with user
-  getOrCreateConversation: async (participantIds) => {
+  // Create or get conversation with user (no duplicates)
+  getOrCreateConversation: async (participantIds, currentUserId) => {
     set({ isLoading: true })
     try {
-      // Создаём новую беседу
+      // Ищем существующий диалог с этим участником
+      const { conversations } = get()
+      const otherIds = participantIds.filter(id => id !== currentUserId)
+      const existing = conversations.find(conv => {
+        const members = (conv.participants || conv.users_permissions_users || []).map(p => p.id)
+        return otherIds.every(id => members.includes(id))
+      })
+
+      if (existing) {
+        set({ currentConversation: existing, isLoading: false })
+        return existing
+      }
+
+      // Создаём новую беседу только если не нашли существующую
       const response = await conversationsAPI.create(participantIds)
       const { data } = normalizeResponse(response)
-      
-      set((state) => ({ 
-        currentConversation: data, 
+
+      set((state) => ({
+        currentConversation: data,
         conversations: [data, ...state.conversations],
-        isLoading: false 
+        isLoading: false
       }))
-      
+
       return data
     } catch (error) {
       console.error('Error creating conversation:', error)

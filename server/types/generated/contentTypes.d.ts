@@ -705,6 +705,7 @@ export interface ApiDoctorDoctor extends Struct.CollectionTypeSchema {
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMax<
         {
+          max: 10000000;
           min: 0;
         },
         number
@@ -807,9 +808,21 @@ export interface ApiMedicalDocumentMedicalDocument
     > &
       Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
+    sharedWithDoctors: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::doctor.doctor'
+    >;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     type: Schema.Attribute.Enumeration<
-      ['analysis', 'prescription', 'certificate', 'other']
+      [
+        'analysis',
+        'prescription',
+        'certificate',
+        'mrt',
+        'xray',
+        'ultrasound',
+        'other',
+      ]
     >;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &

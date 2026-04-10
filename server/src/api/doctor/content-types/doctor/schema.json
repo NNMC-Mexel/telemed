@@ -49,7 +49,8 @@
     "price": {
       "type": "integer",
       "required": true,
-      "min": 0
+      "min": 0,
+      "max": 10000000
     },
     "rating": {
       "type": "integer",
