@@ -12,6 +12,25 @@ import axios from "axios";
 const PRODUCTION_API_URL = "https://medconnectserver.nnmc.kz";
 const DEVELOPMENT_API_URL = "http://localhost:1340";
 
+// URL для Signaling Server
+const PRODUCTION_SIGNALING_URL = "https://medconnectrtc.nnmc.kz";
+const DEVELOPMENT_SIGNALING_URL = "http://localhost:1341";
+
+export const getSignalingUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "medconnect.nnmc.kz" || hostname === "www.medconnect.nnmc.kz") {
+      return PRODUCTION_SIGNALING_URL;
+    }
+  }
+  if (import.meta.env.VITE_SIGNALING_SERVER) {
+    return import.meta.env.VITE_SIGNALING_SERVER;
+  }
+  const isProduction =
+    import.meta.env.MODE === "production" || import.meta.env.PROD === true;
+  return isProduction ? PRODUCTION_SIGNALING_URL : DEVELOPMENT_SIGNALING_URL;
+};
+
 // Определяем URL API в зависимости от окружения
 const getApiUrl = () => {
   // ВАЖНО: Проверяем hostname в первую очередь - это самый надежный способ
@@ -167,9 +186,17 @@ const normalizeItem = (item) => {
     // Strapi v5 формат - данные уже плоские, но связи могут быть вложенными
     const normalized = { ...item };
 
-    // ВАЖНО: Преобразуем statuse -> status для удобства использования в приложении
+    // Нормализуем statuse -> status (Strapi хранит как "statuse" — опечатка в схеме)
+    // Всегда ставим status чтобы фильтры в UI не ломались если поле отсутствует
     if (normalized.statuse !== undefined) {
         normalized.status = normalized.statuse;
+    } else if (normalized.status === undefined) {
+        normalized.status = 'pending';
+    }
+
+    // Нормализуем users_permissions_users -> participants для conversation
+    if (normalized.users_permissions_users !== undefined) {
+        normalized.participants = normalized.users_permissions_users;
     }
 
     // Рекурсивно обрабатываем вложенные связи
@@ -205,9 +232,23 @@ export const normalizeResponse = (response) => {
 // API для загрузки файлов
 // ===========================================
 
+const UPLOAD_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+const UPLOAD_MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
+
 export const uploadFile = async (file) => {
+    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
+        throw new Error(`Недопустимый тип файла. Разрешены: JPEG, PNG, WebP, PDF`)
+    }
+    if (file.size > UPLOAD_MAX_SIZE_BYTES) {
+        throw new Error(`Файл слишком большой. Максимальный размер: 10 МБ`)
+    }
+
+    // Sanitize filename — strip path separators and non-printable characters
+    const safeName = file.name.replace(/[^\w.\-]/g, '_').slice(0, 255)
+    const safeFile = new File([file], safeName, { type: file.type })
+
     const formData = new FormData();
-    formData.append("files", file);
+    formData.append("files", safeFile);
 
     const response = await api.post("/api/upload", formData, {
         headers: {
@@ -379,15 +420,11 @@ export const appointmentsAPI = {
         query.append("populate[doctor][populate][1]", "photo");
         query.append("populate[patient][fields][0]", "id");
         query.append("populate[patient][fields][1]", "fullName");
-        query.append("populate[patient][fields][2]", "email");
-        query.append("populate[patient][fields][3]", "phone");
         query.append("sort", "dateTime:desc");
 
         if (params.status) {
             query.append("filters[statuse][$eq]", params.status);
         }
-        // Фильтрация по пациенту/врачу выполняется на бэке по текущему пользователю.
-        // Оставляем только параметры, которые реально нужны в UI.
 
         return api.get(`/api/appointments?${query}`);
     },
@@ -414,7 +451,6 @@ export const appointmentsAPI = {
             doctor: doctorId,
         };
         
-        console.log('Creating appointment with data:', strapiData);
         return api.post("/api/appointments", { data: strapiData });
     },
 
@@ -484,13 +520,12 @@ export const getBookedSlots = async (doctorId, date) => {
 export const conversationsAPI = {
     getAll: (userId) => {
         const query = new URLSearchParams();
-        query.append("populate[participants][populate]", "*");
+        query.append("populate[users_permissions_users][populate]", "*");
         query.append("populate[lastMessage]", "*");
         query.append("sort", "updatedAt:desc");
 
         if (userId) {
-            // Фильтруем по участникам (пользователь должен быть участником)
-            query.append("filters[participants][id][$eq]", userId);
+            query.append("filters[users_permissions_users][id][$eq]", userId);
         }
 
         return api.get(`/api/conversations?${query}`);
@@ -498,12 +533,12 @@ export const conversationsAPI = {
 
     getOne: (id) =>
         api.get(
-            `/api/conversations/${id}?populate[participants][populate]=*&populate[messages][populate]=*`
+            `/api/conversations/${id}?populate[users_permissions_users][populate]=*&populate[messages][populate]=*`
         ),
 
     create: (participantIds) =>
         api.post("/api/conversations", {
-            data: { participants: participantIds },
+            data: { users_permissions_users: participantIds },
         }),
 
     update: (id, data) => api.put(`/api/conversations/${id}`, { data }),
@@ -548,6 +583,10 @@ export const documentsAPI = {
         query.append("populate[appointment][fields][0]", "id");
         query.append("populate[appointment][fields][1]", "dateTime");
         query.append("populate[appointment][fields][2]", "type");
+        query.append("populate[sharedWithDoctors][populate][0]", "specialization");
+        query.append("populate[sharedWithDoctors][fields][0]", "id");
+        query.append("populate[sharedWithDoctors][fields][1]", "fullName");
+        query.append("populate[sharedWithDoctors][fields][2]", "documentId");
         query.append("sort", "createdAt:desc");
 
         if (params.userId) {
@@ -567,6 +606,13 @@ export const documentsAPI = {
     update: (id, data) => api.put(`/api/medical-documents/${id}`, { data }),
 
     delete: (id) => api.delete(`/api/medical-documents/${id}`),
+
+    // Share document with doctors
+    share: (documentId, doctorIds) =>
+        api.put(`/api/medical-documents/${documentId}/share`, { data: { doctorIds } }),
+
+    // Get list of doctors the patient has visited (for sharing picker)
+    getMyDoctors: () => api.get("/api/medical-documents/my-doctors"),
 };
 
 // ===========================================

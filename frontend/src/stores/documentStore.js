@@ -4,6 +4,7 @@ import { documentsAPI, normalizeResponse, uploadFile } from '../services/api'
 const useDocumentStore = create((set, get) => ({
   documents: [],
   currentDocument: null,
+  myDoctors: [],
   isLoading: false,
   isUploading: false,
   error: null,
@@ -52,7 +53,7 @@ const useDocumentStore = create((set, get) => ({
         user: metadata.userId,
         doctor: metadata.doctorId || null,
         appointment: metadata.appointmentId || null,
-        isPrivate: metadata.isPrivate || false,
+        sharedWithDoctors: metadata.sharedWithDoctors || undefined,
       })
       
       const { data } = normalizeResponse(response)
@@ -110,6 +111,43 @@ const useDocumentStore = create((set, get) => ({
     }
   },
 
+  // Share document with doctors
+  shareDocument: async (documentId, doctorIds) => {
+    set({ isLoading: true, error: null })
+    try {
+      const response = await documentsAPI.share(documentId, doctorIds)
+      const { data } = normalizeResponse(response)
+
+      set((state) => ({
+        documents: state.documents.map((doc) =>
+          (doc.documentId === documentId || String(doc.id) === String(documentId))
+            ? { ...doc, sharedWithDoctors: data?.sharedWithDoctors || [] }
+            : doc
+        ),
+        isLoading: false,
+      }))
+
+      return { success: true, data }
+    } catch (error) {
+      const message = error.response?.data?.error?.message || 'Ошибка при расшаривании документа'
+      set({ error: message, isLoading: false })
+      return { success: false, error: message }
+    }
+  },
+
+  // Fetch doctors the patient has visited
+  fetchMyDoctors: async () => {
+    try {
+      const response = await documentsAPI.getMyDoctors()
+      const doctors = response.data?.data || []
+      set({ myDoctors: doctors })
+      return doctors
+    } catch (error) {
+      console.error('Error fetching my doctors:', error)
+      return []
+    }
+  },
+
   // Set current document
   setCurrentDocument: (document) => set({ currentDocument: document }),
 
@@ -120,6 +158,7 @@ const useDocumentStore = create((set, get) => ({
   reset: () => set({
     documents: [],
     currentDocument: null,
+    myDoctors: [],
     isLoading: false,
     isUploading: false,
     error: null,

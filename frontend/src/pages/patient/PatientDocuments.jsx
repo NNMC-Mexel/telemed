@@ -16,6 +16,10 @@ import {
   FolderOpen,
   Stethoscope,
   ArrowUpDown,
+  Share2,
+  UserCheck,
+  Scan,
+  Radio,
 } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -30,6 +34,9 @@ const documentTypes = {
   analysis: { label: 'Анализы', icon: TestTube, color: 'bg-blue-100 text-blue-700' },
   prescription: { label: 'Рецепты', icon: Pill, color: 'bg-green-100 text-green-700' },
   certificate: { label: 'Справки', icon: FileCheck, color: 'bg-amber-100 text-amber-700' },
+  mrt: { label: 'МРТ', icon: Scan, color: 'bg-purple-100 text-purple-700' },
+  xray: { label: 'Рентген', icon: Radio, color: 'bg-rose-100 text-rose-700' },
+  ultrasound: { label: 'УЗИ', icon: Radio, color: 'bg-cyan-100 text-cyan-700' },
   other: { label: 'Другое', icon: FileText, color: 'bg-slate-100 text-slate-700' },
 }
 
@@ -37,12 +44,15 @@ function PatientDocuments() {
   const { user } = useAuthStore()
   const {
     documents,
+    myDoctors,
     isLoading,
     isUploading,
     error,
     fetchDocuments,
     uploadDocument,
     deleteDocument,
+    shareDocument,
+    fetchMyDoctors,
   } = useDocumentStore()
 
   // View state
@@ -57,6 +67,11 @@ function PatientDocuments() {
   const [previewError, setPreviewError] = useState(null)
   const [isPreviewLoading, setIsPreviewLoading] = useState(false)
 
+  // Share modal state
+  const [showShareModal, setShowShareModal] = useState(null) // document to share
+  const [selectedDoctorIds, setSelectedDoctorIds] = useState([])
+  const [isSaving, setIsSaving] = useState(false)
+
   // Upload form state
   const [uploadFileState, setUploadFileState] = useState(null)
   const [uploadTitle, setUploadTitle] = useState('')
@@ -67,8 +82,9 @@ function PatientDocuments() {
   useEffect(() => {
     if (user?.id) {
       fetchDocuments({ userId: user.id })
+      fetchMyDoctors()
     }
-  }, [user?.id, fetchDocuments])
+  }, [user?.id, fetchDocuments, fetchMyDoctors])
 
   // Preview logic
   useEffect(() => {
@@ -115,12 +131,17 @@ function PatientDocuments() {
   }, [selectedDocument?.file?.url, selectedDocument?.file?.mime, selectedDocument?.id])
 
   // Group documents by appointment (consultation folders)
+  // "Мои загрузки" = all docs uploaded by the patient (no doctor field = patient uploaded it)
+  // A doc can appear in BOTH a consultation folder AND "Мои загрузки"
   const { folders, ungroupedDocs } = useMemo(() => {
     const grouped = {}
-    const ungrouped = []
+    const myUploads = []
 
     for (const doc of documents) {
       const apt = doc.appointment
+      // Patient-uploaded doc: no doctor relation (doctor uploads have doctor set)
+      const isPatientUploaded = !doc.doctor
+
       if (apt) {
         const aptKey = apt.documentId || apt.id
         if (!grouped[aptKey]) {
@@ -135,8 +156,11 @@ function PatientDocuments() {
         if (apt.doctor && !grouped[aptKey].doctor) {
           grouped[aptKey].doctor = apt.doctor
         }
-      } else {
-        ungrouped.push(doc)
+      }
+
+      // Patient's own uploads go to "Мои загрузки" regardless of appointment link
+      if (isPatientUploaded) {
+        myUploads.push(doc)
       }
     }
 
@@ -147,7 +171,7 @@ function PatientDocuments() {
       return sortNewest ? dateB - dateA : dateA - dateB
     })
 
-    return { folders: folderList, ungroupedDocs: ungrouped }
+    return { folders: folderList, ungroupedDocs: myUploads }
   }, [documents, sortNewest])
 
   // Filter folders by search query (doctor name)
@@ -179,6 +203,9 @@ function PatientDocuments() {
     analysis: documents.filter(d => d.type === 'analysis').length,
     prescription: documents.filter(d => d.type === 'prescription').length,
     certificate: documents.filter(d => d.type === 'certificate').length,
+    mrt: documents.filter(d => d.type === 'mrt').length,
+    xray: documents.filter(d => d.type === 'xray').length,
+    ultrasound: documents.filter(d => d.type === 'ultrasound').length,
   }
 
   const handleFileSelect = (e) => {
@@ -227,6 +254,32 @@ function PatientDocuments() {
   const handleDownload = (doc) => {
     const url = getMediaUrl(doc.file)
     if (url) window.open(url, '_blank')
+  }
+
+  const openShareModal = (doc) => {
+    const currentShared = (doc.sharedWithDoctors || []).map(d => d.documentId)
+    setSelectedDoctorIds(currentShared)
+    setShowShareModal(doc)
+  }
+
+  const handleShare = async () => {
+    if (!showShareModal) return
+    setIsSaving(true)
+    const result = await shareDocument(showShareModal.documentId, selectedDoctorIds)
+    setIsSaving(false)
+    if (result.success) {
+      setShowShareModal(null)
+      // Re-fetch to update UI
+      fetchDocuments({ userId: user.id })
+    }
+  }
+
+  const toggleDoctorSelection = (doctorDocId) => {
+    setSelectedDoctorIds(prev =>
+      prev.includes(doctorDocId)
+        ? prev.filter(id => id !== doctorDocId)
+        : [...prev, doctorDocId]
+    )
   }
 
   const getFileSize = (file) => {
@@ -348,7 +401,35 @@ function PatientDocuments() {
             </CardContent>
           </Card>
 
+          {/* My Uploads — always pinned to top */}
+          <Card
+            hover
+            className="cursor-pointer border-2 border-dashed border-amber-200 bg-amber-50/30"
+            onClick={() => openFolder({ id: '__uploads__', label: 'Мои загрузки' })}
+          >
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                  <Upload className="w-6 h-6 text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-slate-900">Мои загрузки</h3>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    {ungroupedDocs.length > 0
+                      ? `${ungroupedDocs.length} ${getDocCountWord(ungroupedDocs.length)} · МРТ, анализы, снимки`
+                      : 'Загрузите документы для врача'
+                    }
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-400 shrink-0" />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Consultation Folders */}
+          {filteredFolders.length > 0 && (
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider pt-2">Консультации</p>
+          )}
           <div className="space-y-3">
             {filteredFolders.length === 0 && ungroupedDocs.length === 0 ? (
               <Card>
@@ -361,72 +442,46 @@ function PatientDocuments() {
                 </CardContent>
               </Card>
             ) : (
-              <>
-                {filteredFolders.map((folder) => {
-                  const doctorInfo = getDoctorInfo(folder)
-                  const typeBadges = getDocTypeBadges(folder.docs)
-                  return (
-                    <Card
-                      key={folder.id}
-                      hover
-                      className="cursor-pointer"
-                      onClick={() => openFolder(folder)}
-                    >
-                      <CardContent>
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center flex-shrink-0">
-                            <Stethoscope className="w-6 h-6 text-teal-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-slate-900">
-                              Консультация — {formatDate(folder.dateTime)}
-                            </h3>
-                            {doctorInfo && (
-                              <p className="text-sm text-slate-600 mt-0.5">
-                                {doctorInfo.name}
-                                {doctorInfo.spec && <span className="text-slate-400"> · {doctorInfo.spec}</span>}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                              <span className="text-xs text-slate-500">
-                                {folder.docs.length} {getDocCountWord(folder.docs.length)}
-                              </span>
-                              {typeBadges.map((badge, i) => (
-                                <Badge key={i} className={cn('text-xs', badge.color)}>{badge.label}</Badge>
-                              ))}
-                            </div>
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-
-                {/* Ungrouped docs folder */}
-                {ungroupedDocs.length > 0 && (
+              filteredFolders.map((folder) => {
+                const doctorInfo = getDoctorInfo(folder)
+                const typeBadges = getDocTypeBadges(folder.docs)
+                return (
                   <Card
+                    key={folder.id}
                     hover
                     className="cursor-pointer"
-                    onClick={() => openFolder({ id: '__uploads__', label: 'Мои загрузки' })}
+                    onClick={() => openFolder(folder)}
                   >
                     <CardContent>
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-                          <FolderOpen className="w-6 h-6 text-amber-600" />
+                        <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center shrink-0">
+                          <Stethoscope className="w-6 h-6 text-teal-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-slate-900">Мои загрузки</h3>
-                          <p className="text-sm text-slate-500 mt-1">
-                            {ungroupedDocs.length} {getDocCountWord(ungroupedDocs.length)}
-                          </p>
+                          <h3 className="font-semibold text-slate-900">
+                            Консультация — {formatDate(folder.dateTime)}
+                          </h3>
+                          {doctorInfo && (
+                            <p className="text-sm text-slate-600 mt-0.5">
+                              {doctorInfo.name}
+                              {doctorInfo.spec && <span className="text-slate-400"> · {doctorInfo.spec}</span>}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <span className="text-xs text-slate-500">
+                              {folder.docs.length} {getDocCountWord(folder.docs.length)}
+                            </span>
+                            {typeBadges.map((badge, i) => (
+                              <Badge key={i} className={cn('text-xs', badge.color)}>{badge.label}</Badge>
+                            ))}
+                          </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                        <ChevronRight className="w-5 h-5 text-slate-400 shrink-0" />
                       </div>
                     </CardContent>
                   </Card>
-                )}
-              </>
+                )
+              })
             )}
           </div>
         </>
@@ -540,6 +595,19 @@ function PatientDocuments() {
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <Badge className={typeConfig.color}>{typeConfig.label}</Badge>
+                          {doc.sharedWithDoctors?.length > 0 && (
+                            <span className="flex items-center gap-1 text-xs text-teal-600" title="Доступен врачам">
+                              <UserCheck className="w-3.5 h-3.5" />
+                              {doc.sharedWithDoctors.length}
+                            </span>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openShareModal(doc) }}
+                            className="p-2 hover:bg-teal-100 rounded-lg text-slate-500 hover:text-teal-600"
+                            title="Поделиться с врачом"
+                          >
+                            <Share2 className="w-5 h-5" />
+                          </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleDownload(doc) }}
                             className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
@@ -764,6 +832,86 @@ function PatientDocuments() {
         }
       >
         <p className="text-slate-600">Вы уверены, что хотите удалить этот документ? Это действие нельзя отменить.</p>
+      </Modal>
+
+      {/* Share Modal */}
+      <Modal
+        isOpen={!!showShareModal}
+        onClose={() => setShowShareModal(null)}
+        title="Поделиться с врачом"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowShareModal(null)}>Отмена</Button>
+            <Button onClick={handleShare} isLoading={isSaving}>
+              Сохранить
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Выберите врачей, которым хотите предоставить доступ к документу
+            {showShareModal && <span className="font-medium"> «{showShareModal.title}»</span>}
+          </p>
+
+          {myDoctors.length === 0 ? (
+            <div className="text-center py-8">
+              <Stethoscope className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+              <p className="text-slate-500">У вас пока нет врачей</p>
+              <p className="text-sm text-slate-400 mt-1">Врачи появятся после первой консультации</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {myDoctors.map((doctor) => {
+                const isSelected = selectedDoctorIds.includes(doctor.documentId)
+                const specName = typeof doctor.specialization === 'object'
+                  ? doctor.specialization?.name
+                  : doctor.specialization
+                return (
+                  <button
+                    key={doctor.id}
+                    onClick={() => toggleDoctorSelection(doctor.documentId)}
+                    className={cn(
+                      'w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left',
+                      isSelected
+                        ? 'border-teal-500 bg-teal-50'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    )}
+                  >
+                    <div className={cn(
+                      'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold',
+                      isSelected ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-600'
+                    )}>
+                      {isSelected ? <UserCheck className="w-5 h-5" /> : doctor.fullName?.charAt(0) || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-900">{doctor.fullName}</p>
+                      {specName && <p className="text-sm text-slate-500">{specName}</p>}
+                    </div>
+                    <div className={cn(
+                      'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors',
+                      isSelected ? 'border-teal-500 bg-teal-500' : 'border-slate-300'
+                    )}>
+                      {isSelected && (
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {selectedDoctorIds.length > 0 && (
+            <p className="text-sm text-teal-600 flex items-center gap-1">
+              <Share2 className="w-4 h-4" />
+              Доступ получат {selectedDoctorIds.length} {selectedDoctorIds.length === 1 ? 'врач' : selectedDoctorIds.length <= 4 ? 'врача' : 'врачей'}
+            </p>
+          )}
+        </div>
       </Modal>
     </div>
   )

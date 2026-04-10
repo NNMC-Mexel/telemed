@@ -21,6 +21,9 @@
         "analysis",
         "prescription",
         "certificate",
+        "mrt",
+        "xray",
+        "ultrasound",
         "other"
       ]
     },
@@ -54,6 +57,11 @@
       "relation": "manyToOne",
       "target": "api::appointment.appointment",
       "inversedBy": "medical_documents"
+    },
+    "sharedWithDoctors": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::doctor.doctor"
     }
   }
 }

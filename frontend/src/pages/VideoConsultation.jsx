@@ -33,13 +33,16 @@ import {
   ExternalLink,
   Star,
   PhoneOff,
+  Paperclip,
+  Download,
+  Image,
 } from 'lucide-react'
 import { io } from 'socket.io-client'
 import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import { cn } from '../utils/helpers'
 import useAuthStore from '../stores/authStore'
-import api, { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl } from '../services/api'
+import api, { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl, getSignalingUrl } from '../services/api'
 
 const _TURN_USER = import.meta.env.VITE_TURN_USERNAME || '';
 const _TURN_CRED = import.meta.env.VITE_TURN_CREDENTIAL || '';
@@ -61,35 +64,17 @@ const ICE_SERVERS = {
     ...(_TURN_URL ? [{ urls: _TURN_URL + '?transport=tcp',       username: _TURN_USER, credential: _TURN_CRED }] : []),
     // TURNS TLS (резерв для строгих корпоративных файрволов)
     ...(_TURN_TCP ? [{ urls: _TURN_TCP,                          username: _TURN_USER, credential: _TURN_CRED }] : []),
-    // Metered.ca Open Relay (временный резерв для тестирования)
-    { urls: 'turn:openrelay.metered.ca:80',                      username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp',       username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turns:openrelay.metered.ca:443',                    username: 'openrelayproject', credential: 'openrelayproject' },
+    // ВНИМАНИЕ: публичный open relay удалён — медицинские данные не должны
+    // проходить через сторонние серверы. Настройте VITE_TURN_URL для production.
   ],
 }
-
-const PRODUCTION_SIGNALING_URL = 'https://medconnectrtc.nnmc.kz';
-const DEVELOPMENT_SIGNALING_URL = 'http://localhost:1341';
-
-const getSignalingUrl = () => {
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
-      return PRODUCTION_SIGNALING_URL;
-    }
-  }
-  if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
-    return import.meta.env.VITE_SIGNALING_SERVER || PRODUCTION_SIGNALING_URL;
-  }
-  return import.meta.env.VITE_SIGNALING_SERVER || DEVELOPMENT_SIGNALING_URL;
-};
 
 const SIGNALING_SERVER = getSignalingUrl();
 
 function VideoConsultation() {
   const { roomId } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, token } = useAuthStore()
 
   const [connectionState, setConnectionState] = useState('initializing')
   const [isMuted, setIsMuted] = useState(false)
@@ -136,6 +121,10 @@ function VideoConsultation() {
   const [hoverRating, setHoverRating] = useState(0)
   const [reviewText, setReviewText] = useState('')
   const [isSubmittingRating, setIsSubmittingRating] = useState(false)
+
+  // Chat file upload state (patient attaches docs during consultation)
+  const [isUploadingChatFile, setIsUploadingChatFile] = useState(false)
+  const chatFileInputRef = useRef(null)
 
   // Force complete state (doctor)
   const [isCompletingCall, setIsCompletingCall] = useState(false)
@@ -313,6 +302,7 @@ function VideoConsultation() {
 
         const socket = io(SIGNALING_SERVER, {
           transports: ['websocket', 'polling'],
+          auth: { token },
         })
         socketRef.current = socket
 
@@ -425,7 +415,7 @@ function VideoConsultation() {
           const currentUserId = String(user?.id ?? '')
           setMessages(prev => [...prev, {
             id: data.id,
-            sender: (data.userId != null && String(data.userId) === currentUserId) || data.senderId === socket.id ? 'me' : 'other',
+            sender: (data.userId != null && String(data.userId) === currentUserId) ? 'me' : 'other',
             text: data.message,
             senderName: data.senderName,
             time: new Date(data.timestamp),
@@ -690,6 +680,76 @@ function VideoConsultation() {
       senderName: user?.fullName || user?.username,
     })
     setNewMessage('')
+  }
+
+  // Patient attaches a file during consultation
+  const handleChatFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !appointment) return
+    e.target.value = '' // reset input
+
+    // Validate file size (10 MB max)
+    const MAX_SIZE = 10 * 1024 * 1024
+    if (file.size > MAX_SIZE) {
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        sender: 'system',
+        senderName: 'Система',
+        text: `Файл "${file.name}" слишком большой (макс. 10 МБ)`,
+        time: new Date(),
+      }])
+      return
+    }
+
+    setIsUploadingChatFile(true)
+    try {
+      // 1. Upload file to media library
+      const uploaded = await uploadFile(file)
+
+      // 2. Resolve doctor documentId for sharing
+      const doctorDocId = appointment.doctor?.documentId
+      const aptDocId = appointment.documentId || appointment.id
+
+      // 3. Create medical-document linked to appointment + shared with doctor
+      await documentsAPI.create({
+        title: file.name.replace(/\.[^/.]+$/, ''),
+        type: 'other',
+        description: '',
+        file: uploaded.id,
+        user: user.id,
+        appointment: aptDocId,
+        sharedWithDoctors: doctorDocId ? [doctorDocId] : [],
+      })
+
+      // 4. Send chat message so doctor sees notification instantly
+      const fileIcon = file.type?.startsWith('image/') ? '🖼' : '📎'
+      const sizeKb = Math.round(file.size / 1024)
+      const sizeStr = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} МБ` : `${sizeKb} КБ`
+
+      socketRef.current?.emit('chat-message', {
+        roomId,
+        message: `${fileIcon} Прикреплён документ: ${file.name} (${sizeStr})`,
+        senderName: user?.fullName || user?.username,
+      })
+
+      // 5. Refresh doctor's document list if they have it open
+      if (isDoctor && appointment?.patient?.id) {
+        const response = await documentsAPI.getAll({ userId: appointment.patient.id })
+        setPatientDocuments(response.data?.data || [])
+      }
+    } catch (err) {
+      console.error('Error uploading chat file:', err)
+      // Show error in chat so user sees feedback
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        sender: 'system',
+        senderName: 'Система',
+        text: `Ошибка загрузки файла "${file.name}". Попробуйте ещё раз.`,
+        time: new Date(),
+      }])
+    } finally {
+      setIsUploadingChatFile(false)
+    }
   }
 
   const handleDiagnosisFile = async (e) => {
@@ -1185,6 +1245,31 @@ function VideoConsultation() {
 
             <form onSubmit={sendMessage} className="p-4 border-t border-slate-100 pb-[calc(var(--safe-bottom)+1rem)] sm:pb-4">
               <div className="flex items-center gap-2">
+                {/* Paperclip — attach file */}
+                <input
+                  ref={chatFileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.dicom"
+                  onChange={handleChatFileUpload}
+                />
+                <button
+                  type="button"
+                  onClick={() => chatFileInputRef.current?.click()}
+                  disabled={isUploadingChatFile}
+                  className={cn(
+                    "p-3 rounded-xl transition-colors shrink-0",
+                    isUploadingChatFile
+                      ? "bg-teal-100 text-teal-600"
+                      : "bg-slate-100 text-slate-500 hover:text-teal-600 hover:bg-teal-50"
+                  )}
+                  title="Прикрепить документ"
+                >
+                  {isUploadingChatFile
+                    ? <Loader2 className="w-5 h-5 animate-spin" />
+                    : <Paperclip className="w-5 h-5" />
+                  }
+                </button>
                 <input
                   type="text"
                   value={newMessage}
@@ -1417,6 +1502,9 @@ function VideoConsultation() {
                       analysis: { label: 'Анализы', icon: 'bg-blue-100', iconColor: 'text-blue-600', folderColor: 'bg-blue-50 border-blue-100' },
                       prescription: { label: 'Назначения', icon: 'bg-emerald-100', iconColor: 'text-emerald-600', folderColor: 'bg-emerald-50 border-emerald-100' },
                       certificate: { label: 'Справки', icon: 'bg-violet-100', iconColor: 'text-violet-600', folderColor: 'bg-violet-50 border-violet-100' },
+                      mrt: { label: 'МРТ', icon: 'bg-purple-100', iconColor: 'text-purple-600', folderColor: 'bg-purple-50 border-purple-100' },
+                      xray: { label: 'Рентген', icon: 'bg-rose-100', iconColor: 'text-rose-600', folderColor: 'bg-rose-50 border-rose-100' },
+                      ultrasound: { label: 'УЗИ', icon: 'bg-cyan-100', iconColor: 'text-cyan-600', folderColor: 'bg-cyan-50 border-cyan-100' },
                       other: { label: 'Другое', icon: 'bg-amber-100', iconColor: 'text-amber-600', folderColor: 'bg-amber-50 border-amber-100' },
                     }
                     const grouped = patientDocuments.reduce((acc, doc) => {
@@ -1425,7 +1513,7 @@ function VideoConsultation() {
                       acc[type].push(doc)
                       return acc
                     }, {})
-                    const typeOrder = ['analysis', 'prescription', 'certificate', 'other']
+                    const typeOrder = ['analysis', 'mrt', 'xray', 'ultrasound', 'prescription', 'certificate', 'other']
                     const sortedTypes = typeOrder.filter(t => grouped[t]?.length > 0)
 
                     return (

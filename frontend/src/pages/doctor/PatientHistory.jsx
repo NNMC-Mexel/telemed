@@ -18,6 +18,10 @@ import {
   Pill,
   ExternalLink,
   FolderOpen,
+  Share2,
+  Scan,
+  Radio,
+  Download,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -34,8 +38,10 @@ function PatientHistory() {
   const [patient, setPatient] = useState(null)
   const [appointments, setAppointments] = useState([])
   const [documents, setDocuments] = useState([])
+  const [sharedDocuments, setSharedDocuments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [expandedAppointment, setExpandedAppointment] = useState(null)
+  const [showSharedDocs, setShowSharedDocs] = useState(false)
 
   useEffect(() => {
     if (user?.id && patientId) {
@@ -62,14 +68,26 @@ function PatientHistory() {
         setPatient(aptsData[0].patient)
       }
 
-      // Get all medical documents for this patient from this doctor
+      // Get all medical documents for this patient visible to this doctor
       const docsRes = await documentsAPI.getAll({ userId: patientId })
       const allDocs = docsRes.data?.data || []
-      // Filter docs created by this doctor
-      const doctorDocs = allDocs.filter(
-        (doc) => doc.doctor?.id === doctorData.id || doc.doctor?.documentId === doctorData.documentId
-      )
-      setDocuments(doctorDocs)
+
+      // Separate: appointment-linked docs (by this doctor) vs shared docs (by patient)
+      const aptDocs = []
+      const shared = []
+      for (const doc of allDocs) {
+        const isOwnDoc = doc.doctor?.id === doctorData.id || doc.doctor?.documentId === doctorData.documentId
+        const isShared = doc.sharedWithDoctors?.some(
+          (d) => d.id === doctorData.id || d.documentId === doctorData.documentId
+        )
+        if (isOwnDoc) {
+          aptDocs.push(doc)
+        } else if (isShared) {
+          shared.push(doc)
+        }
+      }
+      setDocuments(aptDocs)
+      setSharedDocuments(shared)
     } catch (error) {
       console.error('Error fetching patient history:', error)
     } finally {
@@ -103,6 +121,9 @@ function PatientHistory() {
     certificate: 'Заключение врача',
     prescription: 'Назначения',
     analysis: 'Анализ',
+    mrt: 'МРТ',
+    xray: 'Рентген',
+    ultrasound: 'УЗИ',
     other: 'План обследования',
   }
 
@@ -110,6 +131,9 @@ function PatientHistory() {
     certificate: Stethoscope,
     prescription: Pill,
     analysis: FileText,
+    mrt: Scan,
+    xray: Radio,
+    ultrasound: Radio,
     other: ClipboardList,
   }
 
@@ -117,6 +141,9 @@ function PatientHistory() {
     certificate: 'bg-teal-100 text-teal-600',
     prescription: 'bg-violet-100 text-violet-600',
     analysis: 'bg-amber-100 text-amber-600',
+    mrt: 'bg-purple-100 text-purple-600',
+    xray: 'bg-rose-100 text-rose-600',
+    ultrasound: 'bg-cyan-100 text-cyan-600',
     other: 'bg-sky-100 text-sky-600',
   }
 
@@ -352,6 +379,77 @@ function PatientHistory() {
           </div>
         )}
       </div>
+
+      {/* Shared Documents Section */}
+      {sharedDocuments.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowSharedDocs(!showSharedDocs)}
+            className="flex items-center gap-2 text-lg font-semibold text-slate-900 mb-4 hover:text-teal-600 transition-colors"
+          >
+            <Share2 className="w-5 h-5 text-teal-600" />
+            Документы пациента
+            <span className="text-sm font-normal text-slate-500">
+              ({sharedDocuments.length})
+            </span>
+            {showSharedDocs ? (
+              <ChevronUp className="w-4 h-4 text-slate-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            )}
+          </button>
+
+          {showSharedDocs && (
+            <div className="space-y-3">
+              {sharedDocuments.map((doc) => {
+                const DocIcon = docTypeIcons[doc.type] || FileText
+                const colorClasses = docTypeColors[doc.type] || 'bg-slate-100 text-slate-600'
+                const fileUrl = doc.file?.url ? getMediaUrl(doc.file) : null
+
+                return (
+                  <Card key={doc.id}>
+                    <CardContent>
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${colorClasses}`}>
+                          <DocIcon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-slate-900">
+                              {doc.title || docTypeLabels[doc.type] || 'Документ'}
+                            </h4>
+                            {fileUrl && (
+                              <a
+                                href={fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
+                              >
+                                <Download className="w-4 h-4" />
+                              </a>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {docTypeLabels[doc.type] || doc.type}
+                            {doc.createdAt && (
+                              <> &middot; {new Date(doc.createdAt).toLocaleDateString('ru-RU')}</>
+                            )}
+                          </p>
+                          {doc.description && (
+                            <p className="text-sm text-slate-600 mt-3 whitespace-pre-wrap leading-relaxed bg-slate-50 rounded-lg p-3">
+                              {doc.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
