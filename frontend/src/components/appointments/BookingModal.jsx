@@ -27,7 +27,7 @@ import Button from "../ui/Button";
 import Avatar from "../ui/Avatar";
 import Badge from "../ui/Badge";
 import { cn, formatPrice } from "../../utils/helpers";
-import { getMediaUrl, getBookedSlots } from "../../services/api";
+import { getMediaUrl, getBookedSlots, getSignalingUrl } from "../../services/api";
 import useAppointmentStore from "../../stores/appointmentStore";
 import useAuthStore from "../../stores/authStore";
 import { useToast } from "../ui/Toast";
@@ -101,38 +101,51 @@ const filterPastSlots = (slots, selectedDate) => {
     });
 };
 
-const paymentMethods = [
-    {
-        id: "kaspi",
-        name: "Kaspi QR",
-        icon: "🏦",
-        description: "Оплата через Kaspi.kz",
-        badge: "Скоро",
-        disabled: true,
-    },
-    {
-        id: "halyk",
-        name: "Halyk Bank",
-        icon: "🏛️",
-        description: "QR-оплата через Halyk Home Bank",
-        badge: "Рекомендуем",
-        disabled: false,
-    },
-    {
-        id: "card",
-        name: "Банковская карта",
-        icon: "💳",
-        description: "Visa / Mastercard · для международных платежей",
-        badge: null,
-        disabled: false,
-    },
-];
+// Test payment mode: set VITE_PAYMENT_MODE=test in .env for dev
+const IS_TEST_PAYMENT = import.meta.env.VITE_PAYMENT_MODE === "test";
+
+const paymentMethods = IS_TEST_PAYMENT
+    ? [
+          {
+              id: "test",
+              name: "Тестовая оплата",
+              icon: "🧪",
+              description: "Мгновенное подтверждение без реальной оплаты",
+              badge: "DEV",
+              disabled: false,
+          },
+      ]
+    : [
+          {
+              id: "kaspi",
+              name: "Kaspi QR",
+              icon: "🏦",
+              description: "Оплата через Kaspi.kz",
+              badge: "Скоро",
+              disabled: true,
+          },
+          {
+              id: "halyk",
+              name: "Halyk Bank",
+              icon: "🏛️",
+              description: "QR-оплата через Halyk Home Bank",
+              badge: "Рекомендуем",
+              disabled: false,
+          },
+          {
+              id: "card",
+              name: "Банковская карта",
+              icon: "💳",
+              description: "Visa / Mastercard · для международных платежей",
+              badge: null,
+              disabled: false,
+          },
+      ];
 
 const isMobileDevice = () =>
     /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-const SIGNALING_URL =
-    import.meta.env.VITE_SIGNALING_SERVER || "http://localhost:1341";
+const SIGNALING_URL = getSignalingUrl();
 
 // Load (or reload) ePay widget script — always fresh to avoid stale session state
 const loadHalykScript = () =>
@@ -239,7 +252,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
         const dateStr = format(selectedDate, "yyyy-MM-dd")
 
-        const socket = io(SIGNALING_URL, { transports: ["websocket"] })
+        const socket = io(SIGNALING_URL, { transports: ["websocket"], auth: { token } })
         socketRef.current = socket
 
         socket.emit("join-slot-watch", { doctorId: doctor.id, date: dateStr })
@@ -417,6 +430,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
             });
 
             if (result.success) {
+                setBookedSlots((prev) => [...prev, selectedTime]);
                 setIsComplete(true);
             } else {
                 const msg = result.error || "Ошибка создания записи";
@@ -456,6 +470,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
             const failureUrl = `${window.location.origin}/payment/failure`;
 
             // Save booking data — appointment is created after ePay redirects back
+            // patientId intentionally omitted — server forces patient = authenticated user
+            // price is display-only — server re-validates against doctor record
             sessionStorage.setItem(
                 "pendingBooking",
                 JSON.stringify({
@@ -463,7 +479,6 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     roomId,
                     doctorId: doctor.id,
                     doctorName,
-                    patientId: user.id,
                     dateTime: dateTime.toISOString(),
                     type: consultationType,
                     price: doctorPrice,
@@ -480,6 +495,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     body: JSON.stringify({
                         invoiceId,
                         amount: doctorPrice,
+                        doctorId: doctor.id,
                     }),
                 }
             );
@@ -578,15 +594,22 @@ function BookingModal({ isOpen, onClose, doctor }) {
             setHalykQRStatus("pending");
 
             // Start polling for payment status every 3 seconds
+            let consecutivePollErrors = 0;
+            const MAX_POLL_ERRORS = 5;
             const pollInterval = setInterval(async () => {
                 try {
                     const statusRes = await fetch(
                         `${SIGNALING_URL}/api/payment/halyk-qr-status/${billNumber}`
                     );
                     if (!statusRes.ok) {
-                        clearInterval(pollInterval);
+                        consecutivePollErrors++;
+                        if (consecutivePollErrors >= MAX_POLL_ERRORS) {
+                            clearInterval(pollInterval);
+                            setHalykQRStatus("expired");
+                        }
                         return;
                     }
+                    consecutivePollErrors = 0;
                     const { status } = await statusRes.json();
 
                     if (status === "PAID") {
@@ -603,7 +626,11 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     }
                     // Other statuses (NEW, SCANNED, BLOCKED) → keep polling
                 } catch {
-                    // Network error during poll — ignore and retry
+                    consecutivePollErrors++;
+                    if (consecutivePollErrors >= MAX_POLL_ERRORS) {
+                        clearInterval(pollInterval);
+                        setHalykQRStatus("expired");
+                    }
                 }
             }, 3000);
 
@@ -625,8 +652,51 @@ function BookingModal({ isOpen, onClose, doctor }) {
         }
     };
 
+    // Test payment: instantly creates appointment without real payment
+    const handleTestPayment = async () => {
+        setIsProcessing(true);
+        setError(null);
+        try {
+            const dateTime = await verifySlotAndBuildDateTime();
+            if (!dateTime) return;
+
+            const result = await createAppointment({
+                patient: user.id,
+                doctor: doctor.id,
+                dateTime: dateTime.toISOString(),
+                type: consultationType,
+                status: "confirmed",
+                price: doctorPrice,
+                paymentStatus: "paid",
+                roomId: `room-${Date.now()}-${Math.random()
+                    .toString(36)
+                    .substr(2, 9)}`,
+            });
+
+            if (result.success) {
+                setBookedSlots((prev) => [...prev, selectedTime]);
+                setIsComplete(true);
+            } else {
+                const msg = result.error || "Ошибка создания записи";
+                toast.error(msg);
+                setError(msg);
+                if (msg.includes("забронировано") || msg.includes("занято")) {
+                    setBookedSlots((prev) => [...prev, selectedTime]);
+                    setSelectedTime(null);
+                    setStep(1);
+                }
+            }
+        } catch (err) {
+            setError("Произошла ошибка. Попробуйте позже.");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const handleBook = () => {
-        if (paymentMethod === "kaspi") {
+        if (paymentMethod === "test") {
+            handleTestPayment();
+        } else if (paymentMethod === "kaspi") {
             handleKaspiPayment();
         } else if (paymentMethod === "halyk") {
             handleHalykPayment();
@@ -636,6 +706,16 @@ function BookingModal({ isOpen, onClose, doctor }) {
     };
 
     const resetAndClose = () => {
+        // Release slot reservation if one is active before closing
+        const socket = socketRef.current;
+        if (socket && selectedTime && selectedDate && doctor?.id) {
+            const dateStr = format(selectedDate, "yyyy-MM-dd");
+            socket.emit("release-slot", {
+                doctorId: doctor.id,
+                date: dateStr,
+                time: selectedTime,
+            });
+        }
         setStep(1);
         setSelectedDate(null);
         setSelectedTime(null);

@@ -27,12 +27,14 @@ function withSlotLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
 export default factories.createCoreController('api::appointment.appointment', () => ({
   async find(ctx) {
     const user = ctx.state.user;
-    if (!user) return ctx.forbidden('Not authenticated');
+    // API Token requests (from signaling server) have ctx.state.auth.strategy === 'api-token'
+    const isApiToken = ctx.state.auth?.strategy?.name === 'api-token';
+    if (!user && !isApiToken) return ctx.forbidden('Not authenticated');
 
-    const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
+    const isAdmin = isApiToken || user?.role?.type === 'admin' || user?.userRole === 'admin';
     const populate = {
       doctor: { populate: ['specialization', 'photo'] },
-      patient: { fields: ['id', 'fullName', 'email', 'phone', 'username'] },
+      patient: { fields: ['id', 'fullName'] },
     } as any;
     const sort = (ctx.query?.sort as any) || ['dateTime:desc'];
 
@@ -80,43 +82,30 @@ export default factories.createCoreController('api::appointment.appointment', ()
           return { data: [], meta: { pagination: { page: 1, pageSize: 0, pageCount: 0, total: 0 } } };
         }
 
-        const byId = await strapi.documents('api::appointment.appointment').findMany({
-          filters: { doctor: { id: doctorRecord.id }, ...additionalFilters },
-          sort,
-          populate,
-        });
-        const byDocId = await strapi.documents('api::appointment.appointment').findMany({
+        // Use ONLY documentId — avoids IDOR via numeric id cross-contamination
+        const data = await strapi.documents('api::appointment.appointment').findMany({
           filters: { doctor: { documentId: doctorRecord.documentId }, ...additionalFilters },
           sort,
           populate,
         });
-        const merged = [...byId, ...byDocId];
-        const uniq = Array.from(new Map(merged.map((item: any) => [item.documentId, item])).values());
         return {
-          data: uniq,
-          meta: { pagination: { page: 1, pageSize: uniq.length, pageCount: 1, total: uniq.length } },
+          data,
+          meta: { pagination: { page: 1, pageSize: data.length, pageCount: 1, total: data.length } },
         };
       } else {
-        // Фильтруем по patient (users-permissions user)
-        const patientId = user.id;
+        // Фильтруем по patient (users-permissions user) — только по documentId
         const patientDocId = user.documentId;
-        const byId = await strapi.documents('api::appointment.appointment').findMany({
-          filters: { patient: { id: patientId }, ...additionalFilters },
+        if (!patientDocId) {
+          return { data: [], meta: { pagination: { page: 1, pageSize: 0, pageCount: 0, total: 0 } } };
+        }
+        const data = await strapi.documents('api::appointment.appointment').findMany({
+          filters: { patient: { documentId: patientDocId }, ...additionalFilters },
           sort,
           populate,
         });
-        const byDocId = patientDocId
-          ? await strapi.documents('api::appointment.appointment').findMany({
-              filters: { patient: { documentId: patientDocId }, ...additionalFilters },
-              sort,
-              populate,
-            })
-          : [];
-        const merged = [...byId, ...byDocId];
-        const uniq = Array.from(new Map(merged.map((item: any) => [item.documentId, item])).values());
         return {
-          data: uniq,
-          meta: { pagination: { page: 1, pageSize: uniq.length, pageCount: 1, total: uniq.length } },
+          data,
+          meta: { pagination: { page: 1, pageSize: data.length, pageCount: 1, total: data.length } },
         };
       }
     }
@@ -147,8 +136,8 @@ export default factories.createCoreController('api::appointment.appointment', ()
     const { id } = ctx.params;
     const populate = {
       doctor: { populate: ['specialization', 'photo'] },
-      patient: { fields: ['id', 'fullName', 'email', 'phone', 'username'] },
-      medical_documents: true,
+      patient: { fields: ['id', 'fullName'] },
+      medical_documents: { populate: ['file'] },
     } as any;
 
     const appointment = await strapi.documents('api::appointment.appointment').findOne({
@@ -176,6 +165,57 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
     const body = (ctx.request.body as any)?.data || ctx.request.body || {};
 
+    // --- Input validation ---
+    if (!body.dateTime) return ctx.badRequest('dateTime is required');
+    const parsedDate = new Date(body.dateTime);
+    if (isNaN(parsedDate.getTime())) return ctx.badRequest('dateTime must be a valid ISO 8601 date');
+    if (parsedDate <= new Date()) return ctx.badRequest('dateTime must be in the future');
+
+    const ALLOWED_TYPES = ['video', 'chat'];
+    const appointmentType = body.type || 'video';
+    if (!ALLOWED_TYPES.includes(appointmentType)) return ctx.badRequest('type must be video or chat');
+
+    if (!body.doctor) return ctx.badRequest('doctor is required');
+    if (!body.roomId || typeof body.roomId !== 'string' || body.roomId.length > 128) {
+      return ctx.badRequest('roomId is required and must be a valid string');
+    }
+
+    // --- Working hours validation (skip for admin) ---
+    if (!isAdmin) {
+      const drRef = body.doctor;
+      const drForHours: any = typeof drRef === 'number'
+        ? await strapi.query('api::doctor.doctor').findOne({ where: { id: drRef } })
+        : await strapi.query('api::doctor.doctor').findOne({ where: { documentId: drRef } });
+
+      if (drForHours) {
+        // Check working day (workingDays = "1,2,3,4,5", Mon=1 Sun=7 per ISO)
+        const isoDay = parsedDate.getDay() === 0 ? 7 : parsedDate.getDay();
+        const workingDays = (drForHours.workingDays || '1,2,3,4,5')
+          .split(',').map((d: string) => parseInt(d.trim(), 10));
+        if (!workingDays.includes(isoDay)) {
+          return ctx.badRequest('Doctor does not work on the selected day');
+        }
+
+        // Check working hours — times stored as "HH:MM"
+        const toMinutes = (t: string) => {
+          const [h, m] = t.split(':').map(Number);
+          return h * 60 + m;
+        };
+        const apptMinutes = parsedDate.getHours() * 60 + parsedDate.getMinutes();
+        const workStart = toMinutes(drForHours.workStartTime || '09:00');
+        const workEnd   = toMinutes(drForHours.workEndTime   || '18:00');
+        const breakStart = toMinutes(drForHours.breakStart    || '13:00');
+        const breakEnd   = toMinutes(drForHours.breakEnd      || '14:00');
+
+        if (apptMinutes < workStart || apptMinutes >= workEnd) {
+          return ctx.badRequest('Appointment time is outside doctor working hours');
+        }
+        if (apptMinutes >= breakStart && apptMinutes < breakEnd) {
+          return ctx.badRequest('Appointment time falls during doctor break time');
+        }
+      }
+    }
+
     // --- Resolve patient documentId ---
     let patientDocId: string | undefined;
     if (!isAdmin) {
@@ -192,13 +232,42 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
     // --- Resolve doctor documentId ---
     let doctorDocId: string | undefined;
+    let doctorRecord: any;
     if (body.doctor) {
       if (typeof body.doctor === 'number') {
-        const found = await strapi.query('api::doctor.doctor').findOne({ where: { id: body.doctor } });
-        doctorDocId = found?.documentId;
+        doctorRecord = await strapi.query('api::doctor.doctor').findOne({ where: { id: body.doctor } });
+        doctorDocId = doctorRecord?.documentId;
       } else {
         doctorDocId = body.doctor;
+        doctorRecord = await strapi.query('api::doctor.doctor').findOne({ where: { documentId: body.doctor } });
       }
+    }
+
+    // --- Validate price against canonical doctor price ---
+    if (!doctorRecord) {
+      return ctx.badRequest('Doctor not found');
+    }
+    const actualPrice = Number(doctorRecord.price);
+    const submittedPrice = Number(body.price);
+    if (!submittedPrice || submittedPrice !== actualPrice) {
+      return ctx.badRequest('Invalid appointment price');
+    }
+
+    // --- Restrict paymentStatus: only signaling server / admin may mark as paid ---
+    const ALLOWED_STATUSES = ['pending', 'confirmed', 'cancelled', 'completed', 'in_progress'];
+    const ALLOWED_PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
+    const requestedStatus = body.statuse || body.status || 'pending';
+    const requestedPaymentStatus = body.paymentStatus || 'pending';
+
+    if (!ALLOWED_STATUSES.includes(requestedStatus)) {
+      return ctx.badRequest('Invalid status value');
+    }
+    if (!ALLOWED_PAYMENT_STATUSES.includes(requestedPaymentStatus)) {
+      return ctx.badRequest('Invalid paymentStatus value');
+    }
+    // Non-admin patients cannot self-assign paymentStatus='paid' with price=0
+    if (!isAdmin && requestedPaymentStatus === 'paid' && actualPrice <= 0) {
+      return ctx.badRequest('Invalid payment state');
     }
 
     // --- Atomic check + create using mutex (prevents race condition) ---
@@ -240,10 +309,10 @@ export default factories.createCoreController('api::appointment.appointment', ()
         data: {
           dateTime: body.dateTime,
           type: body.type || 'video',
-          statuse: body.statuse || body.status || 'pending',
-          price: body.price,
+          statuse: requestedStatus,
+          price: actualPrice,
           roomId: body.roomId,
-          paymentStatus: body.paymentStatus || 'pending',
+          paymentStatus: requestedPaymentStatus,
           patient: patientDocId,
           doctor: doctorDocId,
         },
@@ -260,6 +329,20 @@ export default factories.createCoreController('api::appointment.appointment', ()
     if (result.conflict) {
       return ctx.badRequest('К сожалению, это время уже было забронировано другим пациентом. Пожалуйста, выберите другое свободное время.');
     }
+
+    // Audit log — structured so it can be filtered/exported
+    strapi.log.info(JSON.stringify({
+      audit: 'APPOINTMENT_CREATED',
+      appointmentId: result.appointment?.documentId,
+      patientId: patientDocId,
+      doctorId: doctorDocId,
+      dateTime: body.dateTime,
+      price: actualPrice,
+      paymentStatus: requestedPaymentStatus,
+      createdBy: user.id,
+      ip: ctx.request.ip,
+      ts: new Date().toISOString(),
+    }));
 
     return { data: result.appointment };
   },

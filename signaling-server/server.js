@@ -37,17 +37,31 @@ app.use(cors(corsOptions))
 app.use(express.json())
 
 // =====================================================
+// Startup validation — fail fast if required env vars are missing
+// =====================================================
+const REQUIRED_ENV_VARS = [
+  'EPAY_CLIENT_ID', 'EPAY_CLIENT_SECRET', 'EPAY_TERMINAL_ID',
+  'EPAY_QR_CLIENT_ID', 'EPAY_QR_CLIENT_SECRET', 'EPAY_QR_TERMINAL_ID',
+  'STRAPI_API_URL', 'STRAPI_API_TOKEN',
+]
+const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v])
+if (missingVars.length > 0) {
+  console.error(`[STARTUP] Missing required environment variables: ${missingVars.join(', ')}`)
+  process.exit(1)
+}
+
+// =====================================================
 // ePay (Halyk Bank) Payment Integration
 // =====================================================
-const EPAY_CLIENT_ID = process.env.EPAY_CLIENT_ID || 'test'
-const EPAY_CLIENT_SECRET = process.env.EPAY_CLIENT_SECRET || 'yF587AV9Ms94qN2QShFzVR3vFnWkhjbAK3sG'
-const EPAY_TERMINAL_ID = process.env.EPAY_TERMINAL_ID || '67e34d63-102f-4bd1-898e-370781d0074d'
+const EPAY_CLIENT_ID = process.env.EPAY_CLIENT_ID
+const EPAY_CLIENT_SECRET = process.env.EPAY_CLIENT_SECRET
+const EPAY_TERMINAL_ID = process.env.EPAY_TERMINAL_ID
 const IS_EPAY_TEST = process.env.EPAY_TEST !== 'false'
 
 // QR-specific credentials (different terminal with pay_qr_local enabled)
-const EPAY_QR_CLIENT_ID = process.env.EPAY_QR_CLIENT_ID || 'EPAY-TEST-PAYMENT'
-const EPAY_QR_CLIENT_SECRET = process.env.EPAY_QR_CLIENT_SECRET || 'gG1uIMT$cTZJS&Lm'
-const EPAY_QR_TERMINAL_ID = process.env.EPAY_QR_TERMINAL_ID || '5f7bdf8b-f34c-4aed-bd0c-47fa1e323496'
+const EPAY_QR_CLIENT_ID = process.env.EPAY_QR_CLIENT_ID
+const EPAY_QR_CLIENT_SECRET = process.env.EPAY_QR_CLIENT_SECRET
+const EPAY_QR_TERMINAL_ID = process.env.EPAY_QR_TERMINAL_ID
 
 const EPAY_OAUTH_URL = IS_EPAY_TEST
   ? 'https://test-epay-oauth.epayment.kz/oauth2/token'
@@ -66,7 +80,50 @@ const EPAY_QR_STATUS_URL = IS_EPAY_TEST
   ? 'https://test-epay-api.epayment.kz/qr'
   : 'https://epay-api.homebank.kz/qr'
 
-const STRAPI_API_URL = process.env.STRAPI_API_URL || 'http://localhost:1340'
+const STRAPI_API_URL = process.env.STRAPI_API_URL
+
+// =====================================================
+// Simple in-memory rate limiter for payment endpoints
+// =====================================================
+const rateLimitStore = new Map()
+
+function isRateLimited(ip, endpoint, max, windowMs) {
+  const key = `${ip}:${endpoint}`
+  const now = Date.now()
+  const entry = rateLimitStore.get(key)
+  if (!entry || now > entry.resetAt) {
+    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs })
+    return false
+  }
+  if (entry.count >= max) return true
+  entry.count++
+  return false
+}
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of rateLimitStore) {
+    if (now > entry.resetAt) rateLimitStore.delete(key)
+  }
+}, 30 * 60 * 1000)
+
+// Fetch the canonical price for a doctor from Strapi.
+// Returns the price as a number, or throws if the doctor is not found / request fails.
+async function fetchDoctorPrice(doctorId) {
+  const res = await fetch(
+    `${STRAPI_API_URL}/api/doctors?filters[id][$eq]=${encodeURIComponent(doctorId)}&fields[0]=price`,
+    {
+      headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` },
+    }
+  )
+  if (!res.ok) throw new Error(`Strapi returned HTTP ${res.status} when fetching doctor price`)
+  const json = await res.json()
+  const doctor = json?.data?.[0]
+  if (!doctor) throw new Error(`Doctor ${doctorId} not found`)
+  const price = doctor.price ?? doctor.attributes?.price
+  if (price == null || isNaN(Number(price))) throw new Error(`Doctor ${doctorId} has no valid price`)
+  return Number(price)
+}
 
 // =====================================================
 // Halyk QR Payment — server-side store
@@ -163,16 +220,35 @@ async function getQRAuthToken(invoiceId, amount, currency = 'KZT') {
 // POST /api/payment/create-halyk-qr
 // Step 1+2 of ePay QR by API: get token, generate QR, return qrcode + homebankLink
 app.post('/api/payment/create-halyk-qr', async (req, res) => {
+  const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'
+  if (isRateLimited(clientIp, 'create-halyk-qr', 10, 60 * 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many payment requests. Please try again later.' })
+  }
   try {
     const { bookingData, userToken } = req.body
     if (!bookingData || !userToken) {
       return res.status(400).json({ error: 'bookingData and userToken required' })
     }
 
+    if (!bookingData.doctorId) {
+      return res.status(400).json({ error: 'bookingData.doctorId is required' })
+    }
+
+    // Validate price against the canonical doctor price in Strapi
+    const actualPrice = await fetchDoctorPrice(bookingData.doctorId)
+    const submittedPrice = Number(bookingData.price)
+
+    if (!submittedPrice || submittedPrice !== actualPrice) {
+      console.warn(
+        `[QR] Price mismatch for doctor ${bookingData.doctorId}: submitted=${submittedPrice} actual=${actualPrice}`
+      )
+      return res.status(400).json({ error: 'Invalid payment amount' })
+    }
+
     const invoiceId = String(Date.now())
 
     // Step 1: Get OAuth token using QR-specific credentials
-    const auth = await getQRAuthToken(invoiceId, bookingData.price)
+    const auth = await getQRAuthToken(invoiceId, actualPrice)
 
     // Step 2: Generate QR code via official ePay QR API
     const qrRes = await fetch(EPAY_QR_GENERATE_URL, {
@@ -210,9 +286,10 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
 
     const billNumber = qrData.billNumber
 
-    // Store pending payment for status polling
+    // Store pending payment for status polling — always use server-verified price
     pendingQRPayments.set(String(billNumber), {
       ...bookingData,
+      price: actualPrice,
       invoiceId,
       accessToken: auth.access_token,
       tokenType: auth.token_type || 'Bearer',
@@ -269,36 +346,40 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
     const statusData = JSON.parse(statusRaw)
     const status = statusData.status || 'UNKNOWN'
 
-    // Create appointment exactly once when payment is confirmed
+    // Create appointment exactly once when payment is confirmed.
+    // Flag is set AFTER successful creation to ensure idempotency on server crash/retry.
     if (status === 'PAID' && !pending.appointmentCreated) {
-      pending.appointmentCreated = true
       try {
-        const body = {
-          data: {
-            patient: pending.patientId,
-            doctor: pending.doctorId,
-            dateTime: pending.dateTime,
-            type: pending.type,
-            statuse: 'confirmed',
-            price: pending.price,
-            paymentStatus: 'paid',
-            roomId: pending.roomId,
-          },
-        }
-        await fetch(`${STRAPI_API_URL}/api/appointments`, {
+        const apptRes = await fetch(`${STRAPI_API_URL}/api/appointments`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${pending.userToken}`,
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            data: {
+              patient: pending.patientId,
+              doctor: pending.doctorId,
+              dateTime: pending.dateTime,
+              type: pending.type,
+              statuse: 'confirmed',
+              price: pending.price,
+              paymentStatus: 'paid',
+              roomId: pending.roomId,
+            },
+          }),
         })
+        if (!apptRes.ok) {
+          const errText = await apptRes.text().catch(() => '')
+          throw new Error(`Strapi HTTP ${apptRes.status}: ${errText}`)
+        }
+        // Only mark as created after confirmed success — allows safe retry on failure
+        pending.appointmentCreated = true
         console.log(`[QR] Appointment created for billNumber: ${billNumber}`)
-        // Keep in map briefly so the frontend gets the PAID status on next poll
         setTimeout(() => pendingQRPayments.delete(billNumber), 60 * 1000)
       } catch (err) {
         console.error('[QR] appointment creation error:', err.message)
-        pending.appointmentCreated = false // allow retry
+        // appointmentCreated stays false — next poll will retry
       }
     }
 
@@ -326,27 +407,37 @@ app.post('/api/slot/verify', async (req, res) => {
       return res.json({ available: false, reason: 'Это время выбрано другим пациентом' })
     }
 
-    // 2. Check Strapi DB — slot must not be already booked
+    // 2. Check Strapi DB — slot must not be already booked.
+    // Fail CLOSED: if DB is unreachable we cannot confirm availability, so we reject.
     const dateTime = new Date(`${date}T${time}:00`)
     const slotEnd = new Date(dateTime.getTime() + 60 * 60 * 1000) // 1h window
-    const strapiCheck = await fetch(
-      `${STRAPI_API_URL}/api/appointments?filters[doctor][id][$eq]=${doctorId}` +
-      `&filters[dateTime][$gte]=${dateTime.toISOString()}` +
-      `&filters[dateTime][$lt]=${slotEnd.toISOString()}` +
-      `&filters[statuse][$in][0]=pending&filters[statuse][$in][1]=confirmed&filters[statuse][$in][2]=in_progress`,
-      { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` } }
-    ).catch(() => null)
+    let strapiCheck
+    try {
+      strapiCheck = await fetch(
+        `${STRAPI_API_URL}/api/appointments?filters[doctor][id][$eq]=${doctorId}` +
+        `&filters[dateTime][$gte]=${dateTime.toISOString()}` +
+        `&filters[dateTime][$lt]=${slotEnd.toISOString()}` +
+        `&filters[statuse][$in][0]=pending&filters[statuse][$in][1]=confirmed&filters[statuse][$in][2]=in_progress`,
+        { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` } }
+      )
+    } catch (fetchErr) {
+      console.error('[Slot verify] Strapi unreachable:', fetchErr.message)
+      return res.status(503).json({ available: false, reason: 'Сервис временно недоступен. Попробуйте снова.' })
+    }
 
-    if (strapiCheck?.ok) {
-      const strapiData = await strapiCheck.json()
-      const existing = strapiData?.data || []
-      if (existing.length > 0) {
-        // Slot is already booked in DB — also update socket reservations
-        if (!pendingSlotReservations.has(key)) {
-          io.to(`slots:${doctorId}:${date}`).emit('slot-booked', { time })
-        }
-        return res.json({ available: false, reason: 'Это время уже забронировано' })
+    if (!strapiCheck.ok) {
+      console.error('[Slot verify] Strapi responded HTTP', strapiCheck.status)
+      return res.status(503).json({ available: false, reason: 'Сервис временно недоступен. Попробуйте снова.' })
+    }
+
+    const strapiData = await strapiCheck.json()
+    const existing = strapiData?.data || []
+    if (existing.length > 0) {
+      // Slot is already booked in DB — also update socket reservations
+      if (!pendingSlotReservations.has(key)) {
+        io.to(`slots:${doctorId}:${date}`).emit('slot-booked', { time })
       }
+      return res.json({ available: false, reason: 'Это время уже забронировано' })
     }
 
     res.json({ available: true })
@@ -357,26 +448,45 @@ app.post('/api/slot/verify', async (req, res) => {
 })
 
 // POST /api/payment/epay-callback  (ePay postLink — works in production)
+// NOTE: Payment confirmation is handled by client-side polling (/api/payment/halyk-qr-status).
+// These callbacks serve as a secondary confirmation channel.
+// ePay requires a valid postLink URL — we acknowledge receipt but rely on polling.
 app.post('/api/payment/epay-callback', (req, res) => {
-  console.log('[ePay callback]', JSON.stringify(req.body))
+  strapi?.log?.info(JSON.stringify({ audit: 'EPAY_CALLBACK', body: req.body, ts: new Date().toISOString() }))
+    ?? console.log('[ePay callback]', JSON.stringify(req.body))
   res.sendStatus(200)
 })
 
-// POST /api/payment/epay-failure-callback
 app.post('/api/payment/epay-failure-callback', (req, res) => {
-  console.log('[ePay failure callback]', JSON.stringify(req.body))
+  console.warn('[ePay failure callback]', JSON.stringify(req.body))
   res.sendStatus(200)
 })
 
 // POST /api/payment/epay-token
 // Generates ePay OAuth token server-side (keeps ClientSecret secure)
 app.post('/api/payment/epay-token', async (req, res) => {
+  const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'
+  if (isRateLimited(clientIp, 'epay-token', 10, 60 * 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many payment requests. Please try again later.' })
+  }
   try {
-    const { invoiceId, amount, currency = 'KZT' } = req.body
-    if (!invoiceId || !amount) {
-      return res.status(400).json({ error: 'invoiceId and amount required' })
+    const { invoiceId, amount, doctorId, currency = 'KZT' } = req.body
+    if (!invoiceId || !amount || !doctorId) {
+      return res.status(400).json({ error: 'invoiceId, amount and doctorId required' })
     }
-    const auth = await getEPayAuthToken(invoiceId, amount, currency)
+
+    // Validate amount against canonical doctor price in Strapi
+    const actualPrice = await fetchDoctorPrice(doctorId)
+    const submittedAmount = Number(amount)
+
+    if (!submittedAmount || submittedAmount !== actualPrice) {
+      console.warn(
+        `[ePay] Amount mismatch for doctor ${doctorId}: submitted=${submittedAmount} actual=${actualPrice}`
+      )
+      return res.status(400).json({ error: 'Invalid payment amount' })
+    }
+
+    const auth = await getEPayAuthToken(invoiceId, actualPrice, currency)
     res.json({ auth, terminalId: EPAY_TERMINAL_ID, widgetUrl: EPAY_WIDGET_URL })
   } catch (err) {
     console.error('ePay token error:', err.message)
@@ -387,6 +497,51 @@ app.post('/api/payment/epay-token', async (req, res) => {
 // Socket.io сервер
 const io = new Server(server, {
   cors: corsOptions,
+})
+
+// Verified token cache: token → { userId, expiresAt }
+// Avoids hitting Strapi /api/users/me on every socket event.
+const tokenCache = new Map()
+const TOKEN_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+async function verifySocketToken(token) {
+  if (!token) return null
+  const now = Date.now()
+  const cached = tokenCache.get(token)
+  if (cached && now < cached.expiresAt) return cached.userId
+
+  const res = await fetch(`${STRAPI_API_URL}/api/users/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => null)
+
+  if (!res?.ok) {
+    tokenCache.delete(token)
+    return null
+  }
+  const user = await res.json().catch(() => null)
+  if (!user?.id) return null
+
+  tokenCache.set(token, { userId: user.id, expiresAt: now + TOKEN_CACHE_TTL })
+  return user.id
+}
+
+// Cleanup expired token cache entries every 10 minutes
+setInterval(() => {
+  const now = Date.now()
+  for (const [token, entry] of tokenCache) {
+    if (now >= entry.expiresAt) tokenCache.delete(token)
+  }
+}, 10 * 60 * 1000)
+
+// Auth middleware — rejects unauthenticated socket connections
+io.use(async (socket, next) => {
+  const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace('Bearer ', '')
+  const userId = await verifySocketToken(token)
+  if (!userId) {
+    return next(new Error('Authentication required'))
+  }
+  socket.verifiedUserId = userId
+  next()
 })
 
 // Хранение комнат и участников
@@ -656,32 +811,9 @@ io.on('connection', (socket) => {
   })
 })
 
-// Health check endpoint
+// Health check endpoint — minimal response, no internal state exposed
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    rooms: rooms.size,
-    timestamp: new Date().toISOString(),
-  })
-})
-
-// Информация о комнате (для отладки)
-app.get('/room/:roomId', (req, res) => {
-  const room = rooms.get(req.params.roomId)
-  if (!room) {
-    return res.status(404).json({ error: 'Room not found' })
-  }
-  
-  const participants = []
-  room.participants.forEach((p, socketId) => {
-    participants.push({ socketId, ...p })
-  })
-  
-  res.json({
-    roomId: room.id,
-    participantsCount: participants.length,
-    participants,
-  })
+  res.json({ status: 'ok' })
 })
 
 // Локально signaling-сервер работает на 1341

@@ -26,14 +26,18 @@ function PaymentSuccess() {
         }
 
         const booking = JSON.parse(raw);
-        sessionStorage.removeItem("pendingBooking");
+        // НЕ удаляем из sessionStorage до успешного создания —
+        // если пользователь обновит страницу в процессе, данные сохранятся
         createBookingAfterPayment(booking);
     }, [_hasHydrated]);
 
-    const createBookingAfterPayment = async (booking) => {
+    const createBookingAfterPayment = async (booking, attempt = 1) => {
+        const MAX_ATTEMPTS = 3;
+        const RETRY_DELAY_MS = 1500;
+
         try {
+            // patient is not sent — server forces patient = authenticated user
             const result = await createAppointment({
-                patient: booking.patientId,
                 doctor: booking.doctorId,
                 dateTime: booking.dateTime,
                 type: booking.type,
@@ -44,6 +48,8 @@ function PaymentSuccess() {
             });
 
             if (result.success) {
+                // Только после успеха удаляем из хранилища
+                sessionStorage.removeItem("pendingBooking");
                 setAppointmentInfo({
                     doctorName: booking.doctorName,
                     dateTime: new Date(booking.dateTime),
@@ -52,12 +58,29 @@ function PaymentSuccess() {
                 });
                 setStatus("success");
             } else {
-                setErrorMessage(result.error || "Ошибка создания записи");
-                setStatus("error");
+                // Сервер вернул ошибку — retry если попытки остались
+                if (attempt < MAX_ATTEMPTS) {
+                    setTimeout(
+                        () => createBookingAfterPayment(booking, attempt + 1),
+                        RETRY_DELAY_MS
+                    );
+                } else {
+                    sessionStorage.removeItem("pendingBooking");
+                    setErrorMessage(result.error || "Ошибка создания записи");
+                    setStatus("error");
+                }
             }
         } catch (err) {
-            setErrorMessage("Произошла ошибка. Обратитесь в поддержку.");
-            setStatus("error");
+            if (attempt < MAX_ATTEMPTS) {
+                setTimeout(
+                    () => createBookingAfterPayment(booking, attempt + 1),
+                    RETRY_DELAY_MS
+                );
+            } else {
+                sessionStorage.removeItem("pendingBooking");
+                setErrorMessage("Произошла ошибка. Обратитесь в поддержку.");
+                setStatus("error");
+            }
         }
     };
 
@@ -88,14 +111,24 @@ function PaymentSuccess() {
                         Ошибка создания записи
                     </h2>
                     <p className="text-slate-600 mb-2">{errorMessage}</p>
-                    <p className="text-sm text-slate-500 mb-6">
-                        Оплата прошла успешно. Пожалуйста, обратитесь в
-                        поддержку с чеком об оплате.
+                    <p className="text-sm text-slate-500 mb-2">
+                        Оплата прошла успешно, но запись не создалась автоматически.
                     </p>
-                    <Button
-                        onClick={() => navigate("/patient/appointments")}>
-                        Мои записи
-                    </Button>
+                    <p className="text-sm text-slate-500 mb-6">
+                        Напишите нам на{' '}
+                        <a href="mailto:support@nnmc.kz" className="text-teal-600 underline">
+                            support@nnmc.kz
+                        </a>{' '}
+                        с чеком об оплате — мы создадим запись вручную.
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                        <Button variant="outline" onClick={() => navigate("/patient/appointments")}>
+                            Мои записи
+                        </Button>
+                        <Button onClick={() => window.location.href = "mailto:support@nnmc.kz"}>
+                            Написать в поддержку
+                        </Button>
+                    </div>
                 </div>
             </div>
         );
