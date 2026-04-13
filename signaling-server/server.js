@@ -40,14 +40,20 @@ app.use(express.json())
 // Startup validation — fail fast if required env vars are missing
 // =====================================================
 const REQUIRED_ENV_VARS = [
-  'EPAY_CLIENT_ID', 'EPAY_CLIENT_SECRET', 'EPAY_TERMINAL_ID',
-  'EPAY_QR_CLIENT_ID', 'EPAY_QR_CLIENT_SECRET', 'EPAY_QR_TERMINAL_ID',
   'STRAPI_API_URL', 'STRAPI_API_TOKEN',
 ]
-const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v])
-if (missingVars.length > 0) {
-  console.error(`[STARTUP] Missing required environment variables: ${missingVars.join(', ')}`)
+const PAYMENT_ENV_VARS = [
+  'EPAY_CLIENT_ID', 'EPAY_CLIENT_SECRET', 'EPAY_TERMINAL_ID',
+  'EPAY_QR_CLIENT_ID', 'EPAY_QR_CLIENT_SECRET', 'EPAY_QR_TERMINAL_ID',
+]
+const missingRequired = REQUIRED_ENV_VARS.filter((v) => !process.env[v])
+if (missingRequired.length > 0) {
+  console.error(`[STARTUP] Missing required environment variables: ${missingRequired.join(', ')}`)
   process.exit(1)
+}
+const missingPayment = PAYMENT_ENV_VARS.filter((v) => !process.env[v])
+if (missingPayment.length > 0) {
+  console.warn(`[STARTUP] Missing ePay variables (live payments disabled): ${missingPayment.join(', ')}`)
 }
 
 // =====================================================
