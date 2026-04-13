@@ -104,14 +104,10 @@ const useAppointmentStore = create((set, get) => ({
     fetchBookedSlots: async (doctorId, date) => {
         set({ isLoading: true });
         try {
-            const response = await appointmentsAPI.getBookedSlots(doctorId, date);
-            const { data } = normalizeResponse(response);
-            // Извлекаем только время из dateTime для забронированных слотов
-            const bookedTimes = (data || []).map(apt => 
-                new Date(apt.dateTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-            );
-            set({ bookedSlots: bookedTimes, isLoading: false });
-            return bookedTimes;
+            // getBookedSlots уже возвращает массив строк "HH:mm"
+            const bookedTimes = await appointmentsAPI.getBookedSlots(doctorId, date);
+            set({ bookedSlots: bookedTimes || [], isLoading: false });
+            return bookedTimes || [];
         } catch (error) {
             console.error("Error fetching booked slots:", error);
             set({ error: error.message, isLoading: false, bookedSlots: [] });

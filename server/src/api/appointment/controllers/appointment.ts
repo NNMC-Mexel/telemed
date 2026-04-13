@@ -189,7 +189,9 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
       if (drForHours) {
         // Check working day (workingDays = "1,2,3,4,5", Mon=1 Sun=7 per ISO)
-        const isoDay = parsedDate.getDay() === 0 ? 7 : parsedDate.getDay();
+        // Используем казахстанское время (UTC+5) для определения дня недели
+        const kzDate = new Date(parsedDate.getTime() + 5 * 60 * 60 * 1000);
+        const isoDay = kzDate.getUTCDay() === 0 ? 7 : kzDate.getUTCDay();
         const workingDays = (drForHours.workingDays || '1,2,3,4,5')
           .split(',').map((d: string) => parseInt(d.trim(), 10));
         if (!workingDays.includes(isoDay)) {
@@ -197,11 +199,13 @@ export default factories.createCoreController('api::appointment.appointment', ()
         }
 
         // Check working hours — times stored as "HH:MM"
+        // Используем UTC+5 (Астана/Алматы) для сравнения с рабочими часами врача
         const toMinutes = (t: string) => {
           const [h, m] = t.split(':').map(Number);
           return h * 60 + m;
         };
-        const apptMinutes = parsedDate.getHours() * 60 + parsedDate.getMinutes();
+        const KZ_OFFSET = 5 * 60; // UTC+5 в минутах
+        const apptMinutes = (parsedDate.getUTCHours() * 60 + parsedDate.getUTCMinutes() + KZ_OFFSET) % 1440;
         const workStart = toMinutes(drForHours.workStartTime || '09:00');
         const workEnd   = toMinutes(drForHours.workEndTime   || '18:00');
         const breakStart = toMinutes(drForHours.breakStart    || '13:00');
