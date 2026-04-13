@@ -101,46 +101,51 @@ const filterPastSlots = (slots, selectedDate) => {
     });
 };
 
-// Test payment mode: set VITE_PAYMENT_MODE=test in .env for dev
-const IS_TEST_PAYMENT = import.meta.env.VITE_PAYMENT_MODE === "test";
+// Режим оплаты:
+// - VITE_PAYMENTS_LIVE=true → реальные платежи (Halyk, карта)
+// - Иначе → тестовая оплата (мгновенное подтверждение)
+// По умолчанию тестовый режим — включить реальные платежи через .env
+const IS_PAYMENTS_LIVE = import.meta.env.VITE_PAYMENTS_LIVE === "true";
 
-const paymentMethods = IS_TEST_PAYMENT
-    ? [
-          {
-              id: "test",
-              name: "Тестовая оплата",
-              icon: "🧪",
-              description: "Мгновенное подтверждение без реальной оплаты",
-              badge: "DEV",
-              disabled: false,
-          },
-      ]
-    : [
-          {
-              id: "kaspi",
-              name: "Kaspi QR",
-              icon: "🏦",
-              description: "Оплата через Kaspi.kz",
-              badge: "Скоро",
-              disabled: true,
-          },
-          {
-              id: "halyk",
-              name: "Halyk Bank",
-              icon: "🏛️",
-              description: "QR-оплата через Halyk Home Bank",
-              badge: "Рекомендуем",
-              disabled: false,
-          },
-          {
-              id: "card",
-              name: "Банковская карта",
-              icon: "💳",
-              description: "Visa / Mastercard · для международных платежей",
-              badge: null,
-              disabled: false,
-          },
-      ];
+const LIVE_PAYMENT_METHODS = [
+    {
+        id: "kaspi",
+        name: "Kaspi QR",
+        icon: "🏦",
+        description: "Оплата через Kaspi.kz",
+        badge: "Скоро",
+        disabled: true,
+    },
+    {
+        id: "halyk",
+        name: "Halyk Bank",
+        icon: "🏛️",
+        description: "QR-оплата через Halyk Home Bank",
+        badge: "Рекомендуем",
+        disabled: false,
+    },
+    {
+        id: "card",
+        name: "Банковская карта",
+        icon: "💳",
+        description: "Visa / Mastercard · для международных платежей",
+        badge: null,
+        disabled: false,
+    },
+];
+
+const TEST_PAYMENT_METHODS = [
+    {
+        id: "test",
+        name: "Тестовая оплата",
+        icon: "🧪",
+        description: "Мгновенное подтверждение без реальной оплаты",
+        badge: "Тест",
+        disabled: false,
+    },
+];
+
+const paymentMethods = IS_PAYMENTS_LIVE ? LIVE_PAYMENT_METHODS : TEST_PAYMENT_METHODS;
 
 const isMobileDevice = () =>
     /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
