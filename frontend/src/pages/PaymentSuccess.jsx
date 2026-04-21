@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { Check, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
+import { io } from "socket.io-client";
 import Button from "../components/ui/Button";
 import useAppointmentStore from "../stores/appointmentStore";
 import useAuthStore from "../stores/authStore";
 import { formatPrice } from "../utils/helpers";
+import { getSignalingUrl } from "../services/api";
 
 function PaymentSuccess() {
     const navigate = useNavigate();
@@ -31,6 +33,28 @@ function PaymentSuccess() {
         createBookingAfterPayment(booking);
     }, [_hasHydrated]);
 
+    // Notify other open BookingModals that this slot is now taken
+    const broadcastSlotConfirmed = (booking) => {
+        try {
+            const dt = new Date(booking.dateTime);
+            const date = format(dt, "yyyy-MM-dd");
+            const time = format(dt, "HH:mm");
+            const socket = io(getSignalingUrl(), {
+                transports: ["websocket", "polling"],
+            });
+            socket.on("connect", () => {
+                socket.emit("slot-confirmed", {
+                    doctorId: booking.doctorId,
+                    date,
+                    time,
+                });
+                setTimeout(() => socket.disconnect(), 500);
+            });
+        } catch {
+            // non-critical: clients will refresh slots on next open
+        }
+    };
+
     const createBookingAfterPayment = async (booking, attempt = 1) => {
         const MAX_ATTEMPTS = 3;
         const RETRY_DELAY_MS = 1500;
@@ -50,6 +74,7 @@ function PaymentSuccess() {
             if (result.success) {
                 // Только после успеха удаляем из хранилища
                 sessionStorage.removeItem("pendingBooking");
+                broadcastSlotConfirmed(booking);
                 setAppointmentInfo({
                     doctorName: booking.doctorName,
                     dateTime: new Date(booking.dateTime),

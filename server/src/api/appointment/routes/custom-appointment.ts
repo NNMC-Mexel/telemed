@@ -12,5 +12,12 @@ export default {
       info: { apiName: 'appointment', type: 'content-api' },
       config: { policies: [] },
     },
+    {
+      method: 'GET',
+      path: '/appointments/booked-slots/:doctorId',
+      handler: 'appointment.findBookedSlots',
+      info: { apiName: 'appointment', type: 'content-api' },
+      config: { policies: [] },
+    },
   ],
 };

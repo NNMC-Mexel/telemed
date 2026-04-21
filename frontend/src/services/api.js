@@ -521,25 +521,20 @@ export const timeSlotsAPI = {
 // ===========================================
 
 export const getBookedSlots = async (doctorId, date) => {
-    // Получаем все записи врача на указанную дату (не отменённые)
-    const startOfDay = `${date}T00:00:00.000Z`;
-    const endOfDay = `${date}T23:59:59.999Z`;
-    
-    const query = new URLSearchParams();
-    query.append("filters[doctor][id][$eq]", doctorId);
-    query.append("filters[dateTime][$gte]", startOfDay);
-    query.append("filters[dateTime][$lte]", endOfDay);
-    query.append("filters[statuse][$ne]", "cancelled"); // Не включаем отменённые
-    query.append("fields[0]", "dateTime");
-    
-    const response = await api.get(`/api/appointments?${query}`);
-    const { data } = normalizeResponse(response);
-    
-    // Возвращаем массив занятых времён в формате "HH:mm"
-    return (data || []).map(apt => {
-        const date = new Date(apt.dateTime);
-        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-    });
+    // Серверный эндпоинт обходит ownership-фильтр /api/appointments (пациент
+    // видит только свои записи) и возвращает только массив строк "HH:mm" в
+    // часовом поясе KZ. Таким образом при одновременной записи второй
+    // пациент не видит уже забронированные другим пациентом слоты.
+    try {
+        const response = await api.get(
+            `/api/appointments/booked-slots/${encodeURIComponent(doctorId)}?date=${encodeURIComponent(date)}`,
+        );
+        const slots = response?.data?.data?.slots;
+        return Array.isArray(slots) ? slots : [];
+    } catch (err) {
+        console.error('getBookedSlots failed:', err);
+        return [];
+    }
 };
 
 // ===========================================

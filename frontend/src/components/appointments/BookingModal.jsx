@@ -413,6 +413,18 @@ function BookingModal({ isOpen, onClose, doctor }) {
         return dateTime;
     };
 
+    // Broadcast confirmed booking to all open BookingModals for this doctor/date
+    // so their slot pickers immediately hide the now-taken slot.
+    const broadcastSlotConfirmed = () => {
+        const socket = socketRef.current;
+        if (!socket || !doctor?.id || !selectedDate || !selectedTime) return;
+        socket.emit("slot-confirmed", {
+            doctorId: doctor.id,
+            date: format(selectedDate, "yyyy-MM-dd"),
+            time: selectedTime,
+        });
+    };
+
     // Kaspi: create appointment immediately, show instructions in success screen
     const handleKaspiPayment = async () => {
         setIsProcessing(true);
@@ -436,6 +448,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
             if (result.success) {
                 setBookedSlots((prev) => [...prev, selectedTime]);
+                broadcastSlotConfirmed();
                 setIsComplete(true);
             } else {
                 const msg = result.error || "Ошибка создания записи";
@@ -620,6 +633,12 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     if (status === "PAID") {
                         clearInterval(pollInterval);
                         setHalykQRStatus("paid");
+                        setBookedSlots((prev) =>
+                            prev.includes(selectedTime)
+                                ? prev
+                                : [...prev, selectedTime]
+                        );
+                        broadcastSlotConfirmed();
                         // Give UI a moment then show success
                         setTimeout(() => {
                             setHalykQR(null);
@@ -680,6 +699,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
             if (result.success) {
                 setBookedSlots((prev) => [...prev, selectedTime]);
+                broadcastSlotConfirmed();
                 setIsComplete(true);
             } else {
                 const msg = result.error || "Ошибка создания записи";

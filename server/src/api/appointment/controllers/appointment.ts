@@ -352,6 +352,65 @@ export default factories.createCoreController('api::appointment.appointment', ()
   },
 
   /**
+   * GET /appointments/booked-slots/:doctorId?date=YYYY-MM-DD
+   * Возвращает массив занятых времён ["HH:mm"] в часовом поясе Казахстана
+   * (UTC+5) для указанного врача и даты. Обходит ownership-фильтр find(),
+   * но НЕ возвращает никаких данных пациентов — только строки времени.
+   * Используется UI записи чтобы не показывать забронированные слоты.
+   */
+  async findBookedSlots(ctx) {
+    const user = ctx.state.user;
+    if (!user) return ctx.unauthorized('Not authenticated');
+
+    const { doctorId } = ctx.params;
+    const date = ctx.query?.date as string | undefined;
+
+    if (!doctorId) return ctx.badRequest('doctorId required');
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return ctx.badRequest('date is required (YYYY-MM-DD)');
+    }
+
+    // Диапазон суток в UTC с запасом, чтобы покрыть записи, которые по UTC
+    // попадают в соседние сутки при KZ +5 (19:00 UTC = 00:00 KZ+1д).
+    const startUtc = new Date(`${date}T00:00:00.000Z`);
+    const endUtc = new Date(`${date}T23:59:59.999Z`);
+    const rangeStart = new Date(startUtc.getTime() - 6 * 60 * 60 * 1000);
+    const rangeEnd = new Date(endUtc.getTime() + 6 * 60 * 60 * 1000);
+
+    // Ищем по numeric id ИЛИ documentId — фронт может передать любое
+    const doctorFilter = /^\d+$/.test(String(doctorId))
+      ? { id: Number(doctorId) }
+      : { documentId: String(doctorId) };
+
+    const rows = await strapi.documents('api::appointment.appointment').findMany({
+      filters: {
+        doctor: doctorFilter,
+        dateTime: { $gte: rangeStart.toISOString(), $lte: rangeEnd.toISOString() },
+        statuse: { $ne: 'cancelled' },
+      },
+      fields: ['dateTime'],
+      limit: 500,
+    });
+
+    const KZ_OFFSET_MS = 5 * 60 * 60 * 1000;
+    const slots = new Set<string>();
+    for (const row of rows as any[]) {
+      if (!row?.dateTime) continue;
+      const kz = new Date(new Date(row.dateTime).getTime() + KZ_OFFSET_MS);
+      // Оставляем только слоты, попадающие на запрошенную KZ-дату
+      const y = kz.getUTCFullYear();
+      const m = String(kz.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(kz.getUTCDate()).padStart(2, '0');
+      if (`${y}-${m}-${d}` !== date) continue;
+      const h = String(kz.getUTCHours()).padStart(2, '0');
+      const min = String(kz.getUTCMinutes()).padStart(2, '0');
+      slots.add(`${h}:${min}`);
+    }
+
+    return { data: { slots: Array.from(slots).sort() } };
+  },
+
+  /**
    * GET /appointments/can-join/:roomId
    * Возвращает авторитетное решение серверного времени:
    *   allowed, reason, serverTime, windowStart, windowEnd, dateTime.

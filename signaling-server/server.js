@@ -756,6 +756,21 @@ io.on('connection', (socket) => {
     }
   })
 
+  // Клиент вызывает после успешного создания записи — сервер рассылает
+  // slot-booked всем наблюдателям, чтобы у них слот исчез, а не превратился
+  // обратно в свободный после release.
+  socket.on('slot-confirmed', ({ doctorId, date, time }) => {
+    if (!doctorId || !date || !time) return
+    const key = `${doctorId}|${date}|${time}`
+    const val = pendingSlotReservations.get(key)
+    if (val) {
+      clearTimeout(val.timer)
+      pendingSlotReservations.delete(key)
+    }
+    io.to(`slots:${doctorId}:${date}`).emit('slot-booked', { time })
+    console.log(`[Slots] CONFIRMED ${key} by socket ${socket.id}`)
+  })
+
   // Отключение
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`)
