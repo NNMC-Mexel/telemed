@@ -740,7 +740,10 @@ io.on('connection', (socket) => {
       console.log(`[Slots] TTL expired: ${key}`)
     }, SLOT_RESERVATION_TTL)
     pendingSlotReservations.set(key, { socketId: socket.id, userId, expiresAt, timer })
-    io.to(`slots:${doctorId}:${date}`).emit('slot-reserved', { time, expiresAt })
+    // socket.to(room) broadcasts to the room EXCLUDING the sender — the
+    // reserving client already gets confirmation via reserve-slot-result and
+    // does not need a slot-reserved echo (would be mistaken for a foreign hold).
+    socket.to(`slots:${doctorId}:${date}`).emit('slot-reserved', { time, expiresAt })
     socket.emit('reserve-slot-result', { success: true, time, expiresAt })
     console.log(`[Slots] Reserved ${key} by socket ${socket.id}`)
   })
@@ -767,7 +770,9 @@ io.on('connection', (socket) => {
       clearTimeout(val.timer)
       pendingSlotReservations.delete(key)
     }
-    io.to(`slots:${doctorId}:${date}`).emit('slot-booked', { time })
+    // Exclude sender: the booking client is on the success screen and doesn't
+    // need a slot-booked echo that would clear its own selectedTime.
+    socket.to(`slots:${doctorId}:${date}`).emit('slot-booked', { time })
     console.log(`[Slots] CONFIRMED ${key} by socket ${socket.id}`)
   })
 

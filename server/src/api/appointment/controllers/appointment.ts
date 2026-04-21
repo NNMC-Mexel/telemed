@@ -292,6 +292,10 @@ export default factories.createCoreController('api::appointment.appointment', ()
         const slotStart = new Date(requestedTime);
         const slotEnd = new Date(requestedTime.getTime() + slotMinutes * 60 * 1000);
 
+        // Filter by documentId (same for draft + published) so this works
+        // with Strapi v5's default draft-biased findMany. Keeping it on drafts
+        // also means cancelled bookings (default update writes to draft) are
+        // treated as free, letting the slot be re-booked.
         const existing = await strapi.documents('api::appointment.appointment').findMany({
           filters: {
             doctor: { documentId: doctorDocId },
@@ -377,14 +381,26 @@ export default factories.createCoreController('api::appointment.appointment', ()
     const rangeStart = new Date(startUtc.getTime() - 6 * 60 * 60 * 1000);
     const rangeEnd = new Date(endUtc.getTime() + 6 * 60 * 60 * 1000);
 
-    // Ищем по numeric id ИЛИ documentId — фронт может передать любое
-    const doctorFilter = /^\d+$/.test(String(doctorId))
-      ? { id: Number(doctorId) }
-      : { documentId: String(doctorId) };
+    // Фронт обычно шлёт numeric id (published version of the doctor). In
+    // Strapi v5 each document has a draft row and a published row with
+    // DIFFERENT numeric ids, and the draft appointment links to the draft
+    // doctor (not the published one). findMany defaults to drafts, so filtering
+    // drafts by the published doctor's numeric id silently returns nothing.
+    // Resolve to documentId (shared across draft+published) before querying.
+    let doctorDocId: string | undefined;
+    if (/^\d+$/.test(String(doctorId))) {
+      const d = await strapi.query('api::doctor.doctor').findOne({ where: { id: Number(doctorId) } });
+      doctorDocId = d?.documentId;
+    } else {
+      doctorDocId = String(doctorId);
+    }
+    if (!doctorDocId) {
+      return { data: { slots: [] } };
+    }
 
     const rows = await strapi.documents('api::appointment.appointment').findMany({
       filters: {
-        doctor: doctorFilter,
+        doctor: { documentId: doctorDocId },
         dateTime: { $gte: rangeStart.toISOString(), $lte: rangeEnd.toISOString() },
         statuse: { $ne: 'cancelled' },
       },

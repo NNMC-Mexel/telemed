@@ -197,6 +197,13 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const [reservedByOthers, setReservedByOthers] = useState(new Map())
     const socketRef = useRef(null)
 
+    // Ref-mirror of selectedTime so socket handlers always see the fresh value
+    // (the socket useEffect closes over the snapshot at subscribe time)
+    const selectedTimeRef = useRef(null)
+    useEffect(() => {
+        selectedTimeRef.current = selectedTime
+    }, [selectedTime])
+
     // Countdown ticks to refresh remaining time labels
     const [, setTick] = useState(0)
     useEffect(() => {
@@ -262,6 +269,23 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
         socket.emit("join-slot-watch", { doctorId: doctor.id, date: dateStr })
 
+        // Re-fetch booked slots once the socket is actually connected — closes
+        // the race where someone booked between the initial getBookedSlots()
+        // call and our join-slot-watch (we would have missed slot-booked).
+        socket.on("connect", async () => {
+            try {
+                const fresh = await getBookedSlots(doctor.id, dateStr)
+                setBookedSlots(fresh)
+                if (selectedTimeRef.current && fresh.includes(selectedTimeRef.current)) {
+                    toast.error("К сожалению, это время уже забронировано. Выберите другое.")
+                    setSelectedTime(null)
+                    setStep(1)
+                }
+            } catch {
+                // non-critical — initial fetch in loadSlots already ran
+            }
+        })
+
         socket.on("current-reservations", (reservations) => {
             const now = Date.now()
             const map = new Map()
@@ -277,6 +301,13 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 next.set(time, expiresAt)
                 return next
             })
+            // If the user had this exact time selected (possible after their own
+            // TTL expired and someone else grabbed it), kick them back to step 1.
+            if (selectedTimeRef.current === time) {
+                toast.error("Это время только что выбрал другой пациент. Пожалуйста, выберите другое.")
+                setSelectedTime(null)
+                setStep(1)
+            }
         })
 
         socket.on("slot-released", ({ time }) => {
@@ -303,6 +334,14 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 next.delete(time)
                 return next
             })
+            // If the user already selected this time and moved past step 1,
+            // they won't see it disappear from the picker — reset them so they
+            // can't continue to payment with a now-booked slot.
+            if (selectedTimeRef.current === time) {
+                toast.error("К сожалению, это время только что забронировал другой пациент. Выберите другое.")
+                setSelectedTime(null)
+                setStep(1)
+            }
         })
 
         return () => {
