@@ -21,7 +21,7 @@ import Modal from '../../components/ui/Modal'
 import useAuthStore from '../../stores/authStore'
 import useAppointmentStore from '../../stores/appointmentStore'
 import { formatRelativeDate, formatPrice, formatDate } from '../../utils/helpers'
-import { getMediaUrl } from '../../services/api'
+import { getMediaUrl, getServerNow } from '../../services/api'
 
 const statusLabels = {
   pending: 'Ожидает подтверждения',
@@ -276,7 +276,7 @@ function PatientAppointments() {
               : appointment.doctor?.specialization || ''
 
             const appointmentDate = new Date(appointment.dateTime)
-            const now = new Date()
+            const now = getServerNow()
 
             // Длительность консультации (из настроек врача или 30 мин по умолчанию)
             const consultationDuration = appointment.doctor?.consultationDuration || 30

@@ -146,10 +146,35 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Response interceptor - обработка ошибок
+// ── Server time sync ──────────────────────────────────────────────
+// Девайсные часы нельзя доверять (неверный TZ / сбитое системное время).
+// Каждый ответ сервера несёт заголовок `Date` — используем его как источник
+// истины и храним дельту (серверное − локальное) в мс.
+let serverTimeOffsetMs = 0;
+
+export const getServerNow = () => new Date(Date.now() + serverTimeOffsetMs);
+export const getServerTimeOffsetMs = () => serverTimeOffsetMs;
+
+// Response interceptor - обработка ошибок + синхронизация времени
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        const dateHeader = response?.headers?.date;
+        if (dateHeader) {
+            const serverMs = Date.parse(dateHeader);
+            if (!Number.isNaN(serverMs)) {
+                serverTimeOffsetMs = serverMs - Date.now();
+            }
+        }
+        return response;
+    },
     (error) => {
+        const dateHeader = error?.response?.headers?.date;
+        if (dateHeader) {
+            const serverMs = Date.parse(dateHeader);
+            if (!Number.isNaN(serverMs)) {
+                serverTimeOffsetMs = serverMs - Date.now();
+            }
+        }
         if (error.response?.status === 401) {
             localStorage.removeItem("auth-storage");
             window.location.href = "/login";
@@ -465,6 +490,11 @@ export const appointmentsAPI = {
 
     cancel: (id) =>
         api.put(`/api/appointments/${id}`, { data: { statuse: "cancelled" } }),
+
+    // Серверная проверка: можно ли подключиться к видеоконсультации сейчас.
+    // Возвращает { allowed, reason, serverTime, dateTime, windowStart, windowEnd, status }.
+    canJoin: (roomId) =>
+        api.get(`/api/appointments/can-join/${encodeURIComponent(roomId)}`),
 };
 // ===========================================
 // API для временных слотов
@@ -476,8 +506,7 @@ export const timeSlotsAPI = {
         query.append("filters[doctor][id][$eq]", doctorId);
         query.append("filters[date][$eq]", date);
         query.append("filters[isBooked][$eq]", "false");
-        query.append("filters[isBlocked][$eq]", "false");
-        query.append("sort", "startTime:asc");
+        query.append("sort", "time:asc");
 
         return api.get(`/api/time-slots?${query}`);
     },
@@ -521,7 +550,6 @@ export const conversationsAPI = {
     getAll: (userId) => {
         const query = new URLSearchParams();
         query.append("populate[users_permissions_users][populate]", "*");
-        query.append("populate[lastMessage]", "*");
         query.append("sort", "updatedAt:desc");
 
         if (userId) {
@@ -638,56 +666,30 @@ export const reviewsAPI = {
 // API для уведомлений
 // ===========================================
 
-let notificationsDisabled = false;
-
 export const notificationsAPI = {
-    getAll: async (userId) => {
-        if (!userId || notificationsDisabled) {
-            return { data: { data: [] } };
-        }
+    getAll: async (userId, { limit = 50 } = {}) => {
+        if (!userId) return { data: { data: [] } };
         const query = new URLSearchParams();
-        query.append("filters[user][id][$eq]", userId);
         query.append("sort", "createdAt:desc");
-        query.append("populate", "*");
-        query.append("pagination[limit]", "100");
-        try {
-            return await api.get(`/api/notifications?${query}`);
-        } catch (error) {
-            if (error?.response?.status === 404) {
-                notificationsDisabled = true;
-                return { data: { data: [] } };
-            }
-            throw error;
-        }
+        query.append("pagination[limit]", String(limit));
+        return api.get(`/api/notifications?${query}`);
     },
 
-    markAsRead: async (id) => {
-        if (!id || notificationsDisabled) {
-            return { data: { data: null } };
-        }
-        try {
-            return await api.put(`/api/notifications/${id}`, { data: { isRead: true } });
-        } catch (error) {
-            if (error?.response?.status === 404) {
-                notificationsDisabled = true;
-                return { data: { data: null } };
-            }
-            throw error;
-        }
+    unreadCount: async () => {
+        return api.get("/api/notifications/unread-count");
     },
 
-    markAllAsRead: async (userId) => {
-        if (!userId || notificationsDisabled) {
-            return { data: { data: null } };
-        }
-        try {
-            return await api.put("/api/notifications/mark-all-read", { userId });
-        } catch (error) {
-            if (error?.response?.status === 404) {
-                notificationsDisabled = true;
-                return { data: { data: null } };
-            }
-            throw error;
-        }
+    markAsRead: async (documentId) => {
+        if (!documentId) return { data: { data: null } };
+        return api.put(`/api/notifications/${documentId}`, { data: { isRead: true } });
+    },
+
+    markAllAsRead: async () => {
+        return api.put("/api/notifications/mark-all-read");
+    },
+
+    remove: async (documentId) => {
+        if (!documentId) return { data: { data: null } };
+        return api.delete(`/api/notifications/${documentId}`);
     },
 };

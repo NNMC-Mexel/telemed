@@ -12,7 +12,7 @@ export default factories.createCoreRouter('api::medical-document.medical-documen
       policies: ['global::is-medical-document-participant'],
     },
     delete: {
-      policies: ['global::is-admin'],
+      policies: ['global::is-owner'],
     },
   },
 });

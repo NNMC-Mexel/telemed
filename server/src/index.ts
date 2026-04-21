@@ -35,6 +35,7 @@ const roleDefinitions = {
       'api::appointment.appointment.findOne',
       'api::appointment.appointment.create',
       'api::appointment.appointment.update',
+      'api::appointment.appointment.canJoin',
       // Reviews — чтение + создание
       'api::review.review.find',
       'api::review.review.findOne',
@@ -53,6 +54,13 @@ const roleDefinitions = {
       'api::medical-document.medical-document.find',
       'api::medical-document.medical-document.findOne',
       'api::medical-document.medical-document.create',
+      // Notifications — свои
+      'api::notification.notification.find',
+      'api::notification.notification.findOne',
+      'api::notification.notification.update',
+      'api::notification.notification.delete',
+      'api::notification.notification.unreadCount',
+      'api::notification.notification.markAllAsRead',
       // Upload
       'plugin::upload.content-api.upload',
       'plugin::upload.content-api.find',
@@ -76,6 +84,7 @@ const roleDefinitions = {
       'api::appointment.appointment.find',
       'api::appointment.appointment.findOne',
       'api::appointment.appointment.update',
+      'api::appointment.appointment.canJoin',
       // Reviews — только чтение
       'api::review.review.find',
       'api::review.review.findOne',
@@ -97,6 +106,13 @@ const roleDefinitions = {
       'api::medical-document.medical-document.findOne',
       'api::medical-document.medical-document.create',
       'api::medical-document.medical-document.update',
+      // Notifications — свои
+      'api::notification.notification.find',
+      'api::notification.notification.findOne',
+      'api::notification.notification.update',
+      'api::notification.notification.delete',
+      'api::notification.notification.unreadCount',
+      'api::notification.notification.markAllAsRead',
       // Upload
       'plugin::upload.content-api.upload',
       'plugin::upload.content-api.find',
@@ -127,6 +143,7 @@ const roleDefinitions = {
       'api::appointment.appointment.create',
       'api::appointment.appointment.update',
       'api::appointment.appointment.delete',
+      'api::appointment.appointment.canJoin',
       // Reviews — полный CRUD
       'api::review.review.find',
       'api::review.review.findOne',
@@ -156,6 +173,14 @@ const roleDefinitions = {
       'api::medical-document.medical-document.create',
       'api::medical-document.medical-document.update',
       'api::medical-document.medical-document.delete',
+      // Notifications — полный CRUD
+      'api::notification.notification.find',
+      'api::notification.notification.findOne',
+      'api::notification.notification.create',
+      'api::notification.notification.update',
+      'api::notification.notification.delete',
+      'api::notification.notification.unreadCount',
+      'api::notification.notification.markAllAsRead',
       // Articles — полный CRUD
       'api::article.article.find',
       'api::article.article.findOne',

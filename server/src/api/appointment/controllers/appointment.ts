@@ -350,4 +350,84 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
     return { data: result.appointment };
   },
+
+  /**
+   * GET /appointments/can-join/:roomId
+   * Возвращает авторитетное решение серверного времени:
+   *   allowed, reason, serverTime, windowStart, windowEnd, dateTime.
+   * Защищает от неверных часов/TZ на клиентском устройстве.
+   */
+  async canJoin(ctx) {
+    const user = ctx.state.user;
+    if (!user) return ctx.unauthorized('Not authenticated');
+
+    const { roomId } = ctx.params;
+    if (!roomId || typeof roomId !== 'string') {
+      return ctx.badRequest('roomId required');
+    }
+
+    const list = await strapi.documents('api::appointment.appointment').findMany({
+      filters: { roomId },
+      populate: {
+        doctor: {
+          fields: ['id', 'consultationDuration'],
+          populate: { users_permissions_user: { fields: ['id'] } },
+        },
+        patient: { fields: ['id'] },
+      },
+    });
+
+    const appointment = list?.[0];
+    if (!appointment) return ctx.notFound('Appointment not found');
+
+    const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
+    const isPatientParticipant = appointment.patient?.id === user.id;
+    const isDoctorParticipant = appointment.doctor?.users_permissions_user?.id === user.id;
+
+    if (!isAdmin && !isPatientParticipant && !isDoctorParticipant) {
+      return ctx.forbidden('Not a participant of this appointment');
+    }
+
+    const now = new Date();
+    const dateTime = appointment.dateTime ? new Date(appointment.dateTime) : null;
+    if (!dateTime || isNaN(dateTime.getTime())) {
+      return ctx.badRequest('Appointment has invalid dateTime');
+    }
+
+    const duration = Number((appointment.doctor as any)?.consultationDuration) || 30;
+    const BUFFER_BEFORE_MS = 15 * 60 * 1000;
+    const BUFFER_AFTER_MS = 5 * 60 * 1000;
+    const windowStart = new Date(dateTime.getTime() - BUFFER_BEFORE_MS);
+    const windowEnd = new Date(dateTime.getTime() + duration * 60 * 1000 + BUFFER_AFTER_MS);
+
+    const allowedStatuses = ['pending', 'confirmed', 'in_progress'];
+    const status = (appointment as any).statuse;
+
+    let allowed = true;
+    let reason: string | null = null;
+
+    if (!allowedStatuses.includes(status)) {
+      allowed = false;
+      reason = status === 'cancelled' ? 'cancelled' : 'wrong_status';
+    } else if (now < windowStart) {
+      allowed = false;
+      reason = 'too_early';
+    } else if (now > windowEnd) {
+      allowed = false;
+      reason = 'too_late';
+    }
+
+    return {
+      data: {
+        allowed,
+        reason,
+        serverTime: now.toISOString(),
+        dateTime: dateTime.toISOString(),
+        windowStart: windowStart.toISOString(),
+        windowEnd: windowEnd.toISOString(),
+        status,
+        consultationDuration: duration,
+      },
+    };
+  },
 }));

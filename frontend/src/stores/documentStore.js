@@ -100,7 +100,7 @@ const useDocumentStore = create((set, get) => ({
       await documentsAPI.delete(id)
       
       set((state) => ({
-        documents: state.documents.filter((doc) => doc.id !== id),
+        documents: state.documents.filter((doc) => doc.documentId !== id),
         isLoading: false,
       }))
       

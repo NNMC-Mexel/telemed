@@ -359,7 +359,7 @@ function PublicLayout() {
             {/* Footer */}
             <footer id='contact' className='bg-slate-900 text-white'>
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16'>
-                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12'>
+                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12'>
                         {/* Brand */}
                         <div>
                             <div className='flex items-center gap-3 mb-6'>
@@ -417,17 +417,47 @@ function PublicLayout() {
                             </ul>
                         </div>
 
-                        {/* Services */}
-                        <div>
+                        {/* Services - временно скрыто */}
+                        {/* <div>
                             <h4 className='font-semibold mb-6'>Услуги</h4>
-                            <ul className='space-y-3 text-sm text-slate-400'>
-                                <li>Онлайн-консультации</li>
-                                <li>Видеозвонки с врачами</li>
-                                <li>Электронные рецепты</li>
-                                <li>Медицинские документы</li>
-                                <li>Второе мнение</li>
+                            <ul className='space-y-3'>
+                                <li>
+                                    <Link
+                                        to='/doctors'
+                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                        Онлайн-консультации
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link
+                                        to='/doctors'
+                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                        Видеозвонки с врачами
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link
+                                        to='/doctors'
+                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                        Электронные рецепты
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link
+                                        to='/doctors'
+                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                        Медицинские документы
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link
+                                        to='/doctors'
+                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                        Второе мнение
+                                    </Link>
+                                </li>
                             </ul>
-                        </div>
+                        </div> */}
 
                         {/* Contact */}
                         <div>

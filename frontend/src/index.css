@@ -144,14 +144,23 @@
 }
 
 @keyframes scaleIn {
-  from { 
+  from {
     opacity: 0;
     transform: scale(0.95);
   }
-  to { 
+  to {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-12deg); }
+  30% { transform: rotate(10deg); }
+  45% { transform: rotate(-8deg); }
+  60% { transform: rotate(6deg); }
+  75% { transform: rotate(-3deg); }
 }
 
 /* Utility Classes */
@@ -168,8 +177,13 @@
     animation: slideDown 0.4s ease-out; 
   }
   
-  .animate-scaleIn { 
-    animation: scaleIn 0.3s ease-out; 
+  .animate-scaleIn {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  .animate-wiggle {
+    animation: wiggle 0.8s ease-in-out 1;
+    transform-origin: top center;
   }
 
   /* Stagger Children Animation */

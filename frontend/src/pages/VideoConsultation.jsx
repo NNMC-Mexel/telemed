@@ -94,6 +94,12 @@ function VideoConsultation() {
   const [containerHeight, setContainerHeight] = useState(0)
   const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
+  // Серверная проверка временного окна подключения.
+  // 'checking' | 'allowed' | 'denied'. Девайсные часы здесь не используются —
+  // авторитет только у сервера.
+  const [accessStatus, setAccessStatus] = useState('checking')
+  const [accessDenyInfo, setAccessDenyInfo] = useState(null)
+
   // Notes state
   const [notesTab, setNotesTab] = useState('diagnosis')
   const [diagnosisText, setDiagnosisText] = useState('')
@@ -176,6 +182,42 @@ function VideoConsultation() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Серверный gate: canJoin по серверному времени.
+  useEffect(() => {
+    let cancelled = false
+    const check = async () => {
+      if (!roomId) return
+      try {
+        const res = await appointmentsAPI.canJoin(roomId)
+        if (cancelled) return
+        const payload = res?.data?.data || res?.data || {}
+        if (payload.allowed) {
+          setAccessStatus('allowed')
+        } else {
+          setAccessStatus('denied')
+          setAccessDenyInfo({
+            reason: payload.reason,
+            dateTime: payload.dateTime,
+            windowStart: payload.windowStart,
+            windowEnd: payload.windowEnd,
+            serverTime: payload.serverTime,
+          })
+        }
+      } catch (err) {
+        if (cancelled) return
+        const status = err?.response?.status
+        setAccessStatus('denied')
+        setAccessDenyInfo({
+          reason: status === 403 ? 'not_participant' : status === 404 ? 'not_found' : 'error',
+        })
+      }
+    }
+    check()
+    return () => {
+      cancelled = true
+    }
+  }, [roomId])
 
   useEffect(() => {
     const fetchAppointment = async () => {
@@ -280,6 +322,8 @@ function VideoConsultation() {
   const participant = getParticipantInfo()
 
   useEffect(() => {
+    // Не инициализируем WebRTC/медиа до подтверждения серверного окна.
+    if (accessStatus !== 'allowed') return
     let mounted = true
 
     const init = async () => {
@@ -450,7 +494,7 @@ function VideoConsultation() {
       socketRef.current?.emit('leave-room')
       socketRef.current?.disconnect()
     }
-  }, [roomId, user])
+  }, [roomId, user, accessStatus])
 
   const handleReconnect = () => {
     if (reconnectAttemptsRef.current >= 3) {
@@ -882,6 +926,64 @@ function VideoConsultation() {
     } finally {
       setIsSavingPrescriptions(false)
     }
+  }
+
+  if (accessStatus === 'checking') {
+    return (
+      <div className="min-h-[calc(var(--app-height)-var(--safe-top))] bg-slate-900 flex flex-col items-center justify-center text-white px-6 pt-[var(--safe-top)]">
+        <Loader2 className="w-10 h-10 animate-spin text-teal-400 mb-4" />
+        <p className="text-slate-200">Проверка доступа к консультации…</p>
+      </div>
+    )
+  }
+
+  if (accessStatus === 'denied') {
+    const formatKz = (iso) => {
+      if (!iso) return ''
+      try {
+        return new Date(iso).toLocaleString('ru-RU', {
+          timeZone: 'Asia/Almaty',
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      } catch { return '' }
+    }
+    const reasonMap = {
+      too_early: {
+        title: 'Консультация ещё не началась',
+        detail: accessDenyInfo?.dateTime
+          ? `Подключение откроется за 15 минут до начала — в ${formatKz(accessDenyInfo.windowStart)}. Начало консультации: ${formatKz(accessDenyInfo.dateTime)} (время Астаны).`
+          : 'Подключение откроется ближе ко времени консультации.',
+      },
+      too_late: {
+        title: 'Время консультации истекло',
+        detail: 'Окно подключения закрыто. Свяжитесь с поддержкой, если считаете это ошибкой.',
+      },
+      cancelled: { title: 'Консультация отменена', detail: 'Эта запись была отменена.' },
+      wrong_status: { title: 'Подключение недоступно', detail: 'Консультация уже завершена или недоступна.' },
+      not_participant: { title: 'Нет доступа', detail: 'Вы не являетесь участником этой консультации.' },
+      not_found: { title: 'Консультация не найдена', detail: 'Проверьте ссылку и попробуйте снова.' },
+      error: { title: 'Ошибка проверки доступа', detail: 'Попробуйте ещё раз через несколько секунд.' },
+    }
+    const { title, detail } = reasonMap[accessDenyInfo?.reason] || reasonMap.error
+    return (
+      <div className="min-h-[calc(var(--app-height)-var(--safe-top))] bg-slate-900 flex flex-col items-center justify-center text-white px-6 pt-[var(--safe-top)]">
+        <div className="max-w-md w-full bg-slate-800/70 rounded-2xl p-6 border border-slate-700 text-center">
+          <AlertCircle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+          <h2 className="text-xl font-semibold mb-2">{title}</h2>
+          <p className="text-slate-300 text-sm mb-5">{detail}</p>
+          <Button
+            variant="secondary"
+            onClick={() => navigate(isDoctor ? '/doctor/schedule' : '/patient/appointments')}
+          >
+            Вернуться к записям
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

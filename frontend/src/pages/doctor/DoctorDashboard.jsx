@@ -20,7 +20,7 @@ import Button from "../../components/ui/Button";
 import Avatar from "../../components/ui/Avatar";
 import Badge from "../../components/ui/Badge";
 import useAuthStore from "../../stores/authStore";
-import api, { normalizeResponse, getMediaUrl } from "../../services/api";
+import api, { normalizeResponse, getMediaUrl, getServerNow } from "../../services/api";
 import {
     formatRelativeDate,
     formatPrice,
@@ -277,7 +277,7 @@ function DoctorDashboard() {
                                         hour: "2-digit",
                                         minute: "2-digit",
                                     });
-                                    const now = new Date();
+                                    const now = getServerNow();
                                     const aptTime = new Date(
                                         appointment.dateTime,
                                     );
@@ -437,7 +437,7 @@ function DoctorDashboard() {
                     {/* Next Appointment */}
                     {nextAppointment &&
                         (() => {
-                            const now = new Date();
+                            const now = getServerNow();
                             const aptTime = new Date(nextAppointment.dateTime);
                             const consultationDuration =
                                 doctor?.consultationDuration || 30;

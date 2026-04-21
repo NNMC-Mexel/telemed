@@ -616,7 +616,7 @@ function PatientDocuments() {
                             <Download className="w-5 h-5" />
                           </button>
                           <button
-                            onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(doc.id) }}
+                            onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(doc.documentId) }}
                             className="p-2 hover:bg-red-100 rounded-lg text-slate-500 hover:text-red-600"
                             title="Удалить"
                           >

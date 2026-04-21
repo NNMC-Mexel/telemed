@@ -25,7 +25,7 @@ import Select from "../../components/ui/Select";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { ru } from "date-fns/locale";
 import useAuthStore from "../../stores/authStore";
-import api, { normalizeResponse, getMediaUrl } from "../../services/api";
+import api, { normalizeResponse, getMediaUrl, getServerNow } from "../../services/api";
 
 // Генерируем все возможные временные слоты для выбора в настройках (каждые 30 минут)
 const generateAllTimeOptions = () => {
@@ -469,7 +469,7 @@ function DoctorSchedule() {
                                                         </div>
                                                         <div className='flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end'>
                                                             {(() => {
-                                                                const now = new Date();
+                                                                const now = getServerNow();
                                                                 const aptTime = new Date(appointment.dateTime);
                                                                 const consultationDuration = doctor?.consultationDuration || doctor?.slotDuration || 30;
                                                                 const bufferMinutes = 5;
