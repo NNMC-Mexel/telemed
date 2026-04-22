@@ -66,6 +66,7 @@ export const appointmentStatusMap = {
   in_progress: { label: 'В процессе', color: 'bg-green-100 text-green-800' },
   completed: { label: 'Завершено', color: 'bg-gray-100 text-gray-800' },
   cancelled: { label: 'Отменено', color: 'bg-red-100 text-red-800' },
+  no_show: { label: 'Звонок не состоялся', color: 'bg-orange-100 text-orange-800' },
 }
 
 export const getStatusInfo = (status) => {

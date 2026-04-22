@@ -34,7 +34,8 @@
         "confirmed",
         "in_progress",
         "completed",
-        "cancelled"
+        "cancelled",
+        "no_show"
       ]
     },
     "type": {

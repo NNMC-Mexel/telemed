@@ -508,7 +508,14 @@ export interface ApiAppointmentAppointment extends Struct.CollectionTypeSchema {
     review: Schema.Attribute.Text;
     roomId: Schema.Attribute.String;
     statuse: Schema.Attribute.Enumeration<
-      ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled']
+      [
+        'pending',
+        'confirmed',
+        'in_progress',
+        'completed',
+        'cancelled',
+        'no_show',
+      ]
     > &
       Schema.Attribute.DefaultTo<'pending'>;
     type: Schema.Attribute.Enumeration<['video', 'chat']> &

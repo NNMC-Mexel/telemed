@@ -26,8 +26,10 @@ import { getMediaUrl, getServerNow } from '../../services/api'
 const statusLabels = {
   pending: 'Ожидает подтверждения',
   confirmed: 'Подтверждено',
+  in_progress: 'Идёт консультация',
   completed: 'Завершено',
   cancelled: 'Отменено',
+  no_show: 'Звонок не состоялся',
 }
 
 // Уведомление о результате отмены
@@ -71,8 +73,10 @@ const CancelResultNotification = ({ show, refundable, amount, onClose }) => {
 const statusVariants = {
   pending: 'default',
   confirmed: 'primary',
+  in_progress: 'success',
   completed: 'success',
   cancelled: 'danger',
+  no_show: 'warning',
 }
 
 function PatientAppointments() {
@@ -92,14 +96,23 @@ function PatientAppointments() {
     }
   }, [user?.id])
 
-  // Функция для проверки, прошла ли запись (на основе длительности консультации)
   const isAppointmentPast = (appointment) => {
     const appointmentDate = new Date(appointment.dateTime)
-    // Длительность консультации + буфер 5 минут
     const consultationDuration = appointment.doctor?.consultationDuration || 30
-    const bufferMinutes = 5
-    const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000)
+    const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + 5) * 60 * 1000)
     return new Date() > consultationEnd || appointment.status === 'completed'
+  }
+
+  // Returns the status to display. While the cron job hasn't yet updated the DB,
+  // past confirmed/pending appointments are shown as no_show in the UI.
+  const getEffectiveStatus = (appointment) => {
+    if (
+      ['confirmed', 'pending'].includes(appointment.status) &&
+      isAppointmentPast(appointment)
+    ) {
+      return 'no_show'
+    }
+    return appointment.status
   }
 
   const filteredAppointments = appointments.filter(apt => {
@@ -111,8 +124,7 @@ function PatientAppointments() {
       return ['pending', 'confirmed'].includes(apt.status) && !isPast
     }
     if (filter === 'completed') {
-      // Завершённые - или статус completed, или прошло более часа
-      return apt.status === 'completed' || 
+      return ['completed', 'no_show', 'in_progress'].includes(apt.status) ||
              (['pending', 'confirmed'].includes(apt.status) && isPast)
     }
     if (filter === 'cancelled') {
@@ -290,6 +302,9 @@ function PatientAppointments() {
             // Статус "upcoming" только если запись не прошедшая
             const isUpcoming = ['confirmed', 'pending'].includes(appointment.status) && !isPastAppointment
 
+            // Effective display status: past confirmed/pending → no_show until cron updates DB
+            const effectiveStatus = getEffectiveStatus(appointment)
+
             // Можно подключиться: за 15 минут до начала и до окончания консультации + буфер
             const fifteenMinBefore = new Date(appointmentDate.getTime() - 15 * 60 * 1000)
             const canJoin = ['confirmed', 'pending'].includes(appointment.status) &&
@@ -329,8 +344,8 @@ function PatientAppointments() {
                     {/* Status and Actions */}
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                       <div className="flex items-center gap-2">
-                        <Badge variant={isPastAppointment && appointment.status !== 'cancelled' ? 'success' : statusVariants[appointment.status]}>
-                          {isPastAppointment && appointment.status !== 'cancelled' ? 'Завершено' : statusLabels[appointment.status]}
+                        <Badge variant={statusVariants[effectiveStatus] ?? 'default'}>
+                          {statusLabels[effectiveStatus] ?? effectiveStatus}
                         </Badge>
                         <Badge variant="default">
                           {appointment.type === 'video' ? (
@@ -352,7 +367,7 @@ function PatientAppointments() {
                               Подключиться
                             </Button>
                           </Link>
-                        ) : isPastAppointment && appointment.status !== 'cancelled' ? (
+                        ) : ['completed', 'no_show', 'in_progress'].includes(effectiveStatus) ? (
                           <Link to={`/patient/appointments/${appointment.documentId || appointment.id}`}>
                             <Button size="sm" variant="secondary" leftIcon={<FileText className="w-4 h-4" />}>
                               Детали

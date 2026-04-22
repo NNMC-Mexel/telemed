@@ -50,7 +50,7 @@ function AdminDashboard() {
       const { data: appointmentsData } = normalizeResponse(appointmentsRes)
       
       // Получаем все завершённые записи для подсчёта дохода
-      const completedRes = await api.get('/api/appointments?filters[status][$eq]=completed&pagination[limit]=1000')
+      const completedRes = await api.get('/api/appointments?filters[statuse][$eq]=completed&pagination[limit]=1000')
       const { data: completedData } = normalizeResponse(completedRes)
       
       // Подсчитываем статистику

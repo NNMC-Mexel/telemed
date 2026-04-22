@@ -12,12 +12,15 @@ const slotLocks = new Map<string, Promise<void>>();
 function withSlotLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prev = slotLocks.get(key) || Promise.resolve();
   const next = prev.then(fn, fn); // run fn after previous finishes (even if it threw)
-  // Store the chain (void version) so next caller waits for us
-  slotLocks.set(key, next.then(() => {}, () => {}));
-  // Cleanup after completion to avoid memory leak
+  // Store the void chain so the next caller can wait for us.
+  // IMPORTANT: capture voidNext in a variable — every .then() call creates a
+  // NEW Promise object, so comparing slotLocks.get(key) === next.then(...)
+  // inside finally() would always be false (different object reference) and
+  // the key would never be deleted (memory leak).
+  const voidNext = next.then(() => {}, () => {});
+  slotLocks.set(key, voidNext);
   next.finally(() => {
-    // Only delete if we're still the last in chain
-    if (slotLocks.get(key) === next.then(() => {}, () => {})) {
+    if (slotLocks.get(key) === voidNext) {
       slotLocks.delete(key);
     }
   });
@@ -154,10 +157,14 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
   async create(ctx) {
     const user = ctx.state.user;
-    if (!user) return ctx.forbidden('Not authenticated');
+    // Requests from the signaling server arrive with an API token (no user session).
+    // Treat them as trusted server-side calls, equivalent to admin for permission purposes.
+    const isApiToken = (ctx.state as any)?.auth?.strategy?.name === 'api-token';
 
-    const isPatient = user.role?.type === 'patient' || user.userRole === 'patient';
-    const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
+    if (!user && !isApiToken) return ctx.forbidden('Not authenticated');
+
+    const isPatient = !isApiToken && (user.role?.type === 'patient' || user.userRole === 'patient');
+    const isAdmin = isApiToken || user?.role?.type === 'admin' || user?.userRole === 'admin';
 
     if (!isPatient && !isAdmin) {
       return ctx.forbidden('Only patients can create appointments');
@@ -269,9 +276,14 @@ export default factories.createCoreController('api::appointment.appointment', ()
     if (!ALLOWED_PAYMENT_STATUSES.includes(requestedPaymentStatus)) {
       return ctx.badRequest('Invalid paymentStatus value');
     }
-    // Non-admin patients cannot self-assign paymentStatus='paid' with price=0
-    if (!isAdmin && requestedPaymentStatus === 'paid' && actualPrice <= 0) {
-      return ctx.badRequest('Invalid payment state');
+    // In live-payment mode, only the signaling server (api-token) or an admin
+    // may create an appointment with paymentStatus='paid'. A regular patient
+    // sending paymentStatus='paid' directly would bypass the payment gateway.
+    // In test mode (PAYMENTS_LIVE !== 'true') we allow it so the test-payment
+    // flow in the frontend works without a real payment provider.
+    const isPaymentsLive = process.env.PAYMENTS_LIVE === 'true';
+    if (isPaymentsLive && !isAdmin && requestedPaymentStatus === 'paid') {
+      return ctx.badRequest('Payment must be confirmed through the payment gateway');
     }
 
     // --- Atomic check + create using mutex (prevents race condition) ---
@@ -347,12 +359,114 @@ export default factories.createCoreController('api::appointment.appointment', ()
       dateTime: body.dateTime,
       price: actualPrice,
       paymentStatus: requestedPaymentStatus,
-      createdBy: user.id,
+      createdBy: user?.id ?? 'api-token',
       ip: ctx.request.ip,
       ts: new Date().toISOString(),
     }));
 
     return { data: result.appointment };
+  },
+
+  async update(ctx) {
+    const user = ctx.state.user;
+    if (!user) return ctx.forbidden('Not authenticated');
+
+    const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
+    const isDoctor = user.role?.type === 'doctor' || user.userRole === 'doctor';
+
+    const { id: documentId } = ctx.params;
+    const body = (ctx.request.body as any)?.data || ctx.request.body || {};
+
+    // Admins bypass field restrictions
+    if (isAdmin) {
+      const updated = await strapi.documents('api::appointment.appointment').update({
+        documentId,
+        data: body,
+        status: 'published',
+      });
+      return { data: updated };
+    }
+
+    // Verify participant (policy also runs, this is defence-in-depth)
+    const appointment = await strapi.documents('api::appointment.appointment').findOne({
+      documentId,
+      populate: {
+        patient: { fields: ['id'] },
+        doctor: { populate: { users_permissions_user: { fields: ['id'] } } },
+      },
+    });
+    if (!appointment) return ctx.notFound('Appointment not found');
+
+    const isPatient = appointment.patient?.id === user.id;
+    const isDoctorParticipant = appointment.doctor?.users_permissions_user?.id === user.id;
+
+    if (!isPatient && !isDoctorParticipant) return ctx.forbidden('Not a participant');
+
+    // --- Field allowlists by role ---
+    let allowed: Record<string, any> = {};
+
+    const CANCEL_REFUND_CUTOFF_HOURS = 24;
+
+    if (isPatient) {
+      if (body.statuse !== undefined) {
+        if (body.statuse !== 'cancelled') {
+          return ctx.badRequest('Patients can only cancel appointments');
+        }
+
+        const appointmentTime = new Date((appointment as any).dateTime);
+        if (appointmentTime <= new Date()) {
+          return ctx.badRequest('Cannot cancel a past appointment');
+        }
+
+        allowed.statuse = 'cancelled';
+
+        // Refund only if cancelled more than CANCEL_REFUND_CUTOFF_HOURS before appointment
+        if ((appointment as any).paymentStatus === 'paid') {
+          const hoursUntil = (appointmentTime.getTime() - Date.now()) / (1000 * 60 * 60);
+          allowed.paymentStatus = hoursUntil >= CANCEL_REFUND_CUTOFF_HOURS ? 'refunded' : 'paid';
+        }
+      }
+
+      if (body.rating !== undefined || body.review !== undefined) {
+        if ((appointment as any).statuse !== 'completed') {
+          return ctx.badRequest('Rating and review can only be set after a completed consultation');
+        }
+        if (body.rating !== undefined) allowed.rating = body.rating;
+        if (body.review !== undefined) allowed.review = body.review;
+      }
+    } else if (isDoctorParticipant || isDoctor) {
+      // Doctors may advance/update status and write chatLog
+      const DOCTOR_ALLOWED_STATUSES = ['confirmed', 'in_progress', 'completed', 'cancelled'];
+      if (body.statuse !== undefined) {
+        if (!DOCTOR_ALLOWED_STATUSES.includes(body.statuse)) {
+          return ctx.badRequest('Invalid status transition');
+        }
+        allowed.statuse = body.statuse;
+      }
+      if (body.chatLog !== undefined) allowed.chatLog = body.chatLog;
+    }
+
+    if (Object.keys(allowed).length === 0) {
+      return ctx.badRequest('No allowed fields to update');
+    }
+
+    const updated = await strapi.documents('api::appointment.appointment').update({
+      documentId,
+      data: allowed,
+      status: 'published',
+    });
+
+    strapi.log.info(JSON.stringify({
+      audit: 'APPOINTMENT_UPDATED',
+      documentId,
+      fields: Object.keys(allowed),
+      updatedBy: user.id,
+      role: isPatient ? 'patient' : 'doctor',
+      ip: ctx.request.ip,
+      ts: new Date().toISOString(),
+    }));
+
+    return { data: updated };
   },
 
   /**

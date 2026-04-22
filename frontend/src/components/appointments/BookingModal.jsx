@@ -428,6 +428,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         date: dateStr,
                         time: selectedTime,
                         socketId: socketRef.current?.id,
+                        slotDuration: doctor.slotDuration || 30,
                     }),
                 }
             );
@@ -553,6 +554,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         invoiceId,
                         amount: doctorPrice,
                         doctorId: doctor.id,
+                        dateTime: dateTime.toISOString(),
                     }),
                 }
             );

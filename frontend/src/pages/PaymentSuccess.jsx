@@ -5,33 +5,16 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { io } from "socket.io-client";
 import Button from "../components/ui/Button";
-import useAppointmentStore from "../stores/appointmentStore";
 import useAuthStore from "../stores/authStore";
 import { formatPrice } from "../utils/helpers";
 import { getSignalingUrl } from "../services/api";
 
 function PaymentSuccess() {
     const navigate = useNavigate();
-    const { createAppointment } = useAppointmentStore();
-    const { user, _hasHydrated } = useAuthStore();
+    const { _hasHydrated } = useAuthStore();
     const [status, setStatus] = useState("creating"); // creating | success | error
     const [appointmentInfo, setAppointmentInfo] = useState(null);
     const [errorMessage, setErrorMessage] = useState(null);
-
-    useEffect(() => {
-        if (!_hasHydrated) return;
-
-        const raw = sessionStorage.getItem("pendingBooking");
-        if (!raw) {
-            navigate("/patient", { replace: true });
-            return;
-        }
-
-        const booking = JSON.parse(raw);
-        // НЕ удаляем из sessionStorage до успешного создания —
-        // если пользователь обновит страницу в процессе, данные сохранятся
-        createBookingAfterPayment(booking);
-    }, [_hasHydrated]);
 
     // Notify other open BookingModals that this slot is now taken
     const broadcastSlotConfirmed = (booking) => {
@@ -40,6 +23,7 @@ function PaymentSuccess() {
             const date = format(dt, "yyyy-MM-dd");
             const time = format(dt, "HH:mm");
             const socket = io(getSignalingUrl(), {
+                auth: { token: useAuthStore.getState().token },
                 transports: ["websocket", "polling"],
             });
             socket.on("connect", () => {
@@ -55,24 +39,25 @@ function PaymentSuccess() {
         }
     };
 
-    const createBookingAfterPayment = async (booking, attempt = 1) => {
+    const createBookingAfterPayment = async (booking, userToken, attempt = 1) => {
         const MAX_ATTEMPTS = 3;
         const RETRY_DELAY_MS = 1500;
 
         try {
-            // patient is not sent — server forces patient = authenticated user
-            const result = await createAppointment({
-                doctor: booking.doctorId,
-                dateTime: booking.dateTime,
-                type: booking.type,
-                status: "confirmed",
-                price: booking.price,
-                paymentStatus: "paid",
-                roomId: booking.roomId,
-            });
+            const response = await fetch(
+                `${getSignalingUrl()}/api/payment/epay-confirm`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${userToken}`,
+                    },
+                    body: JSON.stringify({ booking }),
+                }
+            );
+            const result = await response.json();
 
-            if (result.success) {
-                // Только после успеха удаляем из хранилища
+            if (response.ok && result.success) {
                 sessionStorage.removeItem("pendingBooking");
                 broadcastSlotConfirmed(booking);
                 setAppointmentInfo({
@@ -83,10 +68,9 @@ function PaymentSuccess() {
                 });
                 setStatus("success");
             } else {
-                // Сервер вернул ошибку — retry если попытки остались
                 if (attempt < MAX_ATTEMPTS) {
                     setTimeout(
-                        () => createBookingAfterPayment(booking, attempt + 1),
+                        () => createBookingAfterPayment(booking, userToken, attempt + 1),
                         RETRY_DELAY_MS
                     );
                 } else {
@@ -98,7 +82,7 @@ function PaymentSuccess() {
         } catch (err) {
             if (attempt < MAX_ATTEMPTS) {
                 setTimeout(
-                    () => createBookingAfterPayment(booking, attempt + 1),
+                    () => createBookingAfterPayment(booking, userToken, attempt + 1),
                     RETRY_DELAY_MS
                 );
             } else {
@@ -108,6 +92,23 @@ function PaymentSuccess() {
             }
         }
     };
+
+    useEffect(() => {
+        if (!_hasHydrated) return;
+
+        const raw = sessionStorage.getItem("pendingBooking");
+        if (!raw) {
+            navigate("/patient", { replace: true });
+            return;
+        }
+
+        const booking = JSON.parse(raw);
+        // НЕ удаляем из sessionStorage до успешного создания —
+        // если пользователь обновит страницу в процессе, данные сохранятся
+        // Token is read from store at call time to avoid stale-closure in deps
+        createBookingAfterPayment(booking, useAuthStore.getState().token);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [_hasHydrated, navigate]);
 
     if (status === "creating") {
         return (

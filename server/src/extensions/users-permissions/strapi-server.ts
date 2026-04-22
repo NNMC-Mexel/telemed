@@ -125,6 +125,8 @@ export default (plugin) => {
 
         const userId = responseBody.user.id;
 
+        let createdDoctorDocId: string | undefined;
+
         try {
           // 1. Находим целевую Strapi-роль
           let targetRole = await strapi
@@ -190,7 +192,8 @@ export default (plugin) => {
               status: 'published',
             });
 
-            console.log(`[auth.register] Doctor profile created: documentId=${created?.documentId}`);
+            createdDoctorDocId = created?.documentId;
+            console.log(`[auth.register] Doctor profile created: documentId=${createdDoctorDocId}`);
 
             if (created?.documentId && !created?.publishedAt) {
               await strapi.documents('api::doctor.doctor').publish({
@@ -220,9 +223,37 @@ export default (plugin) => {
 
           console.log('[auth.register] Registration complete');
         } catch (error) {
-          // Log only the message to avoid leaking JWT secrets or stack traces
           const safeMessage = error instanceof Error ? error.message : String(error);
-          console.error('[auth.register] Error during extended registration:', safeMessage);
+          console.error('[auth.register] Error during extended registration — rolling back user:', safeMessage);
+
+          // Rollback: remove the partially-created doctor profile and user so the
+          // client can safely retry. The JWT was only written to ctx.body (not flushed),
+          // so we can still overwrite the response before Strapi sends it.
+          if (createdDoctorDocId) {
+            try {
+              await strapi.documents('api::doctor.doctor').delete({ documentId: createdDoctorDocId });
+              console.log(`[auth.register] Rolled back doctor profile ${createdDoctorDocId}`);
+            } catch (deleteErr) {
+              const deleteMsg = deleteErr instanceof Error ? deleteErr.message : String(deleteErr);
+              console.error('[auth.register] Failed to rollback doctor profile:', deleteMsg);
+            }
+          }
+          try {
+            await strapi.query('plugin::users-permissions.user').delete({ where: { id: userId } });
+            console.log(`[auth.register] Rolled back user ${userId}`);
+          } catch (deleteErr) {
+            const deleteMsg = deleteErr instanceof Error ? deleteErr.message : String(deleteErr);
+            console.error('[auth.register] Failed to rollback user:', deleteMsg);
+          }
+
+          ctx.status = 500;
+          ctx.body = {
+            error: {
+              status: 500,
+              name: 'InternalServerError',
+              message: 'Registration failed due to a server error. Please try again.',
+            },
+          };
         }
       },
     };

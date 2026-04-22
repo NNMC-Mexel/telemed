@@ -29,40 +29,45 @@ export default factories.createCoreController('api::review.review', ({ strapi })
       }
       if (!doctorRecord) return ctx.badRequest('Doctor not found');
 
-      // 2. Verify the patient has a completed appointment with this doctor
-      const completedAppointments = await strapi.documents('api::appointment.appointment').findMany({
-        filters: {
-          patient: { documentId: user.documentId },
-          doctor: { documentId: doctorRecord.documentId },
-          statuse: 'completed',
-        },
-        fields: ['id', 'documentId'],
-      });
+      // 2. Resolve the appointment this review is for
+      const apptRef = body.appointment;
+      if (!apptRef) return ctx.badRequest('appointment is required');
 
-      if (completedAppointments.length === 0) {
-        return ctx.forbidden('You can only review a doctor after a completed consultation');
+      const apptRecord: any = typeof apptRef === 'string'
+        ? await strapi.documents('api::appointment.appointment').findOne({ documentId: apptRef, populate: { patient: { fields: ['id', 'documentId'] }, doctor: { fields: ['id', 'documentId'] } } })
+        : await strapi.query('api::appointment.appointment').findOne({ where: { id: apptRef }, populate: ['patient', 'doctor'] });
+
+      if (!apptRecord) return ctx.badRequest('Appointment not found');
+
+      // Appointment must be completed, belong to this patient, and match the doctor
+      if (apptRecord.statuse !== 'completed') {
+        return ctx.forbidden('You can only review a completed consultation');
+      }
+      if (apptRecord.patient?.documentId !== user.documentId) {
+        return ctx.forbidden('This appointment does not belong to you');
+      }
+      if (apptRecord.doctor?.documentId !== doctorRecord.documentId) {
+        return ctx.badRequest('Appointment doctor does not match the review doctor');
       }
 
-      // 3. Check no review already exists for this doctor from this patient
+      // 3. One review per appointment (allows a new review for each new completed consultation)
       const existingReview = await strapi.documents('api::review.review').findMany({
-        filters: {
-          patient: { documentId: user.documentId },
-          doctor: { documentId: doctorRecord.documentId },
-        },
+        filters: { appointment: { documentId: apptRecord.documentId } },
         fields: ['id'],
       });
 
       if (existingReview.length > 0) {
-        return ctx.badRequest('You have already submitted a review for this doctor');
+        return ctx.badRequest('You have already submitted a review for this appointment');
       }
 
-      // 4. Force patient = current user, use server-resolved doctorDocId
+      // 4. Force patient = current user, use server-resolved ids
       ctx.request.body = {
         ...(ctx.request.body as any),
         data: {
           ...body,
           patient: user.documentId,
           doctor: doctorRecord.documentId,
+          appointment: apptRecord.documentId,
         },
       };
     }

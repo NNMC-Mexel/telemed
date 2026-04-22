@@ -86,6 +86,11 @@ const EPAY_QR_STATUS_URL = IS_EPAY_TEST
   ? 'https://test-epay-api.epayment.kz/qr'
   : 'https://epay-api.homebank.kz/qr'
 
+// Card payment transaction status (non-QR)
+const EPAY_TRANSACTION_STATUS_URL = IS_EPAY_TEST
+  ? 'https://test-epay-api.epayment.kz/payment/transactions'
+  : 'https://epay-api.homebank.kz/payment/transactions'
+
 const STRAPI_API_URL = process.env.STRAPI_API_URL
 
 // =====================================================
@@ -136,6 +141,27 @@ async function fetchDoctorPrice(doctorId) {
 // Map: billNumber → { booking, userToken, accessToken, invoiceId, createdAt }
 // =====================================================
 const pendingQRPayments = new Map()
+
+// Confirmed card-payment invoiceIds — prevents in-process replay.
+// Persistent idempotency is handled via paymentId field in Strapi (survives restarts).
+const confirmedInvoices = new Map()
+setInterval(() => {
+  const cutoff = Date.now() - 15 * 60 * 1000
+  for (const [id, entry] of confirmedInvoices) {
+    if (entry.createdAt < cutoff) confirmedInvoices.delete(id)
+  }
+}, 5 * 60 * 1000)
+
+// Intent store: invoiceId → { doctorId, dateTime, amount }
+// Set at epay-token time so epay-confirm can verify the booking hasn't been swapped.
+// TTL: 30 min (max ePay widget session).
+const pendingCardPayments = new Map()
+setInterval(() => {
+  const cutoff = Date.now() - 30 * 60 * 1000
+  for (const [id, entry] of pendingCardPayments) {
+    if (entry.createdAt < cutoff) pendingCardPayments.delete(id)
+  }
+}, 10 * 60 * 1000)
 
 // =====================================================
 // Real-time slot reservations (cinema-style)
@@ -360,7 +386,7 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${pending.userToken}`,
+            Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}`,
           },
           body: JSON.stringify({
             data: {
@@ -400,7 +426,7 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
 // Final check before payment: ensures the slot is held by THIS user AND not booked in Strapi DB
 app.post('/api/slot/verify', async (req, res) => {
   try {
-    const { doctorId, date, time, socketId } = req.body
+    const { doctorId, date, time, socketId, slotDuration } = req.body
     if (!doctorId || !date || !time) {
       return res.status(400).json({ available: false, reason: 'Missing doctorId, date or time' })
     }
@@ -416,7 +442,12 @@ app.post('/api/slot/verify', async (req, res) => {
     // 2. Check Strapi DB — slot must not be already booked.
     // Fail CLOSED: if DB is unreachable we cannot confirm availability, so we reject.
     const dateTime = new Date(`${date}T${time}:00`)
-    const slotEnd = new Date(dateTime.getTime() + 60 * 60 * 1000) // 1h window
+    // Use the actual slot duration so we don't produce false conflicts.
+    // Example with 30-min slots: booking 14:30 must NOT block 14:00 (ends at
+    // 14:30, no overlap). A fixed 1h window would extend to 15:00 and
+    // incorrectly find the 14:30 booking as a conflict for the 14:00 slot.
+    const durationMs = (Number.isFinite(slotDuration) && slotDuration > 0 ? slotDuration : 30) * 60 * 1000
+    const slotEnd = new Date(dateTime.getTime() + durationMs)
     let strapiCheck
     try {
       strapiCheck = await fetch(
@@ -453,6 +484,168 @@ app.post('/api/slot/verify', async (req, res) => {
   }
 })
 
+// POST /api/payment/epay-confirm
+// Creates an appointment after a successful ePay card/redirect payment.
+// Uses STRAPI_API_TOKEN so the PAYMENTS_LIVE patient-guard is bypassed (server-trusted path).
+// The caller provides their JWT in Authorization; we resolve patientId from /users/me.
+// In live mode (PAYMENTS_LIVE=true) we verify the invoiceId with ePay before creating the appointment.
+app.post('/api/payment/epay-confirm', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || ''
+    const userToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
+    if (!userToken) {
+      return res.status(401).json({ error: 'Missing Authorization header' })
+    }
+
+    const { booking } = req.body
+    if (!booking || !booking.doctorId || !booking.dateTime || !booking.type) {
+      return res.status(400).json({ error: 'Missing booking fields' })
+    }
+
+    const invoiceId = booking.invoiceId ? String(booking.invoiceId) : null
+
+    // --- Fast in-process replay protection ---
+    if (invoiceId && confirmedInvoices.has(invoiceId)) {
+      return res.status(409).json({ error: 'This payment has already been processed' })
+    }
+
+    // --- Persistent idempotency: check Strapi for an appointment already created for this invoiceId ---
+    // This survives server restarts and TTL expiry of the in-memory confirmedInvoices map.
+    if (invoiceId) {
+      const existingRes = await fetch(
+        `${STRAPI_API_URL}/api/appointments?filters[paymentId][$eq]=${encodeURIComponent(invoiceId)}&fields[0]=id&pagination[pageSize]=1`,
+        { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}` } }
+      ).catch(() => null)
+      if (existingRes?.ok) {
+        const existingData = await existingRes.json().catch(() => null)
+        if (existingData?.data?.length > 0) {
+          console.log(`[epay-confirm] idempotent: appointment already exists for invoiceId=${invoiceId}`)
+          return res.status(409).json({ error: 'This payment has already been processed' })
+        }
+      }
+    }
+
+    // --- Resolve the patient's numeric id from their JWT (needed for ePay accountId check) ---
+    const meRes = await fetch(`${STRAPI_API_URL}/api/users/me`, {
+      headers: { Authorization: `Bearer ${userToken}` },
+    })
+    if (!meRes.ok) {
+      return res.status(401).json({ error: 'Invalid or expired user token' })
+    }
+    const meData = await meRes.json()
+    const patientId = meData?.id
+    if (!patientId) {
+      return res.status(401).json({ error: 'Could not resolve patient' })
+    }
+
+    // --- Live mode: verify payment status, amount, and owner with ePay ---
+    if (process.env.PAYMENTS_LIVE === 'true') {
+      if (!invoiceId) {
+        return res.status(400).json({ error: 'invoiceId is required in live payment mode' })
+      }
+      if (!EPAY_CLIENT_ID || !EPAY_CLIENT_SECRET) {
+        console.error('[epay-confirm] ePay credentials not configured')
+        return res.status(503).json({ error: 'Payment verification unavailable' })
+      }
+      try {
+        const auth = await getEPayAuthToken(invoiceId, booking.price || 0)
+        const statusRes = await fetch(
+          `${EPAY_TRANSACTION_STATUS_URL}?invoiceId=${encodeURIComponent(invoiceId)}`,
+          { headers: { Authorization: `${auth.token_type} ${auth.access_token}` } }
+        )
+        if (!statusRes.ok) {
+          const errText = await statusRes.text().catch(() => '')
+          throw new Error(`ePay status API HTTP ${statusRes.status}: ${errText}`)
+        }
+        const statusData = await statusRes.json()
+        // ePay may return an array or { transactions: [] } depending on the endpoint
+        const transactions = Array.isArray(statusData)
+          ? statusData
+          : (statusData?.transactions || [statusData])
+
+        const paidTx = transactions.find((t) => t?.status === 'PAID')
+        if (!paidTx) {
+          console.warn(`[epay-confirm] invoiceId=${invoiceId} not PAID:`, JSON.stringify(statusData))
+          return res.status(402).json({ error: 'Payment not confirmed by ePay' })
+        }
+
+        // Verify amount: prevents using a cheaper payment to confirm a pricier booking
+        const txAmount = Math.round(Number(paidTx.amount))
+        const expectedAmount = Math.round(Number(booking.price))
+        if (!expectedAmount || txAmount !== expectedAmount) {
+          console.warn(`[epay-confirm] Amount mismatch: tx=${txAmount} expected=${expectedAmount} invoiceId=${invoiceId}`)
+          return res.status(402).json({ error: 'Payment amount does not match booking price' })
+        }
+
+        // Verify accountId: prevents using another user's paid invoiceId.
+        // accountId was set to String(user.id) when the payment was initiated in BookingModal.
+        // Fail closed: if ePay omits accountId we cannot prove ownership → reject.
+        if (!paidTx.accountId || String(paidTx.accountId) !== String(patientId)) {
+          console.warn(`[epay-confirm] accountId mismatch or missing: tx=${paidTx.accountId} patient=${patientId} invoiceId=${invoiceId}`)
+          return res.status(402).json({ error: 'Payment owner could not be verified' })
+        }
+
+        // Verify booking intent: doctor and dateTime must match what was stored at epay-token time.
+        // Prevents reusing a valid invoiceId for a different slot (same price, different doctor/time).
+        const intent = pendingCardPayments.get(invoiceId)
+        if (intent) {
+          if (String(intent.doctorId) !== String(booking.doctorId)) {
+            console.warn(`[epay-confirm] doctor mismatch: intent=${intent.doctorId} booking=${booking.doctorId} invoiceId=${invoiceId}`)
+            return res.status(402).json({ error: 'Payment was made for a different doctor' })
+          }
+          if (intent.dateTime && intent.dateTime !== booking.dateTime) {
+            console.warn(`[epay-confirm] dateTime mismatch: intent=${intent.dateTime} booking=${booking.dateTime} invoiceId=${invoiceId}`)
+            return res.status(402).json({ error: 'Payment was made for a different time slot' })
+          }
+        }
+      } catch (err) {
+        console.error('[epay-confirm] ePay verification error:', err.message)
+        return res.status(502).json({ error: 'Could not verify payment status with ePay' })
+      }
+    }
+
+    const apptRes = await fetch(`${STRAPI_API_URL}/api/appointments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}`,
+      },
+      body: JSON.stringify({
+        data: {
+          patient: patientId,
+          doctor: booking.doctorId,
+          dateTime: booking.dateTime,
+          type: booking.type,
+          statuse: 'confirmed',
+          price: booking.price,
+          paymentStatus: 'paid',
+          roomId: booking.roomId,
+          ...(invoiceId ? { paymentId: invoiceId } : {}),
+        },
+      }),
+    })
+
+    if (!apptRes.ok) {
+      const errText = await apptRes.text().catch(() => '')
+      console.error('[epay-confirm] Strapi error:', apptRes.status, errText)
+      return res.status(502).json({ error: `Appointment creation failed: HTTP ${apptRes.status}` })
+    }
+
+    // Mark invoice as confirmed and clean up intent store
+    if (invoiceId) {
+      confirmedInvoices.set(invoiceId, { createdAt: Date.now() })
+      pendingCardPayments.delete(invoiceId)
+    }
+
+    const apptData = await apptRes.json()
+    console.log('[epay-confirm] Appointment created for patient', patientId)
+    res.json({ success: true, data: apptData.data })
+  } catch (err) {
+    console.error('[epay-confirm] error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // POST /api/payment/epay-callback  (ePay postLink — works in production)
 // NOTE: Payment confirmation is handled by client-side polling (/api/payment/halyk-qr-status).
 // These callbacks serve as a secondary confirmation channel.
@@ -476,7 +669,7 @@ app.post('/api/payment/epay-token', async (req, res) => {
     return res.status(429).json({ error: 'Too many payment requests. Please try again later.' })
   }
   try {
-    const { invoiceId, amount, doctorId, currency = 'KZT' } = req.body
+    const { invoiceId, amount, doctorId, dateTime, currency = 'KZT' } = req.body
     if (!invoiceId || !amount || !doctorId) {
       return res.status(400).json({ error: 'invoiceId, amount and doctorId required' })
     }
@@ -491,6 +684,14 @@ app.post('/api/payment/epay-token', async (req, res) => {
       )
       return res.status(400).json({ error: 'Invalid payment amount' })
     }
+
+    // Bind invoiceId to this specific doctor/slot so epay-confirm can detect swaps
+    pendingCardPayments.set(String(invoiceId), {
+      doctorId: String(doctorId),
+      dateTime: dateTime || null,
+      amount: actualPrice,
+      createdAt: Date.now(),
+    })
 
     const auth = await getEPayAuthToken(invoiceId, actualPrice, currency)
     res.json({ auth, terminalId: EPAY_TERMINAL_ID, widgetUrl: EPAY_WIDGET_URL })
@@ -514,7 +715,7 @@ async function verifySocketToken(token) {
   if (!token) return null
   const now = Date.now()
   const cached = tokenCache.get(token)
-  if (cached && now < cached.expiresAt) return cached.userId
+  if (cached && now < cached.expiresAt) return cached.user
 
   const res = await fetch(`${STRAPI_API_URL}/api/users/me`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -527,8 +728,41 @@ async function verifySocketToken(token) {
   const user = await res.json().catch(() => null)
   if (!user?.id) return null
 
-  tokenCache.set(token, { userId: user.id, expiresAt: now + TOKEN_CACHE_TTL })
-  return user.id
+  tokenCache.set(token, { user, expiresAt: now + TOKEN_CACHE_TTL })
+  return user
+}
+
+// Room access cache: roomId -> { patientId, doctorUserId, expiresAt }
+// Avoids hitting Strapi for every join / message.
+const roomAccessCache = new Map()
+const ROOM_ACCESS_TTL = 60 * 1000
+
+async function fetchAppointmentRoom(roomId) {
+  if (!roomId) return null
+  const now = Date.now()
+  const cached = roomAccessCache.get(roomId)
+  if (cached && now < cached.expiresAt) return cached
+
+  const url =
+    `${STRAPI_API_URL}/api/appointments` +
+    `?filters[roomId][$eq]=${encodeURIComponent(roomId)}` +
+    `&populate[patient][fields][0]=id` +
+    `&populate[doctor][populate][users_permissions_user][fields][0]=id` +
+    `&populate[doctor][fields][0]=userId`
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` },
+  }).catch(() => null)
+  if (!res?.ok) return null
+  const data = await res.json().catch(() => null)
+  const appt = data?.data?.[0]
+  if (!appt) return null
+
+  const patientId = appt.patient?.id ?? null
+  const doctorUserId =
+    appt.doctor?.users_permissions_user?.id ?? appt.doctor?.userId ?? null
+  const entry = { patientId, doctorUserId, expiresAt: now + ROOM_ACCESS_TTL }
+  roomAccessCache.set(roomId, entry)
+  return entry
 }
 
 // Cleanup expired token cache entries every 10 minutes
@@ -542,11 +776,12 @@ setInterval(() => {
 // Auth middleware — rejects unauthenticated socket connections
 io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace('Bearer ', '')
-  const userId = await verifySocketToken(token)
-  if (!userId) {
+  const user = await verifySocketToken(token)
+  if (!user?.id) {
     return next(new Error('Authentication required'))
   }
-  socket.verifiedUserId = userId
+  socket.verifiedUser = user
+  socket.verifiedUserId = user.id
   next()
 })
 
@@ -565,8 +800,31 @@ io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`)
 
   // Присоединение к комнате
-  socket.on('join-room', ({ roomId, userId, userName, userRole, isPortrait }) => {
-    console.log(`User ${userName} (${userId}) joining room ${roomId}`)
+  socket.on('join-room', async ({ roomId, isPortrait }) => {
+    if (!roomId || typeof roomId !== 'string') {
+      socket.emit('join-room-error', { reason: 'Invalid roomId' })
+      return
+    }
+
+    // Authorize: fetch appointment and ensure this user is patient or doctor of it.
+    const access = await fetchAppointmentRoom(roomId)
+    if (!access) {
+      socket.emit('join-room-error', { reason: 'Room not found' })
+      return
+    }
+    const verifiedId = socket.verifiedUserId
+    let role
+    if (access.patientId && verifiedId === access.patientId) role = 'patient'
+    else if (access.doctorUserId && verifiedId === access.doctorUserId) role = 'doctor'
+    else {
+      console.warn(`[SECURITY] User ${verifiedId} tried to join room ${roomId} without membership`)
+      socket.emit('join-room-error', { reason: 'Access denied' })
+      return
+    }
+
+    const user = socket.verifiedUser || {}
+    const userName = user.fullName || user.username || `User ${verifiedId}`
+    console.log(`User ${userName} (${verifiedId}, ${role}) joining room ${roomId}`)
 
     // Создаём комнату если не существует
     if (!rooms.has(roomId)) {
@@ -579,12 +837,12 @@ io.on('connection', (socket) => {
 
     const room = rooms.get(roomId)
 
-    // Добавляем участника
+    // Добавляем участника — все поля из проверенных серверных данных
     room.participants.set(socket.id, {
-      id: userId,
+      id: verifiedId,
       name: userName,
-      role: userRole,
-      isPortrait: isPortrait ?? false,
+      role,
+      isPortrait: isPortrait === true,
       socketId: socket.id,
     })
 
@@ -595,12 +853,12 @@ io.on('connection', (socket) => {
     // Уведомляем других участников (включая ориентацию экрана)
     socket.to(roomId).emit('user-joined', {
       socketId: socket.id,
-      userId,
+      userId: verifiedId,
       userName,
-      userRole,
-      isPortrait: isPortrait ?? false,
+      userRole: role,
+      isPortrait: isPortrait === true,
     })
-    
+
     // Отправляем список текущих участников новому пользователю
     const existingParticipants = []
     room.participants.forEach((participant, socketId) => {
@@ -611,7 +869,7 @@ io.on('connection', (socket) => {
         })
       }
     })
-    
+
     socket.emit('room-participants', existingParticipants)
 
     // Отправляем историю чата новому участнику
@@ -620,10 +878,52 @@ io.on('connection', (socket) => {
     }
 
     console.log(`Room ${roomId} now has ${room.participants.size} participants`)
+
+    // First participant joined — transition confirmed → in_progress so the no_show
+    // cron job doesn't incorrectly fire while the consultation is underway.
+    if (room.participants.size === 1) {
+      fetch(
+        `${STRAPI_API_URL}/api/appointments?filters[roomId][$eq]=${encodeURIComponent(roomId)}` +
+        `&filters[statuse][$eq]=confirmed&fields[0]=documentId&pagination[pageSize]=1`,
+        { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}` } }
+      )
+        .then((r) => r.json())
+        .then((data) => {
+          const appt = data?.data?.[0]
+          if (!appt?.documentId) return
+          return fetch(`${STRAPI_API_URL}/api/appointments/${appt.documentId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}`,
+            },
+            body: JSON.stringify({ data: { statuse: 'in_progress' } }),
+          })
+        })
+        .catch((err) => console.error('[join-room] Failed to set in_progress:', err.message))
+    }
   })
+
+  // Helper: find the room this socket actually joined, or null.
+  const getJoinedRoom = () => {
+    const roomId = socket.roomId
+    if (!roomId) return null
+    const room = rooms.get(roomId)
+    if (!room) return null
+    if (!room.participants.has(socket.id)) return null
+    return { roomId, room, participant: room.participants.get(socket.id) }
+  }
+
+  // Helper: verify that targetSocketId is in the same room as this socket.
+  const isPeerInSameRoom = (targetSocketId) => {
+    const ctx = getJoinedRoom()
+    if (!ctx || !targetSocketId) return false
+    return ctx.room.participants.has(targetSocketId)
+  }
 
   // WebRTC сигнализация - отправка offer
   socket.on('offer', ({ targetSocketId, offer }) => {
+    if (!isPeerInSameRoom(targetSocketId)) return
     console.log(`Offer from ${socket.id} to ${targetSocketId}`)
     io.to(targetSocketId).emit('offer', {
       senderSocketId: socket.id,
@@ -633,6 +933,7 @@ io.on('connection', (socket) => {
 
   // WebRTC сигнализация - отправка answer
   socket.on('answer', ({ targetSocketId, answer }) => {
+    if (!isPeerInSameRoom(targetSocketId)) return
     console.log(`Answer from ${socket.id} to ${targetSocketId}`)
     io.to(targetSocketId).emit('answer', {
       senderSocketId: socket.id,
@@ -642,48 +943,53 @@ io.on('connection', (socket) => {
 
   // WebRTC сигнализация - ICE candidate
   socket.on('ice-candidate', ({ targetSocketId, candidate }) => {
+    if (!isPeerInSameRoom(targetSocketId)) return
     io.to(targetSocketId).emit('ice-candidate', {
       senderSocketId: socket.id,
       candidate,
     })
   })
 
-  // Чат в комнате
-  socket.on('chat-message', ({ roomId, message, senderName }) => {
-    const room = rooms.get(roomId)
-    const participant = room?.participants.get(socket.id)
+  // Чат в комнате — имя и id берём из серверного состояния, не с клиента
+  socket.on('chat-message', ({ message }) => {
+    const ctx = getJoinedRoom()
+    if (!ctx) return
+    if (typeof message !== 'string' || !message.trim()) return
+    const { roomId, room, participant } = ctx
     const msgData = {
       id: Date.now(),
       message,
-      senderName,
+      senderName: participant.name,
       senderId: socket.id,
-      userId: participant?.id,
+      userId: participant.id,
       timestamp: new Date().toISOString(),
     }
-    // Сохраняем в историю комнаты
-    if (room) {
-      room.messages.push(msgData)
-      if (room.messages.length > MAX_CHAT_HISTORY) {
-        room.messages.shift()
-      }
+    room.messages.push(msgData)
+    if (room.messages.length > MAX_CHAT_HISTORY) {
+      room.messages.shift()
     }
     io.to(roomId).emit('chat-message', msgData)
   })
 
   // Переключение медиа (mute/unmute, video on/off)
-  socket.on('media-toggle', ({ roomId, type, enabled }) => {
-    socket.to(roomId).emit('user-media-toggle', {
+  socket.on('media-toggle', ({ type, enabled }) => {
+    const ctx = getJoinedRoom()
+    if (!ctx) return
+    socket.to(ctx.roomId).emit('user-media-toggle', {
       socketId: socket.id,
-      type, // 'audio' или 'video'
+      type,
       enabled,
     })
   })
 
   // Ориентация устройства (portrait/landscape)
-  socket.on('orientation-update', ({ roomId, isPortrait }) => {
-    socket.to(roomId).emit('remote-orientation-update', {
+  socket.on('orientation-update', ({ isPortrait }) => {
+    const ctx = getJoinedRoom()
+    if (!ctx) return
+    ctx.participant.isPortrait = isPortrait === true
+    socket.to(ctx.roomId).emit('remote-orientation-update', {
       socketId: socket.id,
-      isPortrait,
+      isPortrait: isPortrait === true,
     })
   })
 
@@ -707,7 +1013,8 @@ io.on('connection', (socket) => {
     socket.leave(`slots:${doctorId}:${date}`)
   })
 
-  socket.on('reserve-slot', ({ doctorId, date, time, userId }) => {
+  socket.on('reserve-slot', ({ doctorId, date, time }) => {
+    const userId = socket.verifiedUserId
     const key = `${doctorId}|${date}|${time}`
 
     // Check if slot is already held by ANOTHER socket
@@ -766,6 +1073,16 @@ io.on('connection', (socket) => {
     if (!doctorId || !date || !time) return
     const key = `${doctorId}|${date}|${time}`
     const val = pendingSlotReservations.get(key)
+
+    // If a live reservation exists, only its owner may confirm it.
+    // This prevents any authenticated user from faking a slot-booked broadcast.
+    // If the reservation has already expired (TTL) the check is skipped —
+    // the appointment is in Strapi by then, so the broadcast is legitimate.
+    if (val && val.expiresAt > Date.now() && val.userId !== socket.verifiedUserId) {
+      console.warn(`[Slots] slot-confirmed rejected: user ${socket.verifiedUserId} does not own ${key}`)
+      return
+    }
+
     if (val) {
       clearTimeout(val.timer)
       pendingSlotReservations.delete(key)
@@ -806,8 +1123,14 @@ io.on('connection', (socket) => {
   })
 
   // Принудительное завершение звонка врачом
-  socket.on('force-end-call', ({ roomId }) => {
-    socket.to(roomId).emit('call-force-ended')
+  socket.on('force-end-call', () => {
+    const ctx = getJoinedRoom()
+    if (!ctx) return
+    if (ctx.participant.role !== 'doctor') {
+      console.warn(`[SECURITY] Non-doctor ${socket.verifiedUserId} tried force-end-call in ${ctx.roomId}`)
+      return
+    }
+    socket.to(ctx.roomId).emit('call-force-ended')
   })
 
   // Покинуть комнату
