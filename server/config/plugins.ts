@@ -36,7 +36,6 @@ export default ({ env }) => ({
       config: {
         provider: 'aws-s3',
         providerOptions: {
-          baseUrl: env('MINIO_PUBLIC_URL'),
           s3Options: {
             credentials: {
               accessKeyId: env('MINIO_ACCESS_KEY'),
@@ -48,7 +47,12 @@ export default ({ env }) => ({
             params: { Bucket: env('MINIO_BUCKET') },
           },
         },
-        actionOptions: { upload: {}, uploadStream: {}, delete: {} },
+        actionOptions: {
+          upload: {},
+          uploadStream: {},
+          delete: {},
+          sign: { expiresIn: 3600 },
+        },
       },
     },
   } : {}),
