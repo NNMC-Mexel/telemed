@@ -36,6 +36,7 @@ export default ({ env }) => ({
       config: {
         provider: 'aws-s3',
         providerOptions: {
+          baseUrl: env('STRAPI_URL', 'http://localhost:1337') + '/api/file-proxy',
           s3Options: {
             credentials: {
               accessKeyId: env('MINIO_ACCESS_KEY'),
@@ -47,12 +48,7 @@ export default ({ env }) => ({
             params: { Bucket: env('MINIO_BUCKET') },
           },
         },
-        actionOptions: {
-          upload: {},
-          uploadStream: {},
-          delete: {},
-          sign: { expiresIn: 3600 },
-        },
+        actionOptions: { upload: {}, uploadStream: {}, delete: {} },
       },
     },
   } : {}),
