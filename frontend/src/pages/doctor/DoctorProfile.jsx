@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
     User,
     Mail,
@@ -21,6 +22,7 @@ import useAuthStore from "../../stores/authStore";
 import api, { getMediaUrl, uploadFile, normalizeResponse } from "../../services/api";
 
 function DoctorProfile() {
+    const { t } = useTranslation()
     const { user, updateProfile } = useAuthStore();
     const [doctor, setDoctor] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -53,35 +55,6 @@ function DoctorProfile() {
             );
             let doctorData = response.data?.data?.[0];
             
-            // Если профиль врача не найден - создаём его автоматически
-            if (!doctorData && user.userRole === 'doctor') {
-                console.log("Creating doctor profile for user:", user.id);
-                try {
-                    const createRes = await api.post('/api/doctors', {
-                        data: {
-                            fullName: user.fullName || user.username || 'Врач',
-                            users_permissions_user: user.id,
-                            userId: user.id, // Добавляем поле для фильтрации
-                            isActive: true,
-                            rating: 0,
-                            reviewsCount: 0,
-                            price: 8000,
-                            experience: 0,
-                            workStartTime: '09:00',
-                            workEndTime: '18:00',
-                            breakStart: '12:00',
-                            breakEnd: '14:00',
-                            slotDuration: 30,
-                            workingDays: '1,2,3,4,5',
-                        }
-                    });
-                    doctorData = createRes.data?.data;
-                    console.log("Doctor profile created:", doctorData);
-                } catch (createError) {
-                    console.error("Error creating doctor profile:", createError.response?.data || createError);
-                }
-            }
-
             if (doctorData) {
                 setDoctor(doctorData);
 
@@ -167,9 +140,9 @@ function DoctorProfile() {
                 phone: formData.phone,
             });
 
-            setMessage({ type: "success", text: "Профиль успешно сохранён" });
+            setMessage({ type: "success", text: t('doctor_profile.save_success') });
         } catch (error) {
-            setMessage({ type: "error", text: "Ошибка сохранения профиля" });
+            setMessage({ type: "error", text: t('doctor_profile.save_error') });
         } finally {
             setIsSaving(false);
         }
@@ -217,10 +190,10 @@ function DoctorProfile() {
         <div className='space-y-6 animate-fadeIn'>
             <div>
                 <h1 className='text-2xl font-bold text-slate-900'>
-                    Профиль врача
+                    {t('doctor_profile.title')}
                 </h1>
                 <p className='text-slate-600'>
-                    Управляйте вашими профессиональными данными
+                    {t('doctor_profile.subtitle')}
                 </p>
             </div>
 
@@ -259,7 +232,7 @@ function DoctorProfile() {
                             {formData.fullName}
                         </h2>
                         <p className='text-teal-600'>
-                            {doctor?.specialization?.name || "Врач"}
+                            {doctor?.specialization?.name || t('doctor_profile.doctor_label')}
                         </p>
 
                         <div className='mt-6 grid grid-cols-2 gap-4 text-center'>
@@ -271,7 +244,7 @@ function DoctorProfile() {
                                     </span>
                                 </div>
                                 <p className='text-xs text-slate-500'>
-                                    Рейтинг
+                                    {t('doctor_profile.rating')}
                                 </p>
                             </div>
                             <div className='p-3 bg-slate-50 rounded-xl'>
@@ -279,7 +252,7 @@ function DoctorProfile() {
                                     {reviewStats.count}
                                 </p>
                                 <p className='text-xs text-slate-500'>
-                                    Отзывов
+                                    {t('doctor_profile.reviews')}
                                 </p>
                             </div>
                         </div>
@@ -292,19 +265,19 @@ function DoctorProfile() {
                         <CardContent>
                             <h3 className='font-semibold text-slate-900 mb-4 flex items-center gap-2'>
                                 <User className='w-5 h-5 text-teal-600' />
-                                Основная информация
+                                {t('doctor_profile.main_info')}
                             </h3>
 
                             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                                 <div>
                                     <label className='block text-sm font-medium text-slate-700 mb-1'>
-                                        ФИО
+                                        {t('doctor_profile.full_name')}
                                     </label>
                                     <Input
                                         name='fullName'
                                         value={formData.fullName}
                                         onChange={handleChange}
-                                        placeholder='Полное имя'
+                                        placeholder={t('doctor_profile.full_name_placeholder')}
                                     />
                                 </div>
                                 <div>
@@ -320,7 +293,7 @@ function DoctorProfile() {
                                 </div>
                                 <div>
                                     <label className='block text-sm font-medium text-slate-700 mb-1'>
-                                        Телефон
+                                        {t('doctor_profile.phone')}
                                     </label>
                                     <Input
                                         name='phone'
@@ -331,7 +304,7 @@ function DoctorProfile() {
                                 </div>
                                 <div>
                                     <label className='block text-sm font-medium text-slate-700 mb-1'>
-                                        Стаж (лет)
+                                        {t('doctor_profile.experience')}
                                     </label>
                                     <Input
                                         type='number'
@@ -349,13 +322,13 @@ function DoctorProfile() {
                         <CardContent>
                             <h3 className='font-semibold text-slate-900 mb-4 flex items-center gap-2'>
                                 <Briefcase className='w-5 h-5 text-teal-600' />
-                                Профессиональная информация
+                                {t('doctor_profile.professional_info')}
                             </h3>
 
                             <div className='space-y-4'>
                                 <div>
                                     <label className='block text-sm font-medium text-slate-700 mb-1'>
-                                        О себе
+                                        {t('doctor_profile.about')}
                                     </label>
                                     <textarea
                                         name='shortBio'
@@ -363,12 +336,12 @@ function DoctorProfile() {
                                         onChange={handleChange}
                                         rows={3}
                                         className='w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none'
-                                        placeholder='Краткое описание вашего опыта и специализации...'
+                                        placeholder={t('doctor_profile.about_placeholder')}
                                     />
                                 </div>
                                 <div>
                                     <label className='block text-sm font-medium text-slate-700 mb-1'>
-                                        Образование
+                                        {t('doctor_profile.education')}
                                     </label>
                                     <textarea
                                         name='education'
@@ -376,13 +349,13 @@ function DoctorProfile() {
                                         onChange={handleChange}
                                         rows={2}
                                         className='w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none'
-                                        placeholder='Университет, год окончания, специальность...'
+                                        placeholder={t('doctor_profile.education_placeholder')}
                                     />
                                 </div>
                                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                                     <div>
                                         <label className='block text-sm font-medium text-slate-700 mb-1'>
-                                            Цена консультации (₸)
+                                            {t('doctor_profile.price')}
                                         </label>
                                         <Input
                                             type='number'
@@ -395,7 +368,7 @@ function DoctorProfile() {
                                     </div>
                                     <div>
                                         <label className='block text-sm font-medium text-slate-700 mb-1'>
-                                            Длительность (мин)
+                                            {t('doctor_profile.duration')}
                                         </label>
                                         <Input
                                             type='number'
@@ -419,7 +392,7 @@ function DoctorProfile() {
                             onClick={handleSave}
                             isLoading={isSaving}
                             leftIcon={<Save className='w-4 h-4' />}>
-                            Сохранить изменения
+                            {t('doctor_profile.save')}
                         </Button>
                     </div>
                 </div>

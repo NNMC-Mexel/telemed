@@ -8,12 +8,13 @@
  * Принимает дополнительные поля при регистрации:
  *   - userRole: 'patient' | 'doctor' (admin запрещён)
  *   - fullName, phone, iin
- *   - doctorData: { specialization, experience, education, ... } (только для doctor)
+ *   - doctorData больше не принимается из публичной регистрации.
  *
  * Автоматически:
- *   - Назначает правильную Strapi-роль (patient/doctor вместо authenticated)
- *   - Создаёт Doctor-профиль при регистрации врача
+ *   - Назначает Strapi-роль patient
  *   - Возвращает полные данные user в ответе
+ *
+ * В B2B-модели врачи создаются только администратором клиники через админ-панель.
  */
 export default (plugin) => {
   // Сохраняем оригинальную factory-функцию контроллера auth
@@ -101,12 +102,15 @@ export default (plugin) => {
 
         const { userRole: rawRole, fullName, phone, iin, doctorData, ...cleanBody } = sourceBody;
 
-        // Безопасность: admin нельзя создать через регистрацию
+        // B2B security: public registration is only for patients.
+        // Doctors are clinic employees and must be created/verified by an admin.
         const normalizedRole = typeof rawRole === 'string' ? rawRole.toLowerCase() : null;
-        const inferredDoctor = normalizedRole === 'doctor' || !!doctorData;
-        const userRole = inferredDoctor ? 'doctor' : 'patient';
+        if (normalizedRole === 'doctor' || normalizedRole === 'admin' || doctorData) {
+          return ctx.forbidden('Doctor registration is disabled. Doctors are created by clinic administrators.');
+        }
+        const userRole = 'patient';
 
-        console.log(`[auth.register] userRole=${userRole}, fullName=${fullName}, hasDoctor=${!!doctorData}`);
+        console.log(`[auth.register] userRole=${userRole}, fullName=${fullName}`);
 
         // Подменяем body — оставляем только username, email, password
         ctx.request.body = cleanBody;
@@ -163,46 +167,7 @@ export default (plugin) => {
 
           console.log(`[auth.register] User ${userId} updated: userRole=${userRole}, roleId=${roleId}`);
 
-          // 3. Если врач — создаём Doctor-профиль
-          if (userRole === 'doctor') {
-            const doctorProfileData: any = {
-              fullName: fullName || '',
-              users_permissions_user: userId,
-              userId: userId,
-              isActive: true,
-              rating: 0,
-              reviewsCount: 0,
-              price: 8000,
-              experience: doctorData?.experience ? parseInt(doctorData.experience) : 0,
-              education: doctorData?.education || '',
-              workStartTime: '09:00',
-              workEndTime: '18:00',
-              breakStart: '12:00',
-              breakEnd: '14:00',
-              slotDuration: 30,
-              workingDays: '1,2,3,4,5',
-            };
-
-            if (doctorData?.specialization) {
-              doctorProfileData.specialization = parseInt(doctorData.specialization);
-            }
-
-            const created = await strapi.documents('api::doctor.doctor').create({
-              data: doctorProfileData,
-              status: 'published',
-            });
-
-            createdDoctorDocId = created?.documentId;
-            console.log(`[auth.register] Doctor profile created: documentId=${createdDoctorDocId}`);
-
-            if (created?.documentId && !created?.publishedAt) {
-              await strapi.documents('api::doctor.doctor').publish({
-                documentId: created.documentId,
-              });
-            }
-          }
-
-          // 4. Обновляем response body, чтобы фронтенд получил актуальные данные
+          // 3. Обновляем response body, чтобы фронтенд получил актуальные данные
           responseBody.user.userRole = userRole;
           responseBody.user.fullName = fullName || null;
           responseBody.user.phone = phone || null;

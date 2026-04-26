@@ -26,11 +26,13 @@ import Button from "../components/ui/Button";
 import Avatar from "../components/ui/Avatar";
 import Badge from "../components/ui/Badge";
 import BookingModal from "../components/appointments/BookingModal";
+import { useTranslation } from "react-i18next";
 import api, { normalizeResponse, getMediaUrl } from "../services/api";
-import { formatPrice, formatDate, isDoctorOnline } from "../utils/helpers";
+import { formatPrice, formatDate, isDoctorOnline, getSpecName } from "../utils/helpers";
 
 function DoctorProfilePage() {
     const { id } = useParams();
+    const { t, i18n } = useTranslation();
     const [doctor, setDoctor] = useState(null);
     const [reviews, setReviews] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -74,19 +76,17 @@ function DoctorProfilePage() {
         return (
             <div className='text-center py-24'>
                 <h2 className='text-xl font-semibold text-slate-900 mb-2'>
-                    Врач не найден
+                    {t('doctor_public.not_found')}
                 </h2>
                 <Link to='/doctors'>
-                    <Button variant='outline'>Вернуться к списку врачей</Button>
+                    <Button variant='outline'>{t('doctor_public.back_to_list')}</Button>
                 </Link>
             </div>
         );
     }
 
-    const specialization =
-        typeof doctor.specialization === "object"
-            ? doctor.specialization?.name
-            : doctor.specialization || "Специалист";
+    const specialization = getSpecName(doctor.specialization, i18n.language)
+        || t('doctor_public.specialist');
 
     // Рейтинг от 0 до 5 (не 10)
     const averageRating = Math.min(doctor.rating || 0, 5);
@@ -102,7 +102,7 @@ function DoctorProfilePage() {
                         to='/doctors'
                         className='inline-flex items-center gap-2 text-slate-600 hover:text-teal-600 transition-colors'>
                         <ChevronLeft className='w-5 h-5' />
-                        <span>Назад к списку врачей </span>
+                        <span>{t('doctor_public.back')}</span>
                     </Link>
 
                     {/* Main Profile Card */}
@@ -167,7 +167,7 @@ function DoctorProfilePage() {
                                             •
                                         </span>
                                         <span className='text-slate-500'>
-                                            {reviewsCount} отзывов
+                                            {t('doctor_public.reviews_count', { count: reviewsCount })}
                                         </span>
                                     </div>
 
@@ -181,7 +181,7 @@ function DoctorProfilePage() {
                                                 {doctor.experience || 0}
                                             </p>
                                             <p className='text-sm text-slate-500'>
-                                                лет опыта
+                                                {t('doctor_public.experience_years')}
                                             </p>
                                         </div>
                                         <div className='p-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl'>
@@ -192,7 +192,7 @@ function DoctorProfilePage() {
                                                 {totalPatients}+
                                             </p>
                                             <p className='text-sm text-slate-500'>
-                                                пациентов
+                                                {t('doctor_public.patients')}
                                             </p>
                                         </div>
                                     </div>
@@ -200,7 +200,7 @@ function DoctorProfilePage() {
                                     {/* Price & Book Button */}
                                     <div className='p-4 bg-gradient-to-br from-teal-50 to-sky-50 rounded-2xl mb-4 text-teal-800 border border-teal-100'>
                                         <p className='text-xs uppercase tracking-wide text-teal-500 mb-1'>
-                                            Стоимость консультации
+                                            {t('doctor_public.price_label')}
                                         </p>
                                         <p className='text-2xl md:text-3xl font-bold leading-tight'>
                                             {formatPrice(doctor.price || 0)}
@@ -211,7 +211,7 @@ function DoctorProfilePage() {
                                                 {doctor.consultationDuration ||
                                                     doctor.slotDuration ||
                                                     30}{" "}
-                                                минут
+                                                {t('doctor_public.minutes')}
                                             </span>
                                         </p>
                                     </div>
@@ -225,7 +225,7 @@ function DoctorProfilePage() {
                                         leftIcon={
                                             <Calendar className='w-5 h-5' />
                                         }>
-                                        Записаться на приём
+                                        {t('doctor_public.book')}
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -235,13 +235,13 @@ function DoctorProfilePage() {
                                 <CardHeader>
                                     <CardTitle className='flex items-center gap-2 text-base'>
                                         <Clock className='w-5 h-5 text-teal-600' />
-                                        Расписание
+                                        {t('doctor_public.schedule')}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className='space-y-3'>
                                     <div className='flex items-center justify-between p-3 bg-slate-50 rounded-xl'>
                                         <span className='text-slate-600 text-sm'>
-                                            Приём
+                                            {t('doctor_public.reception')}
                                         </span>
                                         <span className='font-semibold text-slate-900'>
                                             {doctor.workStartTime || "09:00"} —{" "}
@@ -251,7 +251,7 @@ function DoctorProfilePage() {
                                     {doctor.breakStart && doctor.breakEnd && (
                                         <div className='flex items-center justify-between p-3 bg-slate-50 rounded-xl'>
                                             <span className='text-slate-600 text-sm'>
-                                                Перерыв
+                                                {t('doctor_public.break')}
                                             </span>
                                             <span className='font-semibold text-slate-900'>
                                                 {doctor.breakStart} —{" "}
@@ -261,7 +261,7 @@ function DoctorProfilePage() {
                                     )}
                                     <div className='flex items-center justify-between p-3 bg-slate-50 rounded-xl'>
                                         <span className='text-slate-600 text-sm'>
-                                            Дни приёма
+                                            {t('doctor_public.working_days')}
                                         </span>
                                         <span className='font-semibold text-slate-900 text-right'>
                                             {doctor.workingDays
@@ -269,18 +269,10 @@ function DoctorProfilePage() {
                                                       .split(",")
                                                       .map(
                                                           (d) =>
-                                                              [
-                                                                  "Вс",
-                                                                  "Пн",
-                                                                  "Вт",
-                                                                  "Ср",
-                                                                  "Чт",
-                                                                  "Пт",
-                                                                  "Сб",
-                                                              ][parseInt(d)],
+                                                              t('doctor_public.days').split(',')[parseInt(d)],
                                                       )
                                                       .join(", ")
-                                                : "Пн — Пт"}
+                                                : t('doctor_public.days_default')}
                                         </span>
                                     </div>
                                 </CardContent>
@@ -293,7 +285,7 @@ function DoctorProfilePage() {
                             <Card>
                                 <CardHeader>
                                     <CardTitle className='text-lg'>
-                                        О враче
+                                        {t('doctor_public.about')}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
@@ -307,8 +299,7 @@ function DoctorProfilePage() {
                                                 <Users className='w-6 h-6 text-slate-400' />
                                             </div>
                                             <p className='text-slate-400'>
-                                                Врач пока не добавил информацию
-                                                о себе
+                                                {t('doctor_public.no_bio')}
                                             </p>
                                         </div>
                                     )}
@@ -320,7 +311,7 @@ function DoctorProfilePage() {
                                 <CardHeader>
                                     <CardTitle className='flex items-center gap-2 text-lg'>
                                         <GraduationCap className='w-5 h-5 text-teal-600' />
-                                        Образование и квалификация
+                                        {t('doctor_public.education')}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
@@ -346,8 +337,7 @@ function DoctorProfilePage() {
                                                 <GraduationCap className='w-6 h-6 text-slate-400' />
                                             </div>
                                             <p className='text-slate-400'>
-                                                Информация об образовании будет
-                                                добавлена позже
+                                                {t('doctor_public.no_education')}
                                             </p>
                                         </div>
                                     )}
@@ -362,7 +352,7 @@ function DoctorProfilePage() {
                                         <CardHeader>
                                             <CardTitle className='flex items-center gap-2 text-lg'>
                                                 <Globe className='w-5 h-5 text-teal-600' />
-                                                Языки консультаций
+                                                {t('doctor_public.languages')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent>
@@ -386,7 +376,7 @@ function DoctorProfilePage() {
                                 <CardHeader>
                                     <CardTitle className='flex items-center gap-2 text-lg'>
                                         <Award className='w-5 h-5 text-teal-600' />
-                                        Услуги
+                                        {t('doctor_public.services')}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
@@ -397,7 +387,7 @@ function DoctorProfilePage() {
                                             </div>
                                             <div>
                                                 <p className='font-semibold text-slate-900'>
-                                                    Видеоконсультация
+                                                    {t('doctor_public.video_consult')}
                                                 </p>
                                                 <p className='text-lg font-bold text-teal-600'>
                                                     {formatPrice(
@@ -412,10 +402,10 @@ function DoctorProfilePage() {
                                             </div>
                                             <div className='flex-1'>
                                                 <p className='font-semibold text-slate-400'>
-                                                    Чат-консультация
+                                                    {t('doctor_public.chat_consult')}
                                                 </p>
                                                 <p className='text-sm font-medium text-slate-400'>
-                                                    В разработке
+                                                    {t('doctor_public.in_development')}
                                                 </p>
                                             </div>
                                         </div>
@@ -428,11 +418,11 @@ function DoctorProfilePage() {
                                 <CardHeader className='flex flex-row items-center justify-between'>
                                     <CardTitle className='flex items-center gap-2 text-lg'>
                                         <Star className='w-5 h-5 text-amber-400 fill-amber-400' />
-                                        Отзывы пациентов
+                                        {t('doctor_public.patient_reviews')}
                                     </CardTitle>
                                     {reviews.length > 0 && (
                                         <Badge variant='default'>
-                                            {reviews.length} отзывов
+                                            {t('doctor_public.reviews_count', { count: reviews.length })}
                                         </Badge>
                                     )}
                                 </CardHeader>
@@ -443,11 +433,10 @@ function DoctorProfilePage() {
                                                 <MessageCircle className='w-8 h-8 text-slate-400' />
                                             </div>
                                             <p className='text-slate-600 font-medium mb-1'>
-                                                Пока нет отзывов
+                                                {t('doctor_public.no_reviews')}
                                             </p>
                                             <p className='text-sm text-slate-400'>
-                                                Станьте первым, кто оценит
-                                                работу врача!
+                                                {t('doctor_public.no_reviews_sub')}
                                             </p>
                                         </div>
                                     ) : (
@@ -470,7 +459,7 @@ function DoctorProfilePage() {
                                                                         review
                                                                             .patient
                                                                             ?.fullName ||
-                                                                        "Пациент"
+                                                                        t('doctor_public.patient')
                                                                     }
                                                                     size='md'
                                                                 />
@@ -487,12 +476,10 @@ function DoctorProfilePage() {
                                                                             .join(
                                                                                 " ",
                                                                             ) ||
-                                                                            "Пациент"}
+                                                                            t('doctor_public.patient')}
                                                                     </p>
                                                                     <p className='text-xs text-slate-500'>
-                                                                        {formatDate(
-                                                                            review.createdAt,
-                                                                        )}
+                                                                        {formatDate(review.createdAt, i18n.language)}
                                                                     </p>
                                                                 </div>
                                                             </div>
@@ -513,8 +500,7 @@ function DoctorProfilePage() {
 
                                             {reviews.length > 5 && (
                                                 <button className='w-full py-3 text-teal-600 hover:text-teal-700 font-medium text-sm border border-teal-200 rounded-xl hover:bg-teal-50 transition-colors'>
-                                                    Показать все отзывы (
-                                                    {reviews.length})
+                                                    {t('doctor_public.show_all_reviews', { count: reviews.length })}
                                                 </button>
                                             )}
                                         </div>

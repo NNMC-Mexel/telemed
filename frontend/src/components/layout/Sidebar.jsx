@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Home,
   Calendar,
@@ -17,6 +18,7 @@ import {
 import { cn } from '../../utils/helpers'
 import useAuthStore from '../../stores/authStore'
 import Avatar from '../ui/Avatar'
+import LanguageSwitcher from '../ui/LanguageSwitcher'
 
 const iconMap = {
   home: Home,
@@ -33,6 +35,7 @@ const iconMap = {
 }
 
 function Sidebar({ navItems, onNavClick }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
 
@@ -52,7 +55,7 @@ function Sidebar({ navItems, onNavClick }) {
             </div>
             <div>
               <h1 className="font-bold text-slate-900">MedConnect</h1>
-              <p className="text-xs text-slate-500">Телемедицина</p>
+              <p className="text-xs text-slate-500">{t('common.telemedicine')}</p>
             </div>
           </div>
           <button
@@ -84,7 +87,7 @@ function Sidebar({ navItems, onNavClick }) {
               }
             >
               <Icon className="w-5 h-5" />
-              {item.label}
+              {t(item.label)}
             </NavLink>
           )
         })}
@@ -92,7 +95,7 @@ function Sidebar({ navItems, onNavClick }) {
 
       {/* User Section */}
       <div className="p-4 border-t border-slate-100 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))]">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-3">
           <Avatar
             src={user?.avatar?.url}
             name={user?.fullName || user?.username}
@@ -105,13 +108,16 @@ function Sidebar({ navItems, onNavClick }) {
             <p className="text-xs text-slate-500 truncate">{user?.email}</p>
           </div>
         </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          Выйти
-        </button>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            {t('nav.logout')}
+          </button>
+          <LanguageSwitcher variant="light" />
+        </div>
       </div>
     </aside>
   )

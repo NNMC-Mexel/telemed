@@ -1,16 +1,19 @@
 import { forwardRef } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/helpers'
 
 const Select = forwardRef(({
   label,
   error,
   options = [],
-  placeholder = 'Выберите...',
+  placeholder,
   className,
   containerClassName,
   ...props
 }, ref) => {
+  const { t } = useTranslation()
+  const resolvedPlaceholder = placeholder ?? t('common.select_placeholder')
   return (
     <div className={cn('space-y-1.5', containerClassName)}>
       {label && (
@@ -34,7 +37,7 @@ const Select = forwardRef(({
           {...props}
         >
           <option value="" disabled>
-            {placeholder}
+            {resolvedPlaceholder}
           </option>
           {options.map((option) => (
             <option key={option.value} value={option.value}>

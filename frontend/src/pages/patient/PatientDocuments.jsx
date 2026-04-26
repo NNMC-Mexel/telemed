@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   FileText,
   Download,
@@ -30,17 +31,18 @@ import useDocumentStore from '../../stores/documentStore'
 import useAuthStore from '../../stores/authStore'
 import api, { getMediaUrl } from '../../services/api'
 
-const documentTypes = {
-  analysis: { label: 'Анализы', icon: TestTube, color: 'bg-blue-100 text-blue-700' },
-  prescription: { label: 'Рецепты', icon: Pill, color: 'bg-green-100 text-green-700' },
-  certificate: { label: 'Справки', icon: FileCheck, color: 'bg-amber-100 text-amber-700' },
-  mrt: { label: 'МРТ', icon: Scan, color: 'bg-purple-100 text-purple-700' },
-  xray: { label: 'Рентген', icon: Radio, color: 'bg-rose-100 text-rose-700' },
-  ultrasound: { label: 'УЗИ', icon: Radio, color: 'bg-cyan-100 text-cyan-700' },
-  other: { label: 'Другое', icon: FileText, color: 'bg-slate-100 text-slate-700' },
-}
-
 function PatientDocuments() {
+  const { t, i18n } = useTranslation()
+
+  const documentTypes = {
+    analysis: { label: t('documents.type_analysis'), icon: TestTube, color: 'bg-blue-100 text-blue-700' },
+    prescription: { label: t('documents.type_prescription'), icon: Pill, color: 'bg-green-100 text-green-700' },
+    certificate: { label: t('documents.type_certificate'), icon: FileCheck, color: 'bg-amber-100 text-amber-700' },
+    mrt: { label: t('documents.type_mrt'), icon: Scan, color: 'bg-purple-100 text-purple-700' },
+    xray: { label: t('documents.type_xray'), icon: Radio, color: 'bg-rose-100 text-rose-700' },
+    ultrasound: { label: t('documents.type_ultrasound'), icon: Radio, color: 'bg-cyan-100 text-cyan-700' },
+    other: { label: t('documents.type_other'), icon: FileText, color: 'bg-slate-100 text-slate-700' },
+  }
   const { user } = useAuthStore()
   const {
     documents,
@@ -103,7 +105,7 @@ function PatientDocuments() {
 
     const fileUrl = getMediaUrl(file)
     if (!fileUrl) {
-      setPreviewError('Не удалось получить ссылку на файл')
+      setPreviewError(t('documents.link_error'))
       return undefined
     }
 
@@ -117,7 +119,7 @@ function PatientDocuments() {
       })
       .catch(() => {
         if (!isActive) return
-        setPreviewError('Предпросмотр недоступен')
+        setPreviewError(t('documents.preview_unavailable'))
       })
       .finally(() => {
         if (!isActive) return
@@ -304,9 +306,9 @@ function PatientDocuments() {
   }
 
   const getDocCountWord = (count) => {
-    if (count === 1) return 'документ'
-    if (count >= 2 && count <= 4) return 'документа'
-    return 'документов'
+    if (count === 1) return t('documents.doc_count_1')
+    if (count >= 2 && count <= 4) return t('documents.doc_count_2_4')
+    return t('documents.doc_count_many')
   }
 
   const openFolder = (folder) => {
@@ -327,11 +329,11 @@ function PatientDocuments() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Мои документы</h1>
-          <p className="text-slate-600">Медицинские документы и результаты анализов</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('documents.title')}</h1>
+          <p className="text-slate-600">{t('documents.subtitle')}</p>
         </div>
         <Button onClick={() => setShowUploadModal(true)} leftIcon={<Upload className="w-4 h-4" />}>
-          Загрузить документ
+          {t('documents.upload_button')}
         </Button>
       </div>
 
@@ -348,7 +350,7 @@ function PatientDocuments() {
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-              <p className="text-sm text-slate-500">Всего документов</p>
+              <p className="text-sm text-slate-500">{t('documents.stat_total')}</p>
             </div>
           </CardContent>
         </Card>
@@ -372,7 +374,7 @@ function PatientDocuments() {
         <Card>
           <CardContent className="text-center py-12">
             <Loader2 className="w-8 h-8 mx-auto text-teal-600 animate-spin mb-4" />
-            <p className="text-slate-600">Загрузка документов...</p>
+            <p className="text-slate-600">{t('documents.loading')}</p>
           </CardContent>
         </Card>
       ) : !selectedFolder ? (
@@ -385,7 +387,7 @@ function PatientDocuments() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Поиск по врачу..."
+                  placeholder={t('documents.search_placeholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -396,7 +398,7 @@ function PatientDocuments() {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
               >
                 <ArrowUpDown className="w-4 h-4" />
-                {sortNewest ? 'Сначала новые' : 'Сначала старые'}
+                {sortNewest ? t('documents.sort_newest') : t('documents.sort_oldest')}
               </button>
             </CardContent>
           </Card>
@@ -405,7 +407,7 @@ function PatientDocuments() {
           <Card
             hover
             className="cursor-pointer border-2 border-dashed border-amber-200 bg-amber-50/30"
-            onClick={() => openFolder({ id: '__uploads__', label: 'Мои загрузки' })}
+            onClick={() => openFolder({ id: '__uploads__', label: t('documents.my_uploads') })}
           >
             <CardContent>
               <div className="flex items-center gap-4">
@@ -413,11 +415,11 @@ function PatientDocuments() {
                   <Upload className="w-6 h-6 text-amber-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-slate-900">Мои загрузки</h3>
+                  <h3 className="font-semibold text-slate-900">{t('documents.my_uploads')}</h3>
                   <p className="text-sm text-slate-500 mt-0.5">
                     {ungroupedDocs.length > 0
-                      ? `${ungroupedDocs.length} ${getDocCountWord(ungroupedDocs.length)} · МРТ, анализы, снимки`
-                      : 'Загрузите документы для врача'
+                      ? `${ungroupedDocs.length} ${getDocCountWord(ungroupedDocs.length)} · ${t('documents.uploads_desc_count')}`
+                      : t('documents.upload_desc')
                     }
                   </p>
                 </div>
@@ -428,16 +430,16 @@ function PatientDocuments() {
 
           {/* Consultation Folders */}
           {filteredFolders.length > 0 && (
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider pt-2">Консультации</p>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider pt-2">{t('documents.consultations_header')}</p>
           )}
           <div className="space-y-3">
             {filteredFolders.length === 0 && ungroupedDocs.length === 0 ? (
               <Card>
                 <CardContent className="text-center py-12">
                   <FolderOpen className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">Документы не найдены</h3>
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">{t('documents.empty_title')}</h3>
                   <p className="text-slate-600">
-                    {searchQuery ? 'Попробуйте изменить параметры поиска' : 'У вас пока нет документов'}
+                    {searchQuery ? t('documents.empty_search') : t('documents.empty_all')}
                   </p>
                 </CardContent>
               </Card>
@@ -459,7 +461,7 @@ function PatientDocuments() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-slate-900">
-                            Консультация — {formatDate(folder.dateTime)}
+                            {t('documents.consultation_title', { date: formatDate(folder.dateTime, i18n.language) })}
                           </h3>
                           {doctorInfo && (
                             <p className="text-sm text-slate-600 mt-0.5">
@@ -495,7 +497,7 @@ function PatientDocuments() {
               className="flex items-center gap-2 text-teal-600 hover:text-teal-700 font-medium mb-3 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Назад к консультациям
+              {t('documents.back')}
             </button>
             <Card>
               <CardContent>
@@ -511,11 +513,11 @@ function PatientDocuments() {
                   </div>
                   <div>
                     {selectedFolder.id === '__uploads__' ? (
-                      <h2 className="text-lg font-semibold text-slate-900">Мои загрузки</h2>
+                      <h2 className="text-lg font-semibold text-slate-900">{t('documents.my_uploads')}</h2>
                     ) : (
                       <>
                         <h2 className="text-lg font-semibold text-slate-900">
-                          Консультация — {formatDate(selectedFolder.dateTime)}
+                          {t('documents.consultation_title', { date: formatDate(selectedFolder.dateTime, i18n.language) })}
                         </h2>
                         {getDoctorInfo(selectedFolder) && (
                           <p className="text-slate-600 mt-0.5">
@@ -541,7 +543,7 @@ function PatientDocuments() {
                 filter === 'all' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              Все
+              {t('appointments.filter_all')}
             </button>
             {Object.entries(documentTypes).map(([key, config]) => (
               <button
@@ -562,8 +564,8 @@ function PatientDocuments() {
               <Card>
                 <CardContent className="text-center py-12">
                   <FileText className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">Нет документов</h3>
-                  <p className="text-slate-600">В этой категории пока нет документов</p>
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">{t('documents.no_docs_title')}</h3>
+                  <p className="text-slate-600">{t('documents.no_docs_desc')}</p>
                 </CardContent>
               </Card>
             ) : (
@@ -587,7 +589,7 @@ function PatientDocuments() {
                             )}
                             <span className="text-sm text-slate-500 flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              {formatDate(doc.createdAt)}
+                              {formatDate(doc.createdAt, i18n.language)}
                             </span>
                             <span className="text-sm text-slate-400">&middot;</span>
                             <span className="text-sm text-slate-500">{getFileSize(doc.file)}</span>
@@ -596,7 +598,7 @@ function PatientDocuments() {
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <Badge className={typeConfig.color}>{typeConfig.label}</Badge>
                           {doc.sharedWithDoctors?.length > 0 && (
-                            <span className="flex items-center gap-1 text-xs text-teal-600" title="Доступен врачам">
+                            <span className="flex items-center gap-1 text-xs text-teal-600" title={t('documents.shared_badge_title')}>
                               <UserCheck className="w-3.5 h-3.5" />
                               {doc.sharedWithDoctors.length}
                             </span>
@@ -604,21 +606,21 @@ function PatientDocuments() {
                           <button
                             onClick={(e) => { e.stopPropagation(); openShareModal(doc) }}
                             className="p-2 hover:bg-teal-100 rounded-lg text-slate-500 hover:text-teal-600"
-                            title="Поделиться с врачом"
+                            title={t('documents.share_title')}
                           >
                             <Share2 className="w-5 h-5" />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleDownload(doc) }}
                             className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
-                            title="Скачать"
+                            title={t('documents.download')}
                           >
                             <Download className="w-5 h-5" />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(doc.documentId) }}
                             className="p-2 hover:bg-red-100 rounded-lg text-slate-500 hover:text-red-600"
-                            title="Удалить"
+                            title={t('documents.delete_action')}
                           >
                             <Trash2 className="w-5 h-5" />
                           </button>
@@ -641,10 +643,10 @@ function PatientDocuments() {
         size="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setSelectedDocument(null)}>Закрыть</Button>
+            <Button variant="secondary" onClick={() => setSelectedDocument(null)}>{t('documents.close')}</Button>
             {selectedDocument?.file && (
               <Button leftIcon={<Download className="w-4 h-4" />} onClick={() => handleDownload(selectedDocument)}>
-                Скачать
+                {t('documents.download')}
               </Button>
             )}
           </>
@@ -654,30 +656,30 @@ function PatientDocuments() {
           <div className="space-y-4">
             <div className="bg-slate-50 rounded-xl p-4 space-y-3">
               <div className="flex justify-between gap-3">
-                <span className="text-slate-600 shrink-0">Тип документа</span>
+                <span className="text-slate-600 shrink-0">{t('documents.doc_type')}</span>
                 <Badge className={(documentTypes[selectedDocument.type] || documentTypes.other).color}>
                   {(documentTypes[selectedDocument.type] || documentTypes.other).label}
                 </Badge>
               </div>
               {selectedDocument.doctor?.fullName && (
                 <div className="flex justify-between gap-3">
-                  <span className="text-slate-600 shrink-0">Врач</span>
+                  <span className="text-slate-600 shrink-0">{t('documents.doctor')}</span>
                   <span className="font-medium text-slate-900 text-right wrap-break-word min-w-0">{selectedDocument.doctor.fullName}</span>
                 </div>
               )}
               <div className="flex justify-between gap-3">
-                <span className="text-slate-600 shrink-0">Дата</span>
-                <span className="font-medium text-slate-900">{formatDate(selectedDocument.createdAt)}</span>
+                <span className="text-slate-600 shrink-0">{t('documents.date')}</span>
+                <span className="font-medium text-slate-900">{formatDate(selectedDocument.createdAt, i18n.language)}</span>
               </div>
               {selectedDocument.file && (
                 <div className="flex justify-between gap-3">
-                  <span className="text-slate-600 shrink-0">Размер файла</span>
+                  <span className="text-slate-600 shrink-0">{t('documents.file_size')}</span>
                   <span className="font-medium text-slate-900">{getFileSize(selectedDocument.file)}</span>
                 </div>
               )}
               {selectedDocument.description && (
                 <div className="pt-2 border-t">
-                  <span className="text-slate-600 block mb-1">Описание</span>
+                  <span className="text-slate-600 block mb-1">{t('documents.description')}</span>
                   <p className="text-slate-900 wrap-break-word whitespace-pre-wrap">{selectedDocument.description}</p>
                 </div>
               )}
@@ -691,7 +693,7 @@ function PatientDocuments() {
                   <div className="w-full h-full flex items-center justify-center">
                     <div className="flex items-center gap-2 text-slate-500">
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Загрузка предпросмотра...
+                      {t('documents.preview_loading')}
                     </div>
                   </div>
                 ) : previewUrl ? (
@@ -699,13 +701,13 @@ function PatientDocuments() {
                     data={previewUrl}
                     type="application/pdf"
                     className="w-full h-full"
-                    aria-label="Предпросмотр PDF"
+                    aria-label={t('documents.pdf_aria')}
                   >
                     <div className="w-full h-full flex items-center justify-center">
                       <div className="text-center">
                         <FileText className="w-16 h-16 mx-auto text-slate-400 mb-3" />
-                        <p className="text-slate-500">Предпросмотр недоступен</p>
-                        <p className="text-sm text-slate-400 mt-1">Скачайте файл для просмотра</p>
+                        <p className="text-slate-500">{t('documents.preview_unavailable')}</p>
+                        <p className="text-sm text-slate-400 mt-1">{t('documents.download_to_view')}</p>
                       </div>
                     </div>
                   </object>
@@ -713,8 +715,8 @@ function PatientDocuments() {
                   <div className="w-full h-full flex items-center justify-center">
                     <div className="text-center">
                       <FileText className="w-16 h-16 mx-auto text-slate-400 mb-3" />
-                      <p className="text-slate-500">{previewError || 'Предпросмотр недоступен'}</p>
-                      <p className="text-sm text-slate-400 mt-1">Скачайте файл для просмотра</p>
+                      <p className="text-slate-500">{previewError || t('documents.preview_unavailable')}</p>
+                      <p className="text-sm text-slate-400 mt-1">{t('documents.download_to_view')}</p>
                     </div>
                   </div>
                 )}
@@ -723,7 +725,7 @@ function PatientDocuments() {
               <div className="bg-slate-50 rounded-xl p-4 flex items-center gap-3 border border-slate-200">
                 <FileText className="w-8 h-8 text-slate-400 shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-slate-700">{selectedDocument.file.name || 'Файл'}</p>
+                  <p className="text-sm font-medium text-slate-700">{selectedDocument.file.name || t('documents.file_label')}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{getFileSize(selectedDocument.file)}</p>
                 </div>
               </div>
@@ -736,15 +738,15 @@ function PatientDocuments() {
       <Modal
         isOpen={showUploadModal}
         onClose={() => { setShowUploadModal(false); resetUploadForm() }}
-        title="Загрузить документ"
+        title={t('documents.upload_modal_title')}
         size="md"
         footer={
           <>
             <Button variant="secondary" onClick={() => { setShowUploadModal(false); resetUploadForm() }}>
-              Отмена
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleUpload} disabled={!uploadFileState || !uploadTitle || isUploading} isLoading={isUploading}>
-              Загрузить
+              {t('documents.upload_action')}
             </Button>
           </>
         }
@@ -773,25 +775,25 @@ function PatientDocuments() {
             ) : (
               <>
                 <Upload className="w-12 h-12 mx-auto text-slate-400 mb-3" />
-                <p className="font-medium text-slate-900 mb-1">Перетащите файл сюда или нажмите для выбора</p>
-                <p className="text-sm text-slate-500">PDF, JPG, PNG, DOC до 10 МБ</p>
+                <p className="font-medium text-slate-900 mb-1">{t('documents.drop_file')}</p>
+                <p className="text-sm text-slate-500">{t('documents.file_formats')}</p>
               </>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Название документа *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t('documents.doc_name_label')}</label>
             <input
               type="text"
               value={uploadTitle}
               onChange={(e) => setUploadTitle(e.target.value)}
               className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-              placeholder="Например: Общий анализ крови"
+              placeholder={t('documents.doc_name_placeholder')}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Тип документа</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t('documents.doc_type_label')}</label>
             <select
               value={uploadType}
               onChange={(e) => setUploadType(e.target.value)}
@@ -804,13 +806,13 @@ function PatientDocuments() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Описание (необязательно)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t('documents.doc_desc_label')}</label>
             <textarea
               value={uploadDescription}
               onChange={(e) => setUploadDescription(e.target.value)}
               rows={3}
               className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
-              placeholder="Дополнительная информация о документе..."
+              placeholder={t('documents.doc_desc_placeholder')}
             />
           </div>
         </div>
@@ -820,46 +822,46 @@ function PatientDocuments() {
       <Modal
         isOpen={!!showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(null)}
-        title="Удалить документ?"
+        title={t('documents.delete_title')}
         size="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowDeleteConfirm(null)}>Отмена</Button>
+            <Button variant="secondary" onClick={() => setShowDeleteConfirm(null)}>{t('common.cancel')}</Button>
             <Button variant="danger" onClick={() => handleDelete(showDeleteConfirm)} isLoading={isLoading}>
-              Удалить
+              {t('documents.delete_action')}
             </Button>
           </>
         }
       >
-        <p className="text-slate-600">Вы уверены, что хотите удалить этот документ? Это действие нельзя отменить.</p>
+        <p className="text-slate-600">{t('documents.delete_desc')}</p>
       </Modal>
 
       {/* Share Modal */}
       <Modal
         isOpen={!!showShareModal}
         onClose={() => setShowShareModal(null)}
-        title="Поделиться с врачом"
+        title={t('documents.share_title')}
         size="md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowShareModal(null)}>Отмена</Button>
+            <Button variant="secondary" onClick={() => setShowShareModal(null)}>{t('common.cancel')}</Button>
             <Button onClick={handleShare} isLoading={isSaving}>
-              Сохранить
+              {t('common.save')}
             </Button>
           </>
         }
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            Выберите врачей, которым хотите предоставить доступ к документу
+            {t('documents.share_desc')}
             {showShareModal && <span className="font-medium"> «{showShareModal.title}»</span>}
           </p>
 
           {myDoctors.length === 0 ? (
             <div className="text-center py-8">
               <Stethoscope className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-              <p className="text-slate-500">У вас пока нет врачей</p>
-              <p className="text-sm text-slate-400 mt-1">Врачи появятся после первой консультации</p>
+              <p className="text-slate-500">{t('documents.no_doctors')}</p>
+              <p className="text-sm text-slate-400 mt-1">{t('documents.no_doctors_desc')}</p>
             </div>
           ) : (
             <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -908,7 +910,14 @@ function PatientDocuments() {
           {selectedDoctorIds.length > 0 && (
             <p className="text-sm text-teal-600 flex items-center gap-1">
               <Share2 className="w-4 h-4" />
-              Доступ получат {selectedDoctorIds.length} {selectedDoctorIds.length === 1 ? 'врач' : selectedDoctorIds.length <= 4 ? 'врача' : 'врачей'}
+              {t('documents.shared_with', {
+                count: selectedDoctorIds.length,
+                word: selectedDoctorIds.length === 1
+                  ? t('documents.shared_word_1')
+                  : selectedDoctorIds.length <= 4
+                    ? t('documents.shared_word_2_4')
+                    : t('documents.shared_word_many')
+              })}
             </p>
           )}
         </div>

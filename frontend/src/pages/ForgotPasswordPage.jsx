@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -7,6 +8,7 @@ import { Card, CardContent } from '../components/ui/Card'
 import api from '../services/api'
 
 function ForgotPasswordPage() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -31,7 +33,7 @@ function ForgotPasswordPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!email) {
-      setError('Введите email')
+      setError(t('auth_flow.forgot_email_required'))
       return
     }
 
@@ -43,7 +45,7 @@ function ForgotPasswordPage() {
       setIsSent(true)
       startCooldown()
     } catch (err) {
-      const message = err.response?.data?.error?.message || 'Ошибка отправки. Попробуйте позже.'
+      const message = err.response?.data?.error?.message || t('auth_flow.forgot_send_error')
       setError(message)
     } finally {
       setIsLoading(false)
@@ -58,15 +60,15 @@ function ForgotPasswordPage() {
           className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
-          Назад к входу
+          {t('auth_flow.forgot_back')}
         </Link>
 
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            Восстановление пароля
+            {t('auth_flow.forgot_title')}
           </h1>
           <p className="text-slate-600">
-            Введите email, указанный при регистрации. Мы отправим ссылку для сброса пароля.
+            {t('auth_flow.forgot_subtitle')}
           </p>
         </div>
 
@@ -76,13 +78,13 @@ function ForgotPasswordPage() {
               <div className="text-center py-4">
                 <CheckCircle className="w-16 h-16 text-teal-500 mx-auto mb-4" />
                 <h2 className="text-xl font-semibold text-slate-900 mb-2">
-                  Проверьте почту
+                  {t('auth_flow.forgot_check_email')}
                 </h2>
-                <p className="text-slate-600 mb-6">
-                  Если аккаунт с адресом <strong>{email}</strong> существует, мы отправили ссылку для сброса пароля.
-                </p>
+                <p className="text-slate-600 mb-6"
+                  dangerouslySetInnerHTML={{ __html: t('auth_flow.forgot_sent_desc', { email }) }}
+                />
                 <p className="text-sm text-slate-500 mb-6">
-                  Не получили письмо? Проверьте папку «Спам» или убедитесь, что вы ввели правильный email.
+                  {t('auth_flow.forgot_no_email')}
                 </p>
                 <Button
                   variant="outline"
@@ -90,7 +92,9 @@ function ForgotPasswordPage() {
                   className="w-full"
                   disabled={resendCooldown > 0}
                 >
-                  {resendCooldown > 0 ? `Повторить через ${resendCooldown} сек` : 'Отправить повторно'}
+                  {resendCooldown > 0
+                    ? t('auth_flow.forgot_resend_cooldown', { seconds: resendCooldown })
+                    : t('auth_flow.forgot_resend')}
                 </Button>
               </div>
             ) : (
@@ -119,7 +123,7 @@ function ForgotPasswordPage() {
                   size="lg"
                   isLoading={isLoading}
                 >
-                  Отправить ссылку
+                  {t('auth_flow.forgot_send_link')}
                 </Button>
               </form>
             )}
@@ -127,12 +131,12 @@ function ForgotPasswordPage() {
         </Card>
 
         <p className="text-center mt-6 text-slate-600">
-          Вспомнили пароль?{' '}
+          {t('auth_flow.forgot_remember')}{' '}
           <Link
             to="/login"
             className="text-teal-600 hover:text-teal-700 font-medium"
           >
-            Войти
+            {t('auth_flow.forgot_login')}
           </Link>
         </p>
       </div>

@@ -165,6 +165,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
     const isPatient = !isApiToken && (user.role?.type === 'patient' || user.userRole === 'patient');
     const isAdmin = isApiToken || user?.role?.type === 'admin' || user?.userRole === 'admin';
+    const isHumanAdmin = user?.role?.type === 'admin' || user?.userRole === 'admin';
 
     if (!isPatient && !isAdmin) {
       return ctx.forbidden('Only patients can create appointments');
@@ -282,6 +283,15 @@ export default factories.createCoreController('api::appointment.appointment', ()
     // In test mode (PAYMENTS_LIVE !== 'true') we allow it so the test-payment
     // flow in the frontend works without a real payment provider.
     const isPaymentsLive = process.env.PAYMENTS_LIVE === 'true';
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (isProduction && !isPaymentsLive && (isApiToken || isPatient)) {
+      return ctx.badRequest('Live payments must be enabled before appointments can be created in production');
+    }
+
+    if (!isHumanAdmin && !isApiToken && isPatient && isPaymentsLive) {
+      return ctx.badRequest('Appointments must be created through the payment gateway');
+    }
+
     if (isPaymentsLive && !isAdmin && requestedPaymentStatus === 'paid') {
       return ctx.badRequest('Payment must be confirmed through the payment gateway');
     }

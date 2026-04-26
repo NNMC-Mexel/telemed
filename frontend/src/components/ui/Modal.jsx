@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react'
 import { X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/helpers'
 import Button from './Button'
 
@@ -98,26 +99,27 @@ export function ConfirmModal({
   isOpen,
   onClose,
   onConfirm,
-  title = 'Подтверждение',
+  title,
   message,
-  confirmText = 'Подтвердить',
-  cancelText = 'Отмена',
+  confirmText,
+  cancelText,
   variant = 'danger',
   isLoading = false,
 }) {
+  const { t } = useTranslation()
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={title}
+      title={title ?? t('common.confirm_title')}
       size="sm"
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={isLoading}>
-            {cancelText}
+            {cancelText ?? t('common.cancel')}
           </Button>
           <Button variant={variant} onClick={onConfirm} isLoading={isLoading}>
-            {confirmText}
+            {confirmText ?? t('common.confirm')}
           </Button>
         </>
       }

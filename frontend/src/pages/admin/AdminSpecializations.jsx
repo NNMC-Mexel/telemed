@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { GripVertical, Loader2, Pencil, Plus, Search, Tags, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -37,6 +38,7 @@ const arrayMove = (arr, fromIndex, toIndex) => {
 }
 
 function AdminSpecializations() {
+  const { t } = useTranslation()
   const [items, setItems] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -117,7 +119,7 @@ function AdminSpecializations() {
       )
     } catch (error) {
       console.error('Error updating specialization order:', error)
-      alert('Не удалось сохранить порядок специализаций')
+      alert(t('admin_spec.err_save_order'))
       await loadData()
     } finally {
       setIsReordering(false)
@@ -148,7 +150,7 @@ function AdminSpecializations() {
     e.preventDefault()
 
     if (!form.name.trim()) {
-      alert('Название специализации обязательно')
+      alert(t('admin_spec.err_name'))
       return
     }
 
@@ -174,7 +176,7 @@ function AdminSpecializations() {
       await loadData()
     } catch (error) {
       console.error('Error saving specialization:', error)
-      alert('Не удалось сохранить специализацию')
+      alert(t('admin_spec.err_save'))
     } finally {
       setIsSaving(false)
     }
@@ -183,7 +185,7 @@ function AdminSpecializations() {
   const handleDelete = async (item) => {
     if (!item?.documentId) return
 
-    const confirmed = window.confirm(`Удалить специализацию "${item.name}"?`)
+    const confirmed = window.confirm(t('admin_spec.confirm_delete', { name: item.name }))
     if (!confirmed) return
 
     try {
@@ -191,7 +193,7 @@ function AdminSpecializations() {
       await loadData()
     } catch (error) {
       console.error('Error deleting specialization:', error)
-      alert('Не удалось удалить специализацию')
+      alert(t('admin_spec.err_delete'))
     }
   }
 
@@ -207,31 +209,27 @@ function AdminSpecializations() {
     <div className='space-y-6 animate-fadeIn'>
       <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4'>
         <div>
-          <h1 className='text-2xl font-bold text-slate-900'>Специализации</h1>
-          <p className='text-slate-600'>Создание, редактирование и изменение порядка направлений врачей</p>
+          <h1 className='text-2xl font-bold text-slate-900'>{t('admin_spec.title')}</h1>
+          <p className='text-slate-600'>{t('admin_spec.subtitle')}</p>
         </div>
         <Button leftIcon={<Plus className='w-4 h-4' />} onClick={openCreateModal}>
-          Добавить специализацию
+          {t('admin_spec.add_btn')}
         </Button>
       </div>
 
       <Input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder='Поиск по названию, описанию или иконке...'
+        placeholder={t('admin_spec.search_placeholder')}
         leftIcon={<Search className='w-4 h-4' />}
       />
 
       <Card>
         <CardHeader>
-          <CardTitle>Список специализаций ({filteredItems.length})</CardTitle>
-          <p className='text-sm text-slate-500'>
-            Перетащите строку за иконку слева, чтобы изменить порядок. Первый в списке получает порядок `1`.
-          </p>
+          <CardTitle>{t('admin_spec.list_title', { count: filteredItems.length })}</CardTitle>
+          <p className='text-sm text-slate-500'>{t('admin_spec.drag_hint')}</p>
           {search.trim() && (
-            <p className='text-xs text-amber-600'>
-              Режим перетаскивания отключен во время поиска.
-            </p>
+            <p className='text-xs text-amber-600'>{t('admin_spec.drag_disabled')}</p>
           )}
         </CardHeader>
         <CardContent className='p-0'>
@@ -240,18 +238,18 @@ function AdminSpecializations() {
               <thead>
                 <tr className='border-b border-slate-200'>
                   <th className='text-left py-4 px-4 font-medium text-slate-500 w-14'></th>
-                  <th className='text-left py-4 px-6 font-medium text-slate-500'>Название</th>
-                  <th className='text-left py-4 px-6 font-medium text-slate-500'>Описание</th>
-                  <th className='text-left py-4 px-6 font-medium text-slate-500'>Иконка</th>
-                  <th className='text-left py-4 px-6 font-medium text-slate-500'>Порядок</th>
-                  <th className='text-right py-4 px-6 font-medium text-slate-500'>Действия</th>
+                  <th className='text-left py-4 px-6 font-medium text-slate-500'>{t('admin_spec.col_name')}</th>
+                  <th className='text-left py-4 px-6 font-medium text-slate-500'>{t('admin_spec.col_desc')}</th>
+                  <th className='text-left py-4 px-6 font-medium text-slate-500'>{t('admin_spec.col_icon')}</th>
+                  <th className='text-left py-4 px-6 font-medium text-slate-500'>{t('admin_spec.col_order')}</th>
+                  <th className='text-right py-4 px-6 font-medium text-slate-500'>{t('admin_spec.col_actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredItems.length === 0 ? (
                   <tr>
                     <td colSpan={6} className='text-center py-10 text-slate-500'>
-                      Специализации не найдены
+                      {t('admin_spec.not_found')}
                     </td>
                   </tr>
                 ) : (
@@ -294,7 +292,7 @@ function AdminSpecializations() {
                             size='icon'
                             variant='secondary'
                             onClick={() => openEditModal(item)}
-                            aria-label='Редактировать'
+                            aria-label={t('admin_spec.edit_aria')}
                           >
                             <Pencil className='w-4 h-4' />
                           </Button>
@@ -302,7 +300,7 @@ function AdminSpecializations() {
                             size='icon'
                             variant='secondary'
                             onClick={() => handleDelete(item)}
-                            aria-label='Удалить'
+                            aria-label={t('admin_spec.delete_aria')}
                           >
                             <Trash2 className='w-4 h-4 text-rose-600' />
                           </Button>
@@ -320,50 +318,50 @@ function AdminSpecializations() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingItem ? 'Редактировать специализацию' : 'Добавить специализацию'}
+        title={editingItem ? t('admin_spec.modal_title_edit') : t('admin_spec.modal_title_add')}
         size='lg'
         footer={
           <>
             <Button variant='secondary' onClick={() => setIsModalOpen(false)} disabled={isSaving}>
-              Отмена
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSave} isLoading={isSaving}>
-              {editingItem ? 'Сохранить' : 'Создать'}
+              {editingItem ? t('admin_spec.save') : t('admin_spec.create')}
             </Button>
           </>
         }
       >
         <form onSubmit={handleSave} className='space-y-4'>
           <Input
-            label='Название'
+            label={t('admin_spec.label_name')}
             required
             value={form.name}
             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-            placeholder='Например: Кардиолог'
+            placeholder={t('admin_spec.placeholder_name')}
           />
 
           <Textarea
-            label='Описание'
+            label={t('admin_spec.label_desc')}
             rows={3}
             value={form.description}
             onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-            placeholder='Краткое описание специализации'
+            placeholder={t('admin_spec.placeholder_desc')}
           />
 
           <Input
-            label='Порядок'
+            label={t('admin_spec.label_order')}
             value={editingItem ? String((editingItem.sortOrder || 0) || 1) : String((items?.length || 0) + 1)}
             disabled
-            hint='Порядок меняется перетаскиванием в списке'
+            hint={t('admin_spec.hint_order')}
           />
 
           <div className='grid md:grid-cols-2 gap-4'>
             <Input
-              label='Иконка (slug)'
+              label={t('admin_spec.label_icon')}
               value={form.icon}
               onChange={(e) => setForm((prev) => ({ ...prev, icon: e.target.value }))}
-              placeholder='Например: heart'
-              hint='Текстовый ключ иконки'
+              placeholder={t('admin_spec.placeholder_icon')}
+              hint={t('admin_spec.hint_icon')}
             />
           </div>
         </form>

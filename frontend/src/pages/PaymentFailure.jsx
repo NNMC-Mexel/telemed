@@ -1,9 +1,11 @@
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { XCircle } from "lucide-react";
 import Button from "../components/ui/Button";
 
 function PaymentFailure() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     // Clear any pending booking since payment failed
     sessionStorage.removeItem("pendingBooking");
@@ -15,25 +17,24 @@ function PaymentFailure() {
                     <XCircle className="w-10 h-10 text-red-600" />
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                    Оплата отклонена
+                    {t('payment_failure.title')}
                 </h2>
                 <p className="text-slate-600 mb-6">
-                    Платёж не прошёл. Запись не создана.
+                    {t('payment_failure.desc')}
                 </p>
 
                 <div className="bg-amber-50 rounded-xl p-4 mb-6 text-left">
                     <p className="text-sm text-amber-800">
-                        💡 Проверьте баланс карты и правильность введённых
-                        данных. Деньги не были списаны.
+                        {t('payment_failure.tip')}
                     </p>
                 </div>
 
                 <div className="flex gap-3 justify-center">
                     <Button variant="outline" onClick={() => navigate("/")}>
-                        На главную
+                        {t('payment_failure.home_btn')}
                     </Button>
                     <Button onClick={() => navigate("/doctors")}>
-                        Попробовать снова
+                        {t('payment_failure.retry_btn')}
                     </Button>
                 </div>
             </div>

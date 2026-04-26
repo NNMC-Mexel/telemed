@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Lock, ArrowLeft, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -7,6 +8,7 @@ import { Card, CardContent } from '../components/ui/Card'
 import api from '../services/api'
 
 function ResetPasswordPage() {
+  const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const code = searchParams.get('code')
@@ -22,11 +24,11 @@ function ResetPasswordPage() {
     e.preventDefault()
 
     if (password.length < 6) {
-      setError('Пароль должен содержать минимум 6 символов')
+      setError(t('auth_flow.reset_min_error'))
       return
     }
     if (password !== passwordConfirmation) {
-      setError('Пароли не совпадают')
+      setError(t('auth_flow.reset_mismatch'))
       return
     }
 
@@ -41,7 +43,7 @@ function ResetPasswordPage() {
       })
       setIsReset(true)
     } catch (err) {
-      const message = err.response?.data?.error?.message || 'Ошибка сброса пароля. Ссылка могла устареть.'
+      const message = err.response?.data?.error?.message || t('auth_flow.reset_error')
       setError(message)
     } finally {
       setIsLoading(false)
@@ -53,13 +55,13 @@ function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center p-8 bg-gradient-to-br from-teal-50 to-cyan-50">
         <div className="w-full max-w-md text-center">
           <h1 className="text-2xl font-bold text-slate-900 mb-4">
-            Недействительная ссылка
+            {t('auth_flow.reset_invalid_title')}
           </h1>
           <p className="text-slate-600 mb-6">
-            Ссылка для сброса пароля недействительна или устарела. Запросите новую.
+            {t('auth_flow.reset_invalid_desc')}
           </p>
           <Link to="/forgot-password">
-            <Button className="w-full">Запросить новую ссылку</Button>
+            <Button className="w-full">{t('auth_flow.reset_request_new')}</Button>
           </Link>
         </div>
       </div>
@@ -74,15 +76,15 @@ function ResetPasswordPage() {
           className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
-          Назад к входу
+          {t('auth_flow.forgot_back')}
         </Link>
 
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            Новый пароль
+            {t('auth_flow.reset_title')}
           </h1>
           <p className="text-slate-600">
-            Придумайте новый пароль для вашего аккаунта.
+            {t('auth_flow.reset_subtitle')}
           </p>
         </div>
 
@@ -92,25 +94,25 @@ function ResetPasswordPage() {
               <div className="text-center py-4">
                 <CheckCircle className="w-16 h-16 text-teal-500 mx-auto mb-4" />
                 <h2 className="text-xl font-semibold text-slate-900 mb-2">
-                  Пароль изменён
+                  {t('auth_flow.reset_done_title')}
                 </h2>
                 <p className="text-slate-600 mb-6">
-                  Теперь вы можете войти с новым паролем.
+                  {t('auth_flow.reset_done_desc')}
                 </p>
                 <Button
                   onClick={() => navigate('/login')}
                   className="w-full"
                 >
-                  Войти
+                  {t('auth_flow.reset_login')}
                 </Button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
                 <Input
-                  label="Новый пароль"
+                  label={t('auth_flow.reset_new_password')}
                   name="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Минимум 6 символов"
+                  placeholder={t('auth_flow.reset_min_chars')}
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(null) }}
                   leftIcon={<Lock className="w-5 h-5" />}
@@ -127,10 +129,10 @@ function ResetPasswordPage() {
                 />
 
                 <Input
-                  label="Подтвердите пароль"
+                  label={t('auth_flow.reset_confirm')}
                   name="passwordConfirmation"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Повторите пароль"
+                  placeholder={t('auth_flow.reset_repeat')}
                   value={passwordConfirmation}
                   onChange={(e) => { setPasswordConfirmation(e.target.value); setError(null) }}
                   leftIcon={<Lock className="w-5 h-5" />}
@@ -149,7 +151,7 @@ function ResetPasswordPage() {
                   size="lg"
                   isLoading={isLoading}
                 >
-                  Сохранить пароль
+                  {t('auth_flow.reset_save')}
                 </Button>
               </form>
             )}

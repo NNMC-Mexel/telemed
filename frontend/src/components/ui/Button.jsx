@@ -1,5 +1,6 @@
 import { forwardRef } from 'react'
 import { Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/helpers'
 
 const variants = {
@@ -30,6 +31,7 @@ const Button = forwardRef(({
   className,
   ...props
 }, ref) => {
+  const { t } = useTranslation()
   return (
     <button
       ref={ref}
@@ -47,7 +49,7 @@ const Button = forwardRef(({
       {isLoading ? (
         <>
           <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Загрузка...</span>
+          <span>{t('common.loading')}</span>
         </>
       ) : (
         <>

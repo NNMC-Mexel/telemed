@@ -15,10 +15,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import Button from '../../components/ui/Button'
 import Avatar from '../../components/ui/Avatar'
 import Badge from '../../components/ui/Badge'
+import { useTranslation } from 'react-i18next'
 import api, { normalizeResponse, getMediaUrl } from '../../services/api'
 import { formatDate, formatPrice } from '../../utils/helpers'
 
 function AdminDashboard() {
+  const { t } = useTranslation()
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalDoctors: 0,
@@ -84,10 +86,10 @@ function AdminDashboard() {
 
   const getStatusBadge = (status) => {
     const variants = {
-      pending: { variant: 'default', label: 'Ожидает' },
-      confirmed: { variant: 'primary', label: 'Подтв.' },
-      completed: { variant: 'success', label: 'Завершён' },
-      cancelled: { variant: 'danger', label: 'Отменён' },
+      pending: { variant: 'default', label: t('admin.status_pending') },
+      confirmed: { variant: 'primary', label: t('admin.status_confirmed_short') },
+      completed: { variant: 'success', label: t('admin.status_completed') },
+      cancelled: { variant: 'danger', label: t('admin.status_cancelled') },
     }
     const config = variants[status] || { variant: 'default', label: status }
     return <Badge variant={config.variant}>{config.label}</Badge>
@@ -104,8 +106,8 @@ function AdminDashboard() {
   return (
     <div className="space-y-6 animate-fadeIn">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Панель администратора</h1>
-        <p className="text-slate-600">Обзор системы и статистика</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t('admin.dashboard_title')}</h1>
+        <p className="text-slate-600">{t('admin.dashboard_subtitle')}</p>
       </div>
 
       {/* Stats */}
@@ -118,7 +120,7 @@ function AdminDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{stats.totalUsers}</p>
-                <p className="text-sm text-slate-500">Пользователей</p>
+                <p className="text-sm text-slate-500">{t('admin.stat_users')}</p>
               </div>
             </div>
           </CardContent>
@@ -131,7 +133,7 @@ function AdminDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{stats.totalDoctors}</p>
-                <p className="text-sm text-slate-500">Врачей</p>
+                <p className="text-sm text-slate-500">{t('admin.stat_doctors')}</p>
               </div>
             </div>
           </CardContent>
@@ -144,7 +146,7 @@ function AdminDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{stats.totalAppointments}</p>
-                <p className="text-sm text-slate-500">Записей</p>
+                <p className="text-sm text-slate-500">{t('admin.stat_appointments')}</p>
               </div>
             </div>
           </CardContent>
@@ -157,7 +159,7 @@ function AdminDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{formatPrice(stats.totalRevenue)}</p>
-                <p className="text-sm text-slate-500">Доход</p>
+                <p className="text-sm text-slate-500">{t('admin.stat_revenue')}</p>
               </div>
             </div>
           </CardContent>
@@ -168,14 +170,14 @@ function AdminDashboard() {
         {/* Recent Users */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Новые пользователи</CardTitle>
+            <CardTitle>{t('admin.new_users')}</CardTitle>
             <Link to="/admin/users" className="text-sm text-teal-600 hover:text-teal-700">
-              Все →
+              {t('admin.all_link')}
             </Link>
           </CardHeader>
           <CardContent className="space-y-3">
             {recentUsers.length === 0 ? (
-              <p className="text-center text-slate-500 py-4">Нет пользователей</p>
+              <p className="text-center text-slate-500 py-4">{t('admin.no_users')}</p>
             ) : (
               recentUsers.map((user) => (
                 <div key={user.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg">
@@ -191,7 +193,7 @@ function AdminDashboard() {
                     <p className="text-xs text-slate-500">{user.email}</p>
                   </div>
                   <Badge variant={user.userRole === 'doctor' ? 'primary' : 'default'}>
-                    {user.userRole === 'doctor' ? 'Врач' : 'Пациент'}
+                    {user.userRole === 'doctor' ? t('admin.role_doctor') : t('admin.role_patient')}
                   </Badge>
                 </div>
               ))
@@ -202,25 +204,25 @@ function AdminDashboard() {
         {/* Recent Appointments */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Последние записи</CardTitle>
+            <CardTitle>{t('admin.recent_appointments')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {recentAppointments.length === 0 ? (
-              <p className="text-center text-slate-500 py-4">Нет записей</p>
+              <p className="text-center text-slate-500 py-4">{t('admin.no_appointments')}</p>
             ) : (
               recentAppointments.map((apt) => (
                 <div key={apt.id} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <Avatar 
-                      name={apt.patient?.fullName || 'Пациент'} 
+                      name={apt.patient?.fullName || t('admin.role_patient')}
                       size="sm" 
                     />
                     <div>
                       <p className="text-sm font-medium text-slate-900">
-                        {apt.patient?.fullName || 'Пациент'}
+                        {apt.patient?.fullName || t('admin.role_patient')}
                       </p>
                       <p className="text-xs text-slate-500">
-                        → {apt.doctor?.fullName || 'Врач'}
+                        → {apt.doctor?.fullName || t('admin.role_doctor')}
                       </p>
                     </div>
                   </div>
@@ -234,11 +236,11 @@ function AdminDashboard() {
         {/* Top Doctors */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Топ врачи</CardTitle>
+            <CardTitle>{t('admin.top_doctors')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {topDoctors.length === 0 ? (
-              <p className="text-center text-slate-500 py-4">Нет врачей</p>
+              <p className="text-center text-slate-500 py-4">{t('admin.no_doctors')}</p>
             ) : (
               topDoctors.map((doctor, index) => {
                 const specName = typeof doctor.specialization === 'object'

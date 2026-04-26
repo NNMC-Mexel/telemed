@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   Calendar,
@@ -31,6 +32,7 @@ import useAuthStore from '../../stores/authStore'
 import api, { normalizeResponse, getMediaUrl, documentsAPI } from '../../services/api'
 
 function PatientHistory() {
+  const { t, i18n } = useTranslation()
   const { patientId } = useParams()
   const navigate = useNavigate()
   const { user } = useAuthStore()
@@ -110,22 +112,24 @@ function PatientHistory() {
   }
 
   const statusMap = {
-    confirmed: { label: 'Подтверждён', variant: 'success' },
-    pending: { label: 'Ожидает', variant: 'default' },
-    cancelled: { label: 'Отменён', variant: 'danger' },
-    completed: { label: 'Завершён', variant: 'success' },
-    in_progress: { label: 'В процессе', variant: 'default' },
+    confirmed: { label: t('patients.status_confirmed'), variant: 'success' },
+    pending: { label: t('patients.status_pending'), variant: 'default' },
+    cancelled: { label: t('patients.status_cancelled'), variant: 'danger' },
+    completed: { label: t('patients.status_completed'), variant: 'success' },
+    in_progress: { label: t('patients.status_in_progress'), variant: 'default' },
   }
 
   const docTypeLabels = {
-    certificate: 'Заключение врача',
-    prescription: 'Назначения',
-    analysis: 'Анализ',
-    mrt: 'МРТ',
-    xray: 'Рентген',
-    ultrasound: 'УЗИ',
-    other: 'План обследования',
+    certificate: t('patients.doctype_certificate'),
+    prescription: t('patients.doctype_prescription'),
+    analysis: t('patients.doctype_analysis'),
+    mrt: t('patients.doctype_mrt'),
+    xray: t('patients.doctype_xray'),
+    ultrasound: t('patients.doctype_ultrasound'),
+    other: t('patients.doctype_other'),
   }
+
+  const dateLocale = i18n.language === 'kk' ? 'kk-KZ' : i18n.language === 'en' ? 'en-US' : 'ru-RU'
 
   const docTypeIcons = {
     certificate: Stethoscope,
@@ -155,7 +159,7 @@ function PatientHistory() {
     )
   }
 
-  const patientName = patient?.fullName || patient?.username || 'Пациент'
+  const patientName = patient?.fullName || patient?.username || t('patients.patient_label')
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -165,7 +169,7 @@ function PatientHistory() {
         className="inline-flex items-center gap-2 text-slate-600 hover:text-teal-600 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span className="text-sm font-medium">К списку пациентов</span>
+        <span className="text-sm font-medium">{t('patients.back')}</span>
       </Link>
 
       {/* Patient Info Header */}
@@ -196,7 +200,7 @@ function PatientHistory() {
             </div>
             <div className="sm:text-right w-full sm:w-auto shrink-0">
               <p className="text-3xl font-bold text-teal-600">{appointments.length}</p>
-              <p className="text-sm text-slate-500">визитов</p>
+              <p className="text-sm text-slate-500">{t('patients.visits')}</p>
             </div>
           </div>
         </CardContent>
@@ -204,25 +208,25 @@ function PatientHistory() {
 
       {/* Appointments Timeline */}
       <div>
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">История визитов</h2>
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">{t('patients.history_title')}</h2>
 
         {appointments.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
               <Calendar className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-              <p className="text-slate-500">Нет записей с этим пациентом</p>
+              <p className="text-slate-500">{t('patients.no_appointments')}</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
             {appointments.map((apt) => {
               const aptDate = new Date(apt.dateTime)
-              const formattedDate = aptDate.toLocaleDateString('ru-RU', {
+              const formattedDate = aptDate.toLocaleDateString(dateLocale, {
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric',
               })
-              const formattedTime = aptDate.toLocaleTimeString('ru-RU', {
+              const formattedTime = aptDate.toLocaleTimeString(dateLocale, {
                 hour: '2-digit',
                 minute: '2-digit',
               })
@@ -255,7 +259,7 @@ function PatientHistory() {
                             {aptDate.getDate()}
                           </span>
                           <span className="text-xs text-slate-500 uppercase">
-                            {aptDate.toLocaleDateString('ru-RU', { month: 'short' })}
+                            {aptDate.toLocaleDateString(dateLocale, { month: 'short' })}
                           </span>
                         </div>
 
@@ -263,7 +267,7 @@ function PatientHistory() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-medium text-slate-900">
-                              Консультация
+                              {t('patients.consultation')}
                             </h3>
                             <Badge variant={displayStatus.variant} className="text-xs">
                               {displayStatus.label}
@@ -280,12 +284,12 @@ function PatientHistory() {
                               ) : (
                                 <MessageCircle className="w-3.5 h-3.5" />
                               )}
-                              {apt.type === 'video' ? 'Видео' : 'Чат'}
+                              {apt.type === 'video' ? t('patients.type_video') : t('patients.type_chat')}
                             </span>
                             {aptDocs.length > 0 && (
                               <span className="flex items-center gap-1 text-teal-600">
                                 <FileText className="w-3.5 h-3.5" />
-                                {aptDocs.length} док.
+                                {aptDocs.length} {t('patients.docs_abbr')}
                               </span>
                             )}
                           </div>
@@ -310,7 +314,7 @@ function PatientHistory() {
                         <div className="text-center py-6">
                           <FolderOpen className="w-10 h-10 mx-auto text-slate-300 mb-2" />
                           <p className="text-sm text-slate-500">
-                            Нет заключений по этому визиту
+                            {t('patients.no_docs')}
                           </p>
                         </div>
                       ) : (
@@ -331,7 +335,7 @@ function PatientHistory() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between">
                                     <h4 className="font-medium text-slate-900">
-                                      {doc.title || docTypeLabels[doc.type] || 'Документ'}
+                                      {doc.title || docTypeLabels[doc.type] || t('patients.doc_fallback')}
                                     </h4>
                                     {fileUrl && (
                                       <a
@@ -347,7 +351,7 @@ function PatientHistory() {
                                   <p className="text-xs text-slate-400 mt-0.5">
                                     {docTypeLabels[doc.type] || doc.type}
                                     {doc.createdAt && (
-                                      <> &middot; {new Date(doc.createdAt).toLocaleDateString('ru-RU')}</>
+                                      <> &middot; {new Date(doc.createdAt).toLocaleDateString(dateLocale)}</>
                                     )}
                                   </p>
                                   {doc.description && (
@@ -366,7 +370,7 @@ function PatientHistory() {
                       <div className="pt-2">
                         <Link to={`/doctor/appointments/${apt.documentId}`}>
                           <Button variant="ghost" size="sm" className="text-teal-600">
-                            Подробнее о визите
+                            {t('patients.visit_details')}
                             <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
                           </Button>
                         </Link>
@@ -388,7 +392,7 @@ function PatientHistory() {
             className="flex items-center gap-2 text-lg font-semibold text-slate-900 mb-4 hover:text-teal-600 transition-colors"
           >
             <Share2 className="w-5 h-5 text-teal-600" />
-            Документы пациента
+            {t('patients.shared_docs_title')}
             <span className="text-sm font-normal text-slate-500">
               ({sharedDocuments.length})
             </span>
@@ -416,7 +420,7 @@ function PatientHistory() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-slate-900">
-                              {doc.title || docTypeLabels[doc.type] || 'Документ'}
+                              {doc.title || docTypeLabels[doc.type] || t('patients.doc_fallback')}
                             </h4>
                             {fileUrl && (
                               <a
@@ -432,7 +436,7 @@ function PatientHistory() {
                           <p className="text-xs text-slate-400 mt-0.5">
                             {docTypeLabels[doc.type] || doc.type}
                             {doc.createdAt && (
-                              <> &middot; {new Date(doc.createdAt).toLocaleDateString('ru-RU')}</>
+                              <> &middot; {new Date(doc.createdAt).toLocaleDateString(dateLocale)}</>
                             )}
                           </p>
                           {doc.description && (

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
     Menu,
     X,
@@ -13,9 +14,11 @@ import {
 } from "lucide-react";
 import { cn } from "../../utils/helpers";
 import Button from "../ui/Button";
+import LanguageSwitcher from "../ui/LanguageSwitcher";
 import useAuthStore from "../../stores/authStore";
 
 function PublicLayout() {
+    const { t } = useTranslation();
     const location = useLocation();
     const navigate = useNavigate();
     const { isAuthenticated, user } = useAuthStore();
@@ -24,7 +27,6 @@ function PublicLayout() {
     const [showLoginDropdown, setShowLoginDropdown] = useState(false);
     const loginDropdownRef = useRef(null);
 
-    // Закрываем dropdown при клике вне его
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (
@@ -39,11 +41,7 @@ function PublicLayout() {
             document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Определяем страницы где нужен тёмный header с самого начала
     const isDarkHeaderPage = location.pathname === "/";
-
-    // На главной странице header становится белым при скролле
-    // На других страницах header всегда белый (тёмный текст)
     const showDarkHeader = isDarkHeaderPage && !isScrolled;
 
     useEffect(() => {
@@ -68,11 +66,11 @@ function PublicLayout() {
     const isOnLanding = location.pathname === "/";
 
     const navLinks = [
-        { href: "/", label: "Главная" },
-        { href: "/doctors", label: "Врачи" },
-        { href: "#specializations", label: "Специализации", isAnchor: true },
-        { href: "#about", label: "О нас", isAnchor: true },
-        { href: "#contact", label: "Контакты", isAnchor: true },
+        { href: "/", label: t("nav.home") },
+        { href: "/doctors", label: t("nav.doctors") },
+        { href: "#specializations", label: t("nav.specializations"), isAnchor: true },
+        { href: "#about", label: t("nav.about"), isAnchor: true },
+        { href: "#contact", label: t("nav.contacts"), isAnchor: true },
     ];
 
     const handleNavClick = (e, link) => {
@@ -100,14 +98,13 @@ function PublicLayout() {
                 onClick={() => setIsMobileMenuOpen(false)}
             />
 
-            {/* Mobile Menu Panel (slides from left) */}
+            {/* Mobile Menu Panel */}
             <div
                 className={cn(
                     'fixed left-0 top-0 h-(--app-height) w-72 bg-white z-60 transition-transform duration-300 lg:hidden flex flex-col',
                     isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
-                {/* Panel Header: Logo + Close */}
                 <div className='p-6 border-b border-slate-100 flex items-center justify-between shrink-0'>
                     <Link to='/' onClick={() => setIsMobileMenuOpen(false)} className='flex items-center gap-3'>
                         <div className='w-10 h-10 bg-linear-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center'>
@@ -115,7 +112,7 @@ function PublicLayout() {
                         </div>
                         <div>
                             <h1 className='font-bold text-slate-900'>MedConnect</h1>
-                            <p className='text-xs text-slate-500'>Телемедицина</p>
+                            <p className='text-xs text-slate-500'>{t("common.telemedicine")}</p>
                         </div>
                     </Link>
                     <button
@@ -126,7 +123,6 @@ function PublicLayout() {
                     </button>
                 </div>
 
-                {/* Nav Links */}
                 <nav className='flex-1 p-4 space-y-1 overflow-y-auto'>
                     {navLinks.map((link) => (
                         <Link
@@ -146,18 +142,20 @@ function PublicLayout() {
                             {link.label}
                         </Link>
                     ))}
+                    <div className='px-4 py-2'>
+                        <LanguageSwitcher variant="light" />
+                    </div>
                 </nav>
 
-                {/* Auth Buttons */}
                 <div className='p-4 border-t border-slate-100 shrink-0 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))]'>
                     {isAuthenticated ? (
                         <Link to={getDashboardLink()} onClick={() => setIsMobileMenuOpen(false)}>
-                            <Button className='w-full'>Личный кабинет</Button>
+                            <Button className='w-full'>{t("nav.dashboard")}</Button>
                         </Link>
                     ) : (
                         <div className='flex flex-col gap-2'>
                             <p className='text-xs text-slate-500 mb-1 px-1'>
-                                Вход в личный кабинет
+                                {t("nav.login")}
                             </p>
                             <Link to='/login?type=patient' onClick={() => setIsMobileMenuOpen(false)}>
                                 <Button
@@ -165,7 +163,7 @@ function PublicLayout() {
                                     className='w-full justify-start'
                                     leftIcon={<UserCircle className='w-4 h-4' />}
                                 >
-                                    Войти как пациент
+                                    {t("nav.login_as_patient")}
                                 </Button>
                             </Link>
                             <Link to='/login?type=doctor' onClick={() => setIsMobileMenuOpen(false)}>
@@ -174,11 +172,11 @@ function PublicLayout() {
                                     className='w-full justify-start'
                                     leftIcon={<Stethoscope className='w-4 h-4' />}
                                 >
-                                    Войти как врач
+                                    {t("nav.login_as_doctor")}
                                 </Button>
                             </Link>
                             <Link to='/register' onClick={() => setIsMobileMenuOpen(false)} className='mt-2'>
-                                <Button className='w-full'>Регистрация</Button>
+                                <Button className='w-full'>{t("nav.register")}</Button>
                             </Link>
                         </div>
                     )}
@@ -217,7 +215,7 @@ function PublicLayout() {
                                             ? "text-white/70"
                                             : "text-slate-500",
                                     )}>
-                                    Телемедицина
+                                    {t("common.telemedicine")}
                                 </p>
                             </div>
                         </Link>
@@ -243,15 +241,16 @@ function PublicLayout() {
                             ))}
                         </nav>
 
-                        {/* Auth Buttons */}
-                        <div className='hidden lg:flex items-center gap-4'>
+                        {/* Right: Auth + Language */}
+                        <div className='hidden lg:flex items-center gap-3'>
+                            <LanguageSwitcher variant={showDarkHeader ? "dark" : "light"} />
+
                             {isAuthenticated ? (
                                 <Link to={getDashboardLink()}>
-                                    <Button>Личный кабинет</Button>
+                                    <Button>{t("nav.dashboard")}</Button>
                                 </Link>
                             ) : (
                                 <>
-                                    {/* Login Dropdown */}
                                     <div
                                         className='relative'
                                         ref={loginDropdownRef}>
@@ -280,7 +279,7 @@ function PublicLayout() {
                                                     )}
                                                 />
                                             }>
-                                            Войти
+                                            {t("nav.login")}
                                         </Button>
 
                                         {showLoginDropdown && (
@@ -289,20 +288,17 @@ function PublicLayout() {
                                                     to='/login?type=patient'
                                                     className='flex items-center gap-3 px-4 py-3 hover:bg-teal-50 transition-colors'
                                                     onClick={() =>
-                                                        setShowLoginDropdown(
-                                                            false,
-                                                        )
+                                                        setShowLoginDropdown(false)
                                                     }>
                                                     <div className='w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center'>
                                                         <UserCircle className='w-5 h-5 text-teal-600' />
                                                     </div>
                                                     <div>
                                                         <p className='font-medium text-slate-900'>
-                                                            Пациент
+                                                            {t("auth.login.patient_tab")}
                                                         </p>
                                                         <p className='text-xs text-slate-500'>
-                                                            Личный кабинет
-                                                            пациента
+                                                            {t("nav.patient_cabinet")}
                                                         </p>
                                                     </div>
                                                 </Link>
@@ -310,19 +306,17 @@ function PublicLayout() {
                                                     to='/login?type=doctor'
                                                     className='flex items-center gap-3 px-4 py-3 hover:bg-sky-50 transition-colors border-t border-slate-100'
                                                     onClick={() =>
-                                                        setShowLoginDropdown(
-                                                            false,
-                                                        )
+                                                        setShowLoginDropdown(false)
                                                     }>
                                                     <div className='w-10 h-10 bg-sky-100 rounded-xl flex items-center justify-center'>
                                                         <Stethoscope className='w-5 h-5 text-sky-600' />
                                                     </div>
                                                     <div>
                                                         <p className='font-medium text-slate-900'>
-                                                            Врач
+                                                            {t("auth.login.doctor_tab")}
                                                         </p>
                                                         <p className='text-xs text-slate-500'>
-                                                            Личный кабинет врача
+                                                            {t("nav.doctor_cabinet")}
                                                         </p>
                                                     </div>
                                                 </Link>
@@ -330,7 +324,7 @@ function PublicLayout() {
                                         )}
                                     </div>
                                     <Link to='/register'>
-                                        <Button>Регистрация</Button>
+                                        <Button>{t("nav.register")}</Button>
                                     </Link>
                                 </>
                             )}
@@ -367,138 +361,70 @@ function PublicLayout() {
                                     <Activity className='w-6 h-6 text-white' />
                                 </div>
                                 <div>
-                                    <h3 className='font-bold text-lg'>
-                                        MedConnect
-                                    </h3>
-                                    <p className='text-xs text-slate-400'>
-                                        Телемедицина
-                                    </p>
+                                    <h3 className='font-bold text-lg'>MedConnect</h3>
+                                    <p className='text-xs text-slate-400'>{t("common.telemedicine")}</p>
                                 </div>
                             </div>
                             <p className='text-slate-400 text-sm leading-relaxed'>
-                                Современная платформа телемедицины для
-                                онлайн-консультаций с квалифицированными
-                                врачами.
+                                {t("footer.description")}
                             </p>
                         </div>
 
                         {/* Quick Links */}
                         <div>
-                            <h4 className='font-semibold mb-6'>Навигация</h4>
+                            <h4 className='font-semibold mb-6'>{t("footer.navigation")}</h4>
                             <ul className='space-y-3'>
                                 <li>
-                                    <Link
-                                        to='/'
-                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
-                                        Главная
+                                    <Link to='/' className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                        {t("nav.home")}
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link
-                                        to='/doctors'
-                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
-                                        Врачи
+                                    <Link to='/doctors' className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                        {t("nav.doctors")}
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link
-                                        to='/register'
-                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
-                                        Регистрация
+                                    <Link to='/register' className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                        {t("nav.register")}
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link
-                                        to='/login'
-                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
-                                        Войти
+                                    <Link to='/login' className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                        {t("nav.login")}
                                     </Link>
                                 </li>
                             </ul>
                         </div>
 
-                        {/* Services - временно скрыто */}
-                        {/* <div>
-                            <h4 className='font-semibold mb-6'>Услуги</h4>
-                            <ul className='space-y-3'>
-                                <li>
-                                    <Link
-                                        to='/doctors'
-                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
-                                        Онлайн-консультации
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link
-                                        to='/doctors'
-                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
-                                        Видеозвонки с врачами
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link
-                                        to='/doctors'
-                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
-                                        Электронные рецепты
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link
-                                        to='/doctors'
-                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
-                                        Медицинские документы
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link
-                                        to='/doctors'
-                                        className='text-slate-400 hover:text-white transition-colors text-sm'>
-                                        Второе мнение
-                                    </Link>
-                                </li>
-                            </ul>
-                        </div> */}
-
                         {/* Contact */}
                         <div>
-                            <h4 className='font-semibold mb-6'>Контакты</h4>
+                            <h4 className='font-semibold mb-6'>{t("footer.contacts")}</h4>
                             <ul className='space-y-4'>
                                 <li className='flex items-center gap-3 text-slate-400'>
                                     <Phone className='w-5 h-5 text-teal-500' />
-                                    <span className='text-sm'>
-                                        +7 (7172) 123-456
-                                    </span>
+                                    <span className='text-sm'>+7 (7172) 123-456</span>
                                 </li>
                                 <li className='flex items-center gap-3 text-slate-400'>
                                     <Mail className='w-5 h-5 text-teal-500' />
-                                    <span className='text-sm'>
-                                        info@medconnect.kz
-                                    </span>
+                                    <span className='text-sm'>info@medconnect.kz</span>
                                 </li>
                                 <li className='flex items-start gap-3 text-slate-400'>
                                     <MapPin className='w-5 h-5 text-teal-500 flex-shrink-0' />
-                                    <span className='text-sm'>
-                                        г. Астана, просп. Абылай хана, 42
-                                    </span>
+                                    <span className='text-sm'>{t('footer.address')}</span>
                                 </li>
                             </ul>
                         </div>
                     </div>
 
                     <div className='mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4'>
-                        <p className='text-slate-500 text-sm'>
-                            © 2025 MedConnect. Все права защищены.
-                        </p>
+                        <p className='text-slate-500 text-sm'>{t("footer.copyright")}</p>
                         <div className='flex items-center gap-6'>
-                            <Link
-                                to='/privacy'
-                                className='text-slate-500 hover:text-white text-sm transition-colors'>
-                                Политика конфиденциальности
+                            <Link to='/privacy' className='text-slate-500 hover:text-white text-sm transition-colors'>
+                                {t("footer.privacy")}
                             </Link>
-                            <Link
-                                to='/terms'
-                                className='text-slate-500 hover:text-white text-sm transition-colors'>
-                                Условия использования
+                            <Link to='/terms' className='text-slate-500 hover:text-white text-sm transition-colors'>
+                                {t("footer.terms")}
                             </Link>
                         </div>
                     </div>

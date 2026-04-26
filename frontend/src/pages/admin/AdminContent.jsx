@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Eye, FileText, Globe2, LayoutTemplate, Loader2, RefreshCcw, Save } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -195,6 +196,7 @@ function arrayToLines(value) {
 }
 
 function AdminContent() {
+  const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -269,7 +271,7 @@ function AdminContent() {
 
   const handleSave = async () => {
     if (!siteName.trim()) {
-      alert('Название бренда обязательно')
+      alert(t('admin_content.err_name'))
       return
     }
 
@@ -288,10 +290,10 @@ function AdminContent() {
       })
 
       await loadContent()
-      alert('Контент лендинга сохранён')
+      alert(t('admin_content.saved'))
     } catch (error) {
       console.error('Error saving content:', error)
-      alert('Не удалось сохранить контент')
+      alert(t('admin_content.err_save'))
     } finally {
       setIsSaving(false)
     }
@@ -309,55 +311,55 @@ function AdminContent() {
     <div className='space-y-6 animate-fadeIn'>
       <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4'>
         <div>
-          <h1 className='text-2xl font-bold text-slate-900'>Контент лендинга MedConnect</h1>
-          <p className='text-slate-600'>Редактируются блоки главной страницы (`/`) из ваших скриншотов</p>
+          <h1 className='text-2xl font-bold text-slate-900'>{t('admin_content.title')}</h1>
+          <p className='text-slate-600'>{t('admin_content.subtitle')}</p>
         </div>
         <div className='flex gap-2'>
           <Button variant='secondary' leftIcon={<RefreshCcw className='w-4 h-4' />} onClick={loadContent}>
-            Обновить
+            {t('admin_content.refresh')}
           </Button>
           <Button leftIcon={<Save className='w-4 h-4' />} onClick={handleSave} isLoading={isSaving}>
-            Сохранить
+            {t('admin_content.save')}
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>1) Hero-блок (верх экрана)</CardTitle>
+          <CardTitle>{t('admin_content.hero_title')}</CardTitle>
         </CardHeader>
         <CardContent className='space-y-4'>
           <Input
-            label='Бейдж над заголовком'
+            label={t('admin_content.label_badge')}
             value={landingConfig.hero.badge}
             onChange={(e) => setConfigValue(['hero', 'badge'], e.target.value)}
           />
           <div className='grid md:grid-cols-2 gap-4'>
             <Input
-              label='Заголовок: первая часть'
+              label={t('admin_content.label_title_prefix')}
               value={landingConfig.hero.titlePrefix}
               onChange={(e) => setConfigValue(['hero', 'titlePrefix'], e.target.value)}
             />
             <Input
-              label='Заголовок: выделенная часть'
+              label={t('admin_content.label_title_highlight')}
               value={landingConfig.hero.titleHighlight}
               onChange={(e) => setConfigValue(['hero', 'titleHighlight'], e.target.value)}
             />
           </div>
           <Textarea
-            label='Описание в Hero'
+            label={t('admin_content.label_hero_desc')}
             rows={3}
             value={landingConfig.hero.description}
             onChange={(e) => setConfigValue(['hero', 'description'], e.target.value)}
           />
           <div className='grid md:grid-cols-2 gap-4'>
             <Input
-              label='Кнопка 1'
+              label={t('admin_content.label_btn1')}
               value={landingConfig.hero.primaryButtonLabel}
               onChange={(e) => setConfigValue(['hero', 'primaryButtonLabel'], e.target.value)}
             />
             <Input
-              label='Кнопка 2'
+              label={t('admin_content.label_btn2')}
               value={landingConfig.hero.secondaryButtonLabel}
               onChange={(e) => setConfigValue(['hero', 'secondaryButtonLabel'], e.target.value)}
             />
@@ -365,7 +367,7 @@ function AdminContent() {
           <div className='rounded-xl border border-dashed border-teal-300 bg-teal-50 p-4'>
             <div className='flex items-center gap-2 text-sm font-medium text-teal-800 mb-2'>
               <Eye className='w-4 h-4' />
-              Превью текста Hero
+              {t('admin_content.hero_preview')}
             </div>
             <p className='text-slate-800 font-semibold'>{landingConfig.hero.badge}</p>
             <p className='text-slate-900 text-lg mt-1'>
@@ -378,23 +380,23 @@ function AdminContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>2) Карточка справа в Hero + метрики</CardTitle>
+          <CardTitle>{t('admin_content.hero_card_title')}</CardTitle>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='grid md:grid-cols-2 gap-4'>
             <Input
-              label='Заголовок карточки'
+              label={t('admin_content.label_card_title')}
               value={landingConfig.heroCard.title}
               onChange={(e) => setConfigValue(['heroCard', 'title'], e.target.value)}
             />
             <Input
-              label='Подзаголовок карточки'
+              label={t('admin_content.label_card_subtitle')}
               value={landingConfig.heroCard.subtitle}
               onChange={(e) => setConfigValue(['heroCard', 'subtitle'], e.target.value)}
             />
           </div>
           <Textarea
-            label='Пункты карточки (каждая строка: Заголовок | Описание)'
+            label={t('admin_content.label_card_items')}
             rows={4}
             value={heroCardItemsText}
             onChange={(e) =>
@@ -405,7 +407,7 @@ function AdminContent() {
             }
           />
           <Input
-            label='Кнопка карточки'
+            label={t('admin_content.label_card_btn')}
             value={landingConfig.heroCard.buttonLabel}
             onChange={(e) => setConfigValue(['heroCard', 'buttonLabel'], e.target.value)}
           />
@@ -413,7 +415,7 @@ function AdminContent() {
             {landingConfig.stats.map((item, index) => (
               <div key={index} className='space-y-2 p-3 rounded-xl border border-slate-200'>
                 <Input
-                  label={`Метрика ${index + 1}: значение`}
+                  label={t('admin_content.metric_value', { index: index + 1 })}
                   value={item.value}
                   onChange={(e) => {
                     const next = [...landingConfig.stats]
@@ -422,7 +424,7 @@ function AdminContent() {
                   }}
                 />
                 <Input
-                  label={`Метрика ${index + 1}: подпись`}
+                  label={t('admin_content.metric_label_input', { index: index + 1 })}
                   value={item.label}
                   onChange={(e) => {
                     const next = [...landingConfig.stats]
@@ -438,28 +440,28 @@ function AdminContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>3) Блок “Почему мы”</CardTitle>
+          <CardTitle>{t('admin_content.features_title')}</CardTitle>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='grid md:grid-cols-3 gap-4'>
             <Input
-              label='Бейдж'
+              label={t('admin_content.label_badge_s')}
               value={landingConfig.featuresSection.badge}
               onChange={(e) => setConfigValue(['featuresSection', 'badge'], e.target.value)}
             />
             <Input
-              label='Заголовок'
+              label={t('admin_content.label_title_s')}
               value={landingConfig.featuresSection.title}
               onChange={(e) => setConfigValue(['featuresSection', 'title'], e.target.value)}
             />
             <Input
-              label='Подзаголовок'
+              label={t('admin_content.label_subtitle_s')}
               value={landingConfig.featuresSection.subtitle}
               onChange={(e) => setConfigValue(['featuresSection', 'subtitle'], e.target.value)}
             />
           </div>
           <Textarea
-            label='Карточки (каждая строка: Заголовок | Описание)'
+            label={t('admin_content.label_cards')}
             rows={6}
             value={featuresCardsText}
             onChange={(e) =>
@@ -474,28 +476,28 @@ function AdminContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>4) Блок “Как это работает”</CardTitle>
+          <CardTitle>{t('admin_content.steps_title')}</CardTitle>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='grid md:grid-cols-3 gap-4'>
             <Input
-              label='Бейдж'
+              label={t('admin_content.label_badge_s')}
               value={landingConfig.stepsSection.badge}
               onChange={(e) => setConfigValue(['stepsSection', 'badge'], e.target.value)}
             />
             <Input
-              label='Заголовок'
+              label={t('admin_content.label_title_s')}
               value={landingConfig.stepsSection.title}
               onChange={(e) => setConfigValue(['stepsSection', 'title'], e.target.value)}
             />
             <Input
-              label='Подзаголовок'
+              label={t('admin_content.label_subtitle_s')}
               value={landingConfig.stepsSection.subtitle}
               onChange={(e) => setConfigValue(['stepsSection', 'subtitle'], e.target.value)}
             />
           </div>
           <Textarea
-            label='Шаги (каждая строка: Заголовок | Описание)'
+            label={t('admin_content.label_steps')}
             rows={6}
             value={stepsText}
             onChange={(e) =>
@@ -510,34 +512,34 @@ function AdminContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>5) Блок “О нас”</CardTitle>
+          <CardTitle>{t('admin_content.about_title')}</CardTitle>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='grid md:grid-cols-3 gap-4'>
             <Input
-              label='Бейдж'
+              label={t('admin_content.label_badge_s')}
               value={landingConfig.aboutSection.badge}
               onChange={(e) => setConfigValue(['aboutSection', 'badge'], e.target.value)}
             />
             <Input
-              label='Заголовок'
+              label={t('admin_content.label_title_s')}
               value={landingConfig.aboutSection.title}
               onChange={(e) => setConfigValue(['aboutSection', 'title'], e.target.value)}
             />
             <Input
-              label='Кнопка'
+              label={t('admin_content.label_btn_s')}
               value={landingConfig.aboutSection.buttonLabel}
               onChange={(e) => setConfigValue(['aboutSection', 'buttonLabel'], e.target.value)}
             />
           </div>
           <Textarea
-            label='Описание'
+            label={t('admin_content.label_about_desc')}
             rows={4}
             value={landingConfig.aboutSection.description}
             onChange={(e) => setConfigValue(['aboutSection', 'description'], e.target.value)}
           />
           <Textarea
-            label='Пункты списка (по одному на строку)'
+            label={t('admin_content.label_bullets')}
             rows={4}
             value={arrayToLines(landingConfig.aboutSection.bullets)}
             onChange={(e) => setConfigValue(['aboutSection', 'bullets'], linesToArray(e.target.value))}
@@ -547,22 +549,22 @@ function AdminContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>6) Блок “Контакты”</CardTitle>
+          <CardTitle>{t('admin_content.contact_title')}</CardTitle>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='grid md:grid-cols-3 gap-4'>
             <Input
-              label='Бейдж'
+              label={t('admin_content.label_badge_s')}
               value={landingConfig.contactSection.badge}
               onChange={(e) => setConfigValue(['contactSection', 'badge'], e.target.value)}
             />
             <Input
-              label='Заголовок'
+              label={t('admin_content.label_title_s')}
               value={landingConfig.contactSection.title}
               onChange={(e) => setConfigValue(['contactSection', 'title'], e.target.value)}
             />
             <Input
-              label='Подзаголовок'
+              label={t('admin_content.label_subtitle_s')}
               value={landingConfig.contactSection.subtitle}
               onChange={(e) => setConfigValue(['contactSection', 'subtitle'], e.target.value)}
             />
@@ -570,19 +572,19 @@ function AdminContent() {
 
           <div className='grid lg:grid-cols-3 gap-4'>
             <div className='space-y-2 p-3 rounded-xl border border-slate-200'>
-              <h3 className='text-sm font-medium text-slate-700'>Телефон</h3>
+              <h3 className='text-sm font-medium text-slate-700'>{t('admin_content.section_phone')}</h3>
               <Input
-                label='Заголовок'
+                label={t('admin_content.label_phone_title')}
                 value={landingConfig.contactSection.phone.title}
                 onChange={(e) => setConfigValue(['contactSection', 'phone', 'title'], e.target.value)}
               />
               <Input
-                label='Подпись'
+                label={t('admin_content.label_phone_note')}
                 value={landingConfig.contactSection.phone.note}
                 onChange={(e) => setConfigValue(['contactSection', 'phone', 'note'], e.target.value)}
               />
               <Input
-                label='Значение'
+                label={t('admin_content.label_phone_value')}
                 value={landingConfig.contactSection.phone.value}
                 onChange={(e) => setConfigValue(['contactSection', 'phone', 'value'], e.target.value)}
               />
@@ -590,35 +592,35 @@ function AdminContent() {
             <div className='space-y-2 p-3 rounded-xl border border-slate-200'>
               <h3 className='text-sm font-medium text-slate-700'>Email</h3>
               <Input
-                label='Заголовок'
+                label={t('admin_content.label_email_title')}
                 value={landingConfig.contactSection.email.title}
                 onChange={(e) => setConfigValue(['contactSection', 'email', 'title'], e.target.value)}
               />
               <Input
-                label='Подпись'
+                label={t('admin_content.label_email_note')}
                 value={landingConfig.contactSection.email.note}
                 onChange={(e) => setConfigValue(['contactSection', 'email', 'note'], e.target.value)}
               />
               <Input
-                label='Значение'
+                label={t('admin_content.label_email_value')}
                 value={landingConfig.contactSection.email.value}
                 onChange={(e) => setConfigValue(['contactSection', 'email', 'value'], e.target.value)}
               />
             </div>
             <div className='space-y-2 p-3 rounded-xl border border-slate-200'>
-              <h3 className='text-sm font-medium text-slate-700'>Адрес</h3>
+              <h3 className='text-sm font-medium text-slate-700'>{t('admin_content.section_address')}</h3>
               <Input
-                label='Заголовок'
+                label={t('admin_content.label_address_title')}
                 value={landingConfig.contactSection.address.title}
                 onChange={(e) => setConfigValue(['contactSection', 'address', 'title'], e.target.value)}
               />
               <Input
-                label='Подпись'
+                label={t('admin_content.label_address_note')}
                 value={landingConfig.contactSection.address.note}
                 onChange={(e) => setConfigValue(['contactSection', 'address', 'note'], e.target.value)}
               />
               <Input
-                label='Значение'
+                label={t('admin_content.label_address_value')}
                 value={landingConfig.contactSection.address.value}
                 onChange={(e) => setConfigValue(['contactSection', 'address', 'value'], e.target.value)}
               />
@@ -626,31 +628,31 @@ function AdminContent() {
           </div>
 
           <div className='space-y-3 p-4 rounded-xl border border-slate-200'>
-            <h3 className='font-medium text-slate-800'>Правая CTA-карточка в блоке контактов</h3>
+            <h3 className='font-medium text-slate-800'>{t('admin_content.qcard_heading')}</h3>
             <Input
-              label='Заголовок'
+              label={t('admin_content.label_qcard_title')}
               value={landingConfig.contactSection.quickCard.title}
               onChange={(e) => setConfigValue(['contactSection', 'quickCard', 'title'], e.target.value)}
             />
             <Textarea
-              label='Описание'
+              label={t('admin_content.label_qcard_desc')}
               rows={3}
               value={landingConfig.contactSection.quickCard.description}
               onChange={(e) => setConfigValue(['contactSection', 'quickCard', 'description'], e.target.value)}
             />
             <Textarea
-              label='Пункты (по одному на строку)'
+              label={t('admin_content.label_qcard_bullets')}
               rows={3}
               value={arrayToLines(landingConfig.contactSection.quickCard.bullets)}
               onChange={(e) => setConfigValue(['contactSection', 'quickCard', 'bullets'], linesToArray(e.target.value))}
             />
             <Input
-              label='Текст кнопки'
+              label={t('admin_content.label_qcard_btn')}
               value={landingConfig.contactSection.quickCard.buttonLabel}
               onChange={(e) => setConfigValue(['contactSection', 'quickCard', 'buttonLabel'], e.target.value)}
             />
             <Input
-              label='Ссылка карты (Google Maps embed URL)'
+              label={t('admin_content.label_map')}
               value={landingConfig.contactSection.mapEmbedUrl}
               onChange={(e) => setConfigValue(['contactSection', 'mapEmbedUrl'], e.target.value)}
             />
@@ -660,28 +662,28 @@ function AdminContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>SEO и системные поля</CardTitle>
+          <CardTitle>{t('admin_content.seo_title')}</CardTitle>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='grid md:grid-cols-2 gap-4'>
             <Input
-              label='Название сайта (siteName)'
+              label={t('admin_content.label_site_name')}
               value={siteName}
               onChange={(e) => setSiteName(e.target.value)}
             />
             <Input
-              label='Описание сайта (siteDescription)'
+              label={t('admin_content.label_site_desc')}
               value={siteDescription}
               onChange={(e) => setSiteDescription(e.target.value)}
             />
           </div>
           <Input
-            label='SEO title'
+            label={t('admin_content.label_seo_title')}
             value={seoMetaTitle}
             onChange={(e) => setSeoMetaTitle(e.target.value)}
           />
           <Textarea
-            label='SEO description'
+            label={t('admin_content.label_seo_desc')}
             rows={3}
             value={seoMetaDescription}
             onChange={(e) => setSeoMetaDescription(e.target.value)}
@@ -689,21 +691,17 @@ function AdminContent() {
           <div className='rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4'>
             <div className='flex items-center gap-2 text-sm font-medium text-slate-700 mb-2'>
               <FileText className='w-4 h-4' />
-              Сохранение
+              {t('admin_content.save_section_title')}
             </div>
-            <p className='text-sm text-slate-600'>
-              Все поля этой страницы сохраняются в `Global.landingConfig` и сразу используются на лендинге.
-            </p>
-            <p className='text-sm text-slate-600 mt-1'>
-              Для применения на сервере перезапускать фронт не нужно, достаточно обновить страницу сайта.
-            </p>
+            <p className='text-sm text-slate-600'>{t('admin_content.save_info_1')}</p>
+            <p className='text-sm text-slate-600 mt-1'>{t('admin_content.save_info_2')}</p>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Быстрое превью ключевых заголовков</CardTitle>
+          <CardTitle>{t('admin_content.preview_title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className='grid md:grid-cols-2 gap-4'>
@@ -720,7 +718,7 @@ function AdminContent() {
             <div className='p-4 rounded-xl border border-slate-200 bg-slate-50'>
               <div className='flex items-center gap-2 text-slate-800 font-medium mb-2'>
                 <Globe2 className='w-4 h-4 text-teal-600' />
-                Контакты
+                {t('admin_content.preview_contacts')}
               </div>
               <p className='text-sm text-slate-600'>{landingConfig.contactSection.title}</p>
               <p className='text-sm text-slate-900 mt-1'>{landingConfig.contactSection.phone.value}</p>

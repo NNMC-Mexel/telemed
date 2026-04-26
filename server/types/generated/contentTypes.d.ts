@@ -697,6 +697,7 @@ export interface ApiDoctorDoctor extends Struct.CollectionTypeSchema {
     fullName: Schema.Attribute.String;
     isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     languages: Schema.Attribute.JSON;
+    licenseNumber: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -708,6 +709,7 @@ export interface ApiDoctorDoctor extends Struct.CollectionTypeSchema {
       'api::medical-document.medical-document'
     >;
     photo: Schema.Attribute.Media<'images' | 'files' | 'videos' | 'audios'>;
+    position: Schema.Attribute.String;
     price: Schema.Attribute.Integer &
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMax<
@@ -746,6 +748,7 @@ export interface ApiDoctorDoctor extends Struct.CollectionTypeSchema {
       'oneToOne',
       'plugin::users-permissions.user'
     >;
+    workplace: Schema.Attribute.String;
     workEndTime: Schema.Attribute.String;
     workingDays: Schema.Attribute.String;
     workingHours: Schema.Attribute.JSON;
@@ -997,6 +1000,8 @@ export interface ApiSpecializationSpecialization
     > &
       Schema.Attribute.Private;
     name: Schema.Attribute.String & Schema.Attribute.Required;
+    nameEn: Schema.Attribute.String;
+    nameKk: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     slug: Schema.Attribute.UID<'name'>;
     sortOrder: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;

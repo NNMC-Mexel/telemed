@@ -44,31 +44,31 @@ export const COMMON_SPECIALIZATIONS = [
   { id: 12, name: 'Психолог', icon: 'smile' },
 ]
 
-// Navigation Items
+// Navigation Items — labels are i18n keys resolved in Sidebar via t()
 export const PATIENT_NAV_ITEMS = [
-  { path: '/patient', label: 'Главная', icon: 'home' },
-  { path: '/patient/appointments', label: 'Мои записи', icon: 'calendar' },
-  { path: '/patient/doctors', label: 'Врачи', icon: 'users' },
-  { path: '/patient/chat', label: 'Сообщения', icon: 'message-circle' },
-  { path: '/patient/documents', label: 'Документы', icon: 'file-text' },
-  { path: '/patient/profile', label: 'Профиль', icon: 'user' },
+  { path: '/patient', label: 'nav.home', icon: 'home' },
+  { path: '/patient/appointments', label: 'nav.appointments', icon: 'calendar' },
+  { path: '/patient/doctors', label: 'nav.doctors', icon: 'users' },
+  { path: '/patient/chat', label: 'nav.chat', icon: 'message-circle' },
+  { path: '/patient/documents', label: 'nav.documents', icon: 'file-text' },
+  { path: '/patient/profile', label: 'nav.profile', icon: 'user' },
 ]
 
 export const DOCTOR_NAV_ITEMS = [
-  { path: '/doctor', label: 'Главная', icon: 'home' },
-  { path: '/doctor/schedule', label: 'Расписание', icon: 'calendar' },
-  { path: '/doctor/patients', label: 'Пациенты', icon: 'users' },
-  { path: '/doctor/chat', label: 'Сообщения', icon: 'message-circle' },
-  { path: '/doctor/profile', label: 'Профиль', icon: 'user' },
+  { path: '/doctor', label: 'nav.home', icon: 'home' },
+  { path: '/doctor/schedule', label: 'nav.schedule', icon: 'calendar' },
+  { path: '/doctor/patients', label: 'nav.patients', icon: 'users' },
+  { path: '/doctor/chat', label: 'nav.chat', icon: 'message-circle' },
+  { path: '/doctor/profile', label: 'nav.profile', icon: 'user' },
 ]
 
 export const ADMIN_NAV_ITEMS = [
-  { path: '/admin', label: 'Дашборд', icon: 'layout-dashboard' },
-  { path: '/admin/users', label: 'Пользователи', icon: 'users' },
-  { path: '/admin/doctors', label: 'Врачи', icon: 'stethoscope' },
-  { path: '/admin/appointments', label: 'Записи', icon: 'calendar' },
-  { path: '/admin/specializations', label: 'Специализации', icon: 'tags' },
-  { path: '/admin/settings', label: 'Контент сайта', icon: 'settings' },
+  { path: '/admin', label: 'nav.admin_dashboard', icon: 'layout-dashboard' },
+  { path: '/admin/users', label: 'nav.admin_users', icon: 'users' },
+  { path: '/admin/doctors', label: 'nav.doctors', icon: 'stethoscope' },
+  { path: '/admin/appointments', label: 'nav.admin_appointments', icon: 'calendar' },
+  { path: '/admin/specializations', label: 'nav.admin_specializations', icon: 'tags' },
+  { path: '/admin/settings', label: 'nav.admin_settings', icon: 'settings' },
 ]
 
 // API Endpoints

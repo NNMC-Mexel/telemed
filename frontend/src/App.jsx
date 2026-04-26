@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ToastProvider } from './components/ui/Toast'
 
 // Layouts
@@ -53,11 +54,12 @@ import { PATIENT_NAV_ITEMS, DOCTOR_NAV_ITEMS, ADMIN_NAV_ITEMS } from './utils/co
 
 // Loading component
 function LoadingScreen() {
+  const { t } = useTranslation()
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-cyan-50">
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-slate-600">Загрузка...</p>
+        <p className="text-slate-600">{t('common.loading')}</p>
       </div>
     </div>
   )

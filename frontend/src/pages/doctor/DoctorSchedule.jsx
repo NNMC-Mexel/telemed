@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useToast } from "../../components/ui/Toast";
 import {
     ChevronLeft,
@@ -23,7 +24,7 @@ import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import Select from "../../components/ui/Select";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
-import { ru } from "date-fns/locale";
+import { ru, kk, enUS } from "date-fns/locale";
 import useAuthStore from "../../stores/authStore";
 import api, { normalizeResponse, getMediaUrl, getServerNow } from "../../services/api";
 
@@ -89,6 +90,8 @@ const generateWorkingSlots = (workingHours) => {
 };
 
 function DoctorSchedule() {
+    const { t, i18n } = useTranslation()
+    const dateLocale = i18n.language === 'kk' ? kk : i18n.language === 'en' ? enUS : ru
     const { user } = useAuthStore();
     const toast = useToast();
     const [doctor, setDoctor] = useState(null);
@@ -120,35 +123,6 @@ function DoctorSchedule() {
                 `/api/doctors?filters[userId][$eq]=${user.id}&populate=*&pagination[limit]=1`
             );
             let doctorData = doctorRes.data?.data?.[0];
-
-            // Если профиль врача не найден - создаём его автоматически
-            if (!doctorData && user.userRole === 'doctor') {
-                console.log("Creating doctor profile for user:", user.id);
-                try {
-                    const createRes = await api.post('/api/doctors', {
-                        data: {
-                            fullName: user.fullName || user.username || 'Врач',
-                            users_permissions_user: user.id,
-                            userId: user.id, // Добавляем поле для фильтрации
-                            isActive: true,
-                            rating: 0,
-                            reviewsCount: 0,
-                            price: 8000,
-                            experience: 0,
-                            workStartTime: '09:00',
-                            workEndTime: '18:00',
-                            breakStart: '12:00',
-                            breakEnd: '14:00',
-                            slotDuration: 30,
-                            workingDays: '1,2,3,4,5',
-                        }
-                    });
-                    doctorData = createRes.data?.data;
-                    console.log("Doctor profile created:", doctorData);
-                } catch (createError) {
-                    console.error("Error creating doctor profile:", createError.response?.data || createError);
-                }
-            }
 
             console.log("Found doctor:", doctorData);
             setDoctor(doctorData);
@@ -234,7 +208,7 @@ function DoctorSchedule() {
 
     const saveSettings = async () => {
         if (!doctor?.documentId) {
-            toast.error("Профиль врача не найден");
+            toast.error(t('schedule.save_error_no_profile'));
             return;
         }
 
@@ -264,7 +238,7 @@ function DoctorSchedule() {
             console.log("Save response:", response.data);
 
             setShowSettingsModal(false);
-            toast.success("Настройки сохранены!");
+            toast.success(t('schedule.save_success'));
             // Обновляем данные
             await fetchDoctorAndAppointments();
         } catch (error) {
@@ -273,7 +247,7 @@ function DoctorSchedule() {
                 error.response?.data || error
             );
             toast.error(
-                "Ошибка сохранения настроек: " +
+                t('schedule.save_error') + ": " +
                     (error.response?.data?.error?.message || error.message)
             );
         } finally {
@@ -295,20 +269,20 @@ function DoctorSchedule() {
             <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4'>
                 <div>
                     <h1 className='text-2xl font-bold text-slate-900'>
-                        Расписание
+                        {t('schedule.title')}
                     </h1>
                     <p className='text-slate-600'>
-                        Управление рабочим временем и записями
+                        {t('schedule.subtitle')}
                     </p>
                 </div>
                 <div className='flex items-center gap-2'>
                     <Button variant='outline' onClick={goToToday}>
-                        Сегодня
+                        {t('schedule.today')}
                     </Button>
                     <Button
                         onClick={() => setShowSettingsModal(true)}
                         leftIcon={<Clock className='w-4 h-4' />}>
-                        Настройки
+                        {t('schedule.settings_btn')}
                     </Button>
                 </div>
             </div>
@@ -323,9 +297,9 @@ function DoctorSchedule() {
                             <ChevronLeft className='w-5 h-5' />
                         </button>
                         <h2 className='text-lg font-semibold text-slate-900'>
-                            {format(weekStart, "d MMMM", { locale: ru })} -{" "}
+                            {format(weekStart, "d MMMM", { locale: dateLocale })} -{" "}
                             {format(addDays(weekStart, 6), "d MMMM yyyy", {
-                                locale: ru,
+                                locale: dateLocale,
                             })}
                         </h2>
                         <button
@@ -357,7 +331,7 @@ function DoctorSchedule() {
                                             : "bg-slate-100 text-slate-400"
                                     }`}>
                                     <p className='text-[10px] sm:text-xs font-medium mb-0.5 sm:mb-1'>
-                                        {format(day, "EEEEEE", { locale: ru })}
+                                        {format(day, "EEEEEE", { locale: dateLocale })}
                                     </p>
                                     <p
                                         className={`text-base sm:text-lg font-bold ${
@@ -373,7 +347,7 @@ function DoctorSchedule() {
                                                     : "text-teal-600"
                                             }`}>
                                             {dayAppointments.length}
-                                            <span className='hidden sm:inline'>{" "}{dayAppointments.length === 1 ? "запись" : "записей"}</span>
+                                            <span className='hidden sm:inline'>{" "}{dayAppointments.length === 1 ? t('schedule.apt_count_1') : t('schedule.apt_count_many')}</span>
                                         </div>
                                     )}
                                 </button>
@@ -390,7 +364,7 @@ function DoctorSchedule() {
                         <CardHeader>
                             <CardTitle>
                                 {format(selectedDate, "EEEE, d MMMM", {
-                                    locale: ru,
+                                    locale: dateLocale,
                                 })}
                             </CardTitle>
                         </CardHeader>
@@ -400,7 +374,7 @@ function DoctorSchedule() {
                                 <div className='text-center py-12'>
                                     <Calendar className='w-12 h-12 mx-auto text-slate-300 mb-3' />
                                     <p className='text-slate-600'>
-                                        Нет записей на этот день
+                                        {t('schedule.no_appointments')}
                                     </p>
                                 </div>
                             ) : (
@@ -444,7 +418,7 @@ function DoctorSchedule() {
                                                                     appointment
                                                                         .patient
                                                                         ?.fullName ||
-                                                                    "Пациент"
+                                                                    t('schedule.patient_label')
                                                                 }
                                                                 size='sm'
                                                             />
@@ -453,7 +427,7 @@ function DoctorSchedule() {
                                                                     {appointment
                                                                         .patient
                                                                         ?.fullName ||
-                                                                        "Пациент"}
+                                                                        t('schedule.patient_label')}
                                                                 </p>
                                                                 <div className='flex items-center gap-1 text-xs text-slate-500'>
                                                                     {appointment.type ===
@@ -462,8 +436,8 @@ function DoctorSchedule() {
                                                                     ) : (
                                                                         <MessageCircle className='w-3 h-3' />
                                                                     )}
-                                                                    <span className='hidden sm:inline'>{appointment.type === "video" ? "Видеоконсультация" : "Чат"}</span>
-                                                                    <span className='sm:hidden'>{appointment.type === "video" ? "Видео" : "Чат"}</span>
+                                                                    <span className='hidden sm:inline'>{appointment.type === "video" ? t('schedule.type_video') : t('schedule.type_chat')}</span>
+                                                                    <span className='sm:hidden'>{appointment.type === "video" ? t('schedule.type_video_short') : t('schedule.type_chat')}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -483,7 +457,7 @@ function DoctorSchedule() {
                                                                 return (
                                                                     <>
                                                                         {isPast && appointmentStatus !== 'cancelled' ? (
-                                                                            <Badge variant='success'>Завершён</Badge>
+                                                                            <Badge variant='success'>{t('schedule.status_completed')}</Badge>
                                                                         ) : (
                                                                             <Badge
                                                                                 variant={
@@ -494,20 +468,20 @@ function DoctorSchedule() {
                                                                                         : "danger"
                                                                                 }>
                                                                                 {appointmentStatus === "confirmed"
-                                                                                    ? "Подтв."
+                                                                                    ? t('schedule.status_confirmed_short')
                                                                                     : appointmentStatus === "pending"
-                                                                                    ? "Ожидает"
-                                                                                    : "Отменён"}
+                                                                                    ? t('schedule.status_pending')
+                                                                                    : t('schedule.status_cancelled')}
                                                                             </Badge>
                                                                         )}
                                                                         {canJoin && appointment.roomId && (
                                                                             <Link to={`/consultation/${appointment.roomId}`}>
-                                                                                <Button size='sm'>Начать</Button>
+                                                                                <Button size='sm'>{t('schedule.start_btn')}</Button>
                                                                             </Link>
                                                                         )}
                                                                         {isPast && appointmentStatus !== 'cancelled' && appointment.roomId && (
                                                                             <Link to={`/doctor/appointments/${appointment.documentId || appointment.id}`}>
-                                                                                <Button size='sm' variant='secondary'>Детали</Button>
+                                                                                <Button size='sm' variant='secondary'>{t('schedule.details_btn')}</Button>
                                                                             </Link>
                                                                         )}
                                                                     </>
@@ -517,11 +491,11 @@ function DoctorSchedule() {
                                                     </div>
                                                 ) : isBreak ? (
                                                     <span className='text-slate-400 w-full sm:w-auto'>
-                                                        Перерыв
+                                                        {t('schedule.break')}
                                                     </span>
                                                 ) : (
                                                     <span className='text-slate-400 w-full sm:w-auto'>
-                                                        Свободно
+                                                        {t('schedule.free')}
                                                     </span>
                                                 )}
                                             </div>
@@ -537,12 +511,12 @@ function DoctorSchedule() {
                 <div className='space-y-6'>
                     <Card>
                         <CardHeader>
-                            <CardTitle>Статистика дня</CardTitle>
+                            <CardTitle>{t('schedule.day_stats')}</CardTitle>
                         </CardHeader>
                         <CardContent className='space-y-4'>
                             <div className='flex items-center justify-between p-3 bg-slate-50 rounded-xl'>
                                 <span className='text-slate-600'>
-                                    Всего записей
+                                    {t('schedule.total_appointments')}
                                 </span>
                                 <span className='font-bold text-slate-900'>
                                     {selectedAppointments.length}
@@ -550,7 +524,7 @@ function DoctorSchedule() {
                             </div>
                             <div className='flex items-center justify-between p-3 bg-slate-50 rounded-xl'>
                                 <span className='text-slate-600'>
-                                    Видеоконсультации
+                                    {t('schedule.video_appointments')}
                                 </span>
                                 <span className='font-bold text-slate-900'>
                                     {
@@ -562,7 +536,7 @@ function DoctorSchedule() {
                             </div>
                             <div className='flex items-center justify-between p-3 bg-slate-50 rounded-xl'>
                                 <span className='text-slate-600'>
-                                    Чат-консультации
+                                    {t('schedule.chat_appointments')}
                                 </span>
                                 <span className='font-bold text-slate-900'>
                                     {
@@ -574,7 +548,7 @@ function DoctorSchedule() {
                             </div>
                             <div className='flex items-center justify-between p-3 bg-teal-50 rounded-xl'>
                                 <span className='text-teal-700'>
-                                    Потенциальный доход
+                                    {t('schedule.potential_income')}
                                 </span>
                                 <span className='font-bold text-teal-700'>
                                     {selectedAppointments
@@ -593,13 +567,13 @@ function DoctorSchedule() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Рабочие часы</CardTitle>
+                            <CardTitle>{t('schedule.working_hours_title')}</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className='space-y-3 text-sm'>
                                 <div className='flex justify-between'>
                                     <span className='text-slate-600'>
-                                        Начало работы
+                                        {t('schedule.work_start')}
                                     </span>
                                     <span className='font-medium'>
                                         {workingHours.startTime}
@@ -607,7 +581,7 @@ function DoctorSchedule() {
                                 </div>
                                 <div className='flex justify-between'>
                                     <span className='text-slate-600'>
-                                        Конец работы
+                                        {t('schedule.work_end')}
                                     </span>
                                     <span className='font-medium'>
                                         {workingHours.endTime}
@@ -615,7 +589,7 @@ function DoctorSchedule() {
                                 </div>
                                 <div className='flex justify-between'>
                                     <span className='text-slate-600'>
-                                        Перерыв
+                                        {t('schedule.break_time')}
                                     </span>
                                     <span className='font-medium'>
                                         {workingHours.breakStart} -{" "}
@@ -624,10 +598,10 @@ function DoctorSchedule() {
                                 </div>
                                 <div className='flex justify-between'>
                                     <span className='text-slate-600'>
-                                        Длительность приёма
+                                        {t('schedule.slot_duration_label')}
                                     </span>
                                     <span className='font-medium'>
-                                        {workingHours.slotDuration} мин
+                                        {workingHours.slotDuration} {t('schedule.min_abbr')}
                                     </span>
                                 </div>
                             </div>
@@ -640,7 +614,7 @@ function DoctorSchedule() {
             <Modal
                 isOpen={showSettingsModal}
                 onClose={() => setShowSettingsModal(false)}
-                title='Настройки расписания'
+                title={t('schedule.settings_modal_title')}
                 size='md'
                 footer={
                     <>
@@ -648,13 +622,13 @@ function DoctorSchedule() {
                             variant='secondary'
                             onClick={() => setShowSettingsModal(false)}
                             disabled={isSaving}>
-                            Отмена
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             onClick={saveSettings}
                             isLoading={isSaving}
                             leftIcon={<Save className='w-4 h-4' />}>
-                            Сохранить
+                            {t('common.save')}
                         </Button>
                     </>
                 }>
@@ -662,10 +636,10 @@ function DoctorSchedule() {
                     {/* Working Days */}
                     <div>
                         <label className='block text-sm font-medium text-slate-700 mb-2'>
-                            Рабочие дни
+                            {t('schedule.working_days')}
                         </label>
                         <div className='flex flex-wrap gap-2'>
-                            {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(
+                            {[t('schedule.day_mon'), t('schedule.day_tue'), t('schedule.day_wed'), t('schedule.day_thu'), t('schedule.day_fri'), t('schedule.day_sat'), t('schedule.day_sun')].map(
                                 (day, index) => {
                                     const dayIndex =
                                         index === 6 ? 0 : index + 1;
@@ -700,7 +674,7 @@ function DoctorSchedule() {
                     {/* Working Hours */}
                     <div className='grid grid-cols-2 gap-4'>
                         <Select
-                            label='Начало работы'
+                            label={t('schedule.select_start')}
                             value={workingHours.startTime}
                             onChange={(e) =>
                                 setWorkingHours((prev) => ({
@@ -711,7 +685,7 @@ function DoctorSchedule() {
                             options={allTimeOptions}
                         />
                         <Select
-                            label='Конец работы'
+                            label={t('schedule.select_end')}
                             value={workingHours.endTime}
                             onChange={(e) =>
                                 setWorkingHours((prev) => ({
@@ -726,7 +700,7 @@ function DoctorSchedule() {
                     {/* Break Time */}
                     <div className='grid grid-cols-2 gap-4'>
                         <Select
-                            label='Начало перерыва'
+                            label={t('schedule.select_break_start')}
                             value={workingHours.breakStart}
                             onChange={(e) =>
                                 setWorkingHours((prev) => ({
@@ -737,7 +711,7 @@ function DoctorSchedule() {
                             options={allTimeOptions}
                         />
                         <Select
-                            label='Конец перерыва'
+                            label={t('schedule.select_break_end')}
                             value={workingHours.breakEnd}
                             onChange={(e) =>
                                 setWorkingHours((prev) => ({
@@ -751,7 +725,7 @@ function DoctorSchedule() {
 
                     {/* Slot Duration */}
                     <Select
-                        label='Длительность приёма'
+                        label={t('schedule.select_duration')}
                         value={workingHours.slotDuration.toString()}
                         onChange={(e) =>
                             setWorkingHours((prev) => ({
@@ -760,10 +734,10 @@ function DoctorSchedule() {
                             }))
                         }
                         options={[
-                            { value: "15", label: "15 минут" },
-                            { value: "30", label: "30 минут" },
-                            { value: "45", label: "45 минут" },
-                            { value: "60", label: "60 минут" },
+                            { value: "15", label: t('schedule.min_15') },
+                            { value: "30", label: t('schedule.min_30') },
+                            { value: "45", label: t('schedule.min_45') },
+                            { value: "60", label: t('schedule.min_60') },
                         ]}
                     />
                 </div>

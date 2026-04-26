@@ -55,6 +55,15 @@ const missingPayment = PAYMENT_ENV_VARS.filter((v) => !process.env[v])
 if (missingPayment.length > 0) {
   console.warn(`[STARTUP] Missing ePay variables (live payments disabled): ${missingPayment.join(', ')}`)
 }
+const PAYMENTS_LIVE = process.env.PAYMENTS_LIVE === 'true'
+if (process.env.NODE_ENV === 'production' && !PAYMENTS_LIVE) {
+  console.error('[STARTUP] PAYMENTS_LIVE=true is required in production')
+  process.exit(1)
+}
+if (PAYMENTS_LIVE && missingPayment.length > 0) {
+  console.error(`[STARTUP] Missing ePay variables while PAYMENTS_LIVE=true: ${missingPayment.join(', ')}`)
+  process.exit(1)
+}
 
 // =====================================================
 // ePay (Halyk Bank) Payment Integration
@@ -257,6 +266,10 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
     return res.status(429).json({ error: 'Too many payment requests. Please try again later.' })
   }
   try {
+    if (!PAYMENTS_LIVE) {
+      return res.status(503).json({ error: 'Live payments are disabled' })
+    }
+
     const { bookingData, userToken } = req.body
     if (!bookingData || !userToken) {
       return res.status(400).json({ error: 'bookingData and userToken required' })
@@ -669,6 +682,10 @@ app.post('/api/payment/epay-token', async (req, res) => {
     return res.status(429).json({ error: 'Too many payment requests. Please try again later.' })
   }
   try {
+    if (!PAYMENTS_LIVE) {
+      return res.status(503).json({ error: 'Live payments are disabled' })
+    }
+
     const { invoiceId, amount, doctorId, dateTime, currency = 'KZT' } = req.body
     if (!invoiceId || !amount || !doctorId) {
       return res.status(400).json({ error: 'invoiceId, amount and doctorId required' })

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/helpers'
 
 const sizes = {
@@ -32,12 +33,14 @@ function Spinner({ size = 'md', className }) {
   )
 }
 
-export function LoadingScreen({ message = 'Загрузка...' }) {
+export function LoadingScreen({ message }) {
+  const { t } = useTranslation()
+  const resolvedMessage = message ?? t('common.loading')
   return (
     <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="text-center">
         <Spinner size="xl" className="mx-auto" />
-        <p className="mt-4 text-slate-600 font-medium">{message}</p>
+        <p className="mt-4 text-slate-600 font-medium">{resolvedMessage}</p>
       </div>
     </div>
   )

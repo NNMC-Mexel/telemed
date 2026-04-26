@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Calendar,
   Clock,
   Video,
   FileText,
   ChevronRight,
-  TrendingUp,
   Activity,
   Bell,
   Loader2,
@@ -20,15 +20,16 @@ import useAuthStore from '../../stores/authStore'
 import useAppointmentStore from '../../stores/appointmentStore'
 import useDocumentStore from '../../stores/documentStore'
 import useChatStore from '../../stores/chatStore'
-import { formatRelativeDate, formatPrice } from '../../utils/helpers'
+import { formatRelativeDate } from '../../utils/helpers'
 import { getMediaUrl, getServerNow } from '../../services/api'
 
 function PatientDashboard() {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
   const { appointments, fetchAppointments, isLoading: appointmentsLoading } = useAppointmentStore()
   const { documents, fetchDocuments, isLoading: documentsLoading } = useDocumentStore()
   const { conversations, fetchConversations, isLoading: chatsLoading } = useChatStore()
-  
+
   const [stats, setStats] = useState({
     totalConsultations: 0,
     upcomingCount: 0,
@@ -37,7 +38,6 @@ function PatientDashboard() {
   })
 
   useEffect(() => {
-    // Загружаем данные пользователя
     if (user?.id) {
       fetchAppointments()
       fetchDocuments({ user: user.id })
@@ -45,10 +45,8 @@ function PatientDashboard() {
     }
   }, [user?.id])
 
-  // Функция для проверки, прошла ли запись (на основе длительности консультации)
   const isAppointmentPast = (appointment) => {
     const appointmentDate = new Date(appointment.dateTime)
-    // Длительность консультации + буфер 5 минут
     const consultationDuration = appointment.doctor?.consultationDuration || 30
     const bufferMinutes = 5
     const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000)
@@ -56,7 +54,6 @@ function PatientDashboard() {
   }
 
   useEffect(() => {
-    // Подсчитываем статистику
     const completed = appointments.filter(a =>
       a.status === 'completed' ||
       (['pending', 'confirmed'].includes(a.status) && isAppointmentPast(a))
@@ -65,7 +62,7 @@ function PatientDashboard() {
       ['pending', 'confirmed'].includes(a.status) && !isAppointmentPast(a)
     ).length
     const unread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
-    
+
     setStats({
       totalConsultations: completed,
       upcomingCount: upcoming,
@@ -82,13 +79,15 @@ function PatientDashboard() {
   const recentConversations = conversations.slice(0, 3)
 
   const quickActions = [
-    { label: 'Записаться к врачу', icon: Calendar, to: '/patient/doctors', color: 'bg-teal-500' },
-    { label: 'Мои записи', icon: Clock, to: '/patient/appointments', color: 'bg-sky-500' },
-    { label: 'Сообщения', icon: MessageCircle, to: '/patient/chat', color: 'bg-violet-500' },
-    { label: 'Документы', icon: FileText, to: '/patient/documents', color: 'bg-amber-500' },
+    { label: t('patient.quick_book'), icon: Calendar, to: '/patient/doctors', color: 'bg-teal-500' },
+    { label: t('patient.quick_appointments'), icon: Clock, to: '/patient/appointments', color: 'bg-sky-500' },
+    { label: t('patient.quick_messages'), icon: MessageCircle, to: '/patient/chat', color: 'bg-violet-500' },
+    { label: t('patient.quick_documents'), icon: FileText, to: '/patient/documents', color: 'bg-amber-500' },
   ]
 
   const isLoading = appointmentsLoading || documentsLoading
+
+  const displayName = user?.fullName?.split(' ')[1] || user?.fullName?.split(' ')[0] || user?.username
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -96,15 +95,15 @@ function PatientDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-            Добрый день, {user?.fullName?.split(' ')[1] || user?.fullName?.split(' ')[0] || user?.username}! 👋
+            {t('patient.greeting', { name: displayName })} 👋
           </h1>
           <p className="text-sm sm:text-base text-slate-600 mt-1">
-            Вот что происходит с вашим здоровьем
+            {t('patient.health_overview')}
           </p>
         </div>
         <Link to="/patient/doctors" className="hidden sm:block">
           <Button rightIcon={<ChevronRight className="w-4 h-4" />}>
-            Записаться к врачу
+            {t('patient.book_appointment')}
           </Button>
         </Link>
       </div>
@@ -113,45 +112,45 @@ function PatientDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="flex items-center gap-4 p-4 sm:p-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-sky-500 flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-sky-500 flex items-center justify-center shrink-0">
               <Video className="w-6 h-6 text-white" />
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900">{stats.totalConsultations}</p>
-              <p className="text-sm text-slate-500">Консультаций</p>
+              <p className="text-sm text-slate-500">{t('patient.stat_consultations')}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex items-center gap-4 p-4 sm:p-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center shrink-0">
               <Calendar className="w-6 h-6 text-white" />
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900">{stats.upcomingCount}</p>
-              <p className="text-sm text-slate-500">Предстоящих</p>
+              <p className="text-sm text-slate-500">{t('patient.stat_upcoming')}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex items-center gap-4 p-4 sm:p-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shrink-0">
               <FileText className="w-6 h-6 text-white" />
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900">{stats.documentsCount}</p>
-              <p className="text-sm text-slate-500">Документов</p>
+              <p className="text-sm text-slate-500">{t('patient.stat_documents')}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex items-center gap-4 p-4 sm:p-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shrink-0">
               <MessageCircle className="w-6 h-6 text-white" />
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900">{stats.unreadMessages}</p>
-              <p className="text-sm text-slate-500">Сообщений</p>
+              <p className="text-sm text-slate-500">{t('patient.stat_messages')}</p>
             </div>
           </CardContent>
         </Card>
@@ -178,9 +177,9 @@ function PatientDashboard() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Предстоящие записи</CardTitle>
+              <CardTitle>{t('patient.upcoming_appointments')}</CardTitle>
               <Link to="/patient/appointments" className="text-sm text-teal-600 hover:text-teal-700">
-                Все записи
+                {t('patient.all_appointments')}
               </Link>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -191,16 +190,16 @@ function PatientDashboard() {
               ) : upcomingAppointments.length === 0 ? (
                 <div className="text-center py-8">
                   <Calendar className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                  <p className="text-slate-600">У вас нет предстоящих записей</p>
+                  <p className="text-slate-600">{t('patient.no_appointments')}</p>
                   <Link to="/patient/doctors">
                     <Button variant="outline" size="sm" className="mt-3">
-                      Записаться к врачу
+                      {t('patient.book_appointment')}
                     </Button>
                   </Link>
                 </div>
               ) : (
                 upcomingAppointments.map((appointment) => {
-                  const doctorName = appointment.doctor?.fullName || 'Врач'
+                  const doctorName = appointment.doctor?.fullName || t('patient.doctor_label')
                   const specName = typeof appointment.doctor?.specialization === 'object'
                     ? appointment.doctor?.specialization?.name
                     : appointment.doctor?.specialization || ''
@@ -208,9 +207,7 @@ function PatientDashboard() {
                   const appointmentDate = new Date(appointment.dateTime)
                   const now = getServerNow()
 
-                  // Длительность консультации (из настроек врача или 30 мин по умолчанию)
                   const consultationDuration = appointment.doctor?.consultationDuration || 30
-                  // Буфер после окончания консультации (5 минут)
                   const bufferMinutes = 5
 
                   const fifteenMinBefore = new Date(appointmentDate.getTime() - 15 * 60 * 1000)
@@ -243,12 +240,12 @@ function PatientDashboard() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={appointment.status === 'confirmed' ? 'primary' : 'default'}>
-                          {appointment.type === 'video' ? 'Видео' : 'Чат'}
+                          {appointment.type === 'video' ? t('patient.type_video') : t('patient.type_chat')}
                         </Badge>
                         {canJoin && appointment.roomId && (
                           <Link to={`/consultation/${appointment.roomId}`}>
                             <Button size="sm" leftIcon={<Video className="w-4 h-4" />}>
-                              Подключиться
+                              {t('patient.join')}
                             </Button>
                           </Link>
                         )}
@@ -268,10 +265,10 @@ function PatientDashboard() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <MessageCircle className="w-5 h-5" />
-                Сообщения
+                {t('patient.recent_chats')}
               </CardTitle>
               <Link to="/patient/chat" className="text-sm text-teal-600 hover:text-teal-700">
-                Все
+                {t('patient.all_chats')}
               </Link>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -281,13 +278,13 @@ function PatientDashboard() {
                 </div>
               ) : recentConversations.length === 0 ? (
                 <p className="text-center text-slate-500 py-4 text-sm">
-                  Нет сообщений
+                  {t('patient.no_messages')}
                 </p>
               ) : (
                 recentConversations.map((conv) => {
                   const participant = conv.participants?.find(p => p.id !== user?.id) || {}
-                  const participantName = participant.fullName || participant.username || 'Собеседник'
-                  
+                  const participantName = participant.fullName || participant.username || t('patient.interlocutor')
+
                   return (
                     <Link
                       key={conv.id}
@@ -301,7 +298,7 @@ function PatientDashboard() {
                             {participantName}
                           </h4>
                           <p className="text-xs text-slate-500 truncate">
-                            {conv.lastMessage?.content || 'Нет сообщений'}
+                            {conv.lastMessage?.content || t('patient.no_conv_messages')}
                           </p>
                         </div>
                         {conv.unreadCount > 0 && (
@@ -321,13 +318,13 @@ function PatientDashboard() {
           <Card>
             <CardContent>
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
                   <Activity className="w-5 h-5 text-emerald-600" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-slate-900">Совет дня</h4>
+                  <h4 className="font-medium text-slate-900">{t('patient.health_tip_title')}</h4>
                   <p className="text-sm text-slate-600 mt-1">
-                    Регулярные профилактические осмотры помогают выявить заболевания на ранних стадиях
+                    {t('patient.health_tip_text')}
                   </p>
                 </div>
               </div>

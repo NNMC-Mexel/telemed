@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Search,
   Filter,
@@ -14,15 +15,17 @@ import DoctorCard from '../components/doctors/DoctorCard'
 import useAppointmentStore from '../stores/appointmentStore'
 import useAuthStore from '../stores/authStore'
 import BookingModal from '../components/appointments/BookingModal'
-
-const sortOptions = [
-  { value: 'rating', label: 'По рейтингу' },
-  { value: 'price_asc', label: 'Цена: по возрастанию' },
-  { value: 'price_desc', label: 'Цена: по убыванию' },
-  { value: 'experience', label: 'По стажу' },
-]
+import { getSpecName } from '../utils/helpers'
 
 function DoctorsPage() {
+  const { t, i18n } = useTranslation()
+
+  const sortOptions = [
+    { value: 'rating', label: t('doctors_page.sort_rating') },
+    { value: 'price_asc', label: t('doctors_page.sort_price_asc') },
+    { value: 'price_desc', label: t('doctors_page.sort_price_desc') },
+    { value: 'experience', label: t('doctors_page.sort_experience') },
+  ]
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '')
   const [selectedSpec, setSelectedSpec] = useState(searchParams.get('specialization') || '')
@@ -56,9 +59,10 @@ function DoctorsPage() {
   // Filter and sort doctors
   const filteredDoctors = doctors
     .filter((doc) => {
-      const matchesSearch = 
+      const specDisplay = getSpecName(doc.specialization, i18n.language) || doc.specialization?.name || ''
+      const matchesSearch =
         doc.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.specialization?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+        specDisplay.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesSpec = !selectedSpec || 
         doc.specialization?.name === selectedSpec ||
         doc.specialization?.id?.toString() === selectedSpec
@@ -97,9 +101,9 @@ function DoctorsPage() {
       <div className={isInDashboard ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'}>
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Найти врача</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('doctors_page.title')}</h1>
           <p className="text-slate-600">
-            {filteredDoctors.length} врачей доступно для онлайн-консультации
+            {t('doctors_page.subtitle', { count: filteredDoctors.length })}
           </p>
         </div>
 
@@ -109,7 +113,7 @@ function DoctorsPage() {
             <Card className="sticky top-28">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-semibold text-slate-900">Фильтры</h3>
+                  <h3 className="font-semibold text-slate-900">{t('doctors_page.filter_title')}</h3>
                   <button
                     onClick={() => {
                       setSelectedSpec('')
@@ -118,14 +122,14 @@ function DoctorsPage() {
                     }}
                     className="text-sm text-teal-600 hover:text-teal-700"
                   >
-                    Сбросить
+                    {t('doctors_page.reset_filters')}
                   </button>
                 </div>
 
                 {/* Specialization Filter */}
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-slate-700 mb-3">
-                    Специализация
+                    {t('doctors_page.spec_label')}
                   </label>
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -136,7 +140,7 @@ function DoctorsPage() {
                         onChange={() => setSelectedSpec('')}
                         className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500"
                       />
-                      <span className="text-sm text-slate-700">Все специализации</span>
+                      <span className="text-sm text-slate-700">{t('doctors_page.all_specs')}</span>
                     </label>
                     {specializations.map((spec) => (
                       <label key={spec.id} className="flex items-center gap-2 cursor-pointer">
@@ -147,7 +151,7 @@ function DoctorsPage() {
                           onChange={() => setSelectedSpec(spec.name)}
                           className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500"
                         />
-                        <span className="text-sm text-slate-700">{spec.name}</span>
+                        <span className="text-sm text-slate-700">{getSpecName(spec, i18n.language)}</span>
                       </label>
                     ))}
                   </div>
@@ -156,19 +160,19 @@ function DoctorsPage() {
                 {/* Price Filter */}
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-slate-700 mb-3">
-                    Цена консультации (₸)
+                    {t('doctors_page.price_label')}
                   </label>
                   <div className="flex gap-3">
                     <Input
                       type="number"
-                      placeholder="От"
+                      placeholder={t('doctors_page.price_from')}
                       value={priceRange.min}
                       onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
                       className="text-sm"
                     />
                     <Input
                       type="number"
-                      placeholder="До"
+                      placeholder={t('doctors_page.price_to')}
                       value={priceRange.max}
                       onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
                       className="text-sm"
@@ -181,7 +185,7 @@ function DoctorsPage() {
                   className="w-full lg:hidden"
                   onClick={() => setShowFilters(false)}
                 >
-                  Применить фильтры
+                  {t('doctors_page.apply_filters')}
                 </Button>
               </CardContent>
             </Card>
@@ -195,7 +199,7 @@ function DoctorsPage() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Поиск по имени или специализации..."
+                  placeholder={t('doctors_page.search_placeholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
@@ -217,7 +221,7 @@ function DoctorsPage() {
                   onClick={() => setShowFilters(!showFilters)}
                   leftIcon={<Filter className="w-4 h-4" />}
                 >
-                  Фильтры
+                  {t('doctors_page.filter_title')}
                 </Button>
 
                 <select
@@ -239,7 +243,7 @@ function DoctorsPage() {
               <div className="flex flex-wrap gap-2 mb-6">
                 {selectedSpec && (
                   <Badge variant="primary" className="flex items-center gap-1">
-                    {selectedSpec}
+                    {getSpecName(specializations.find(s => s.name === selectedSpec), i18n.language) || selectedSpec}
                     <button onClick={() => setSelectedSpec('')}>
                       <X className="w-3 h-3" />
                     </button>
@@ -247,9 +251,9 @@ function DoctorsPage() {
                 )}
                 {(priceRange.min || priceRange.max) && (
                   <Badge variant="primary" className="flex items-center gap-1">
-                    {priceRange.min && `от ${priceRange.min}₸`}
+                    {priceRange.min && t('doctors_page.price_from_badge', { price: priceRange.min })}
                     {priceRange.min && priceRange.max && ' — '}
-                    {priceRange.max && `до ${priceRange.max}₸`}
+                    {priceRange.max && t('doctors_page.price_to_badge', { price: priceRange.max })}
                     <button onClick={() => setPriceRange({ min: '', max: '' })}>
                       <X className="w-3 h-3" />
                     </button>
@@ -267,7 +271,7 @@ function DoctorsPage() {
               <Card>
                 <CardContent className="p-12 text-center">
                   <p className="text-slate-600 mb-4">
-                    Врачи не найдены по заданным критериям
+                    {t('doctors_page.no_results_text')}
                   </p>
                   <Button
                     variant="secondary"
@@ -277,7 +281,7 @@ function DoctorsPage() {
                       setSearchQuery('')
                     }}
                   >
-                    Сбросить фильтры
+                    {t('doctors_page.reset_button')}
                   </Button>
                 </CardContent>
               </Card>

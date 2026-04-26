@@ -56,6 +56,27 @@ export default factories.createCoreController('api::message.message', ({ strapi 
     const user = ctx.state.user;
     if (!user) return ctx.forbidden('Not authenticated');
 
+    const body = (ctx.request.body as any)?.data || ctx.request.body || {};
+    const conversationRef = body.conversation;
+    if (!conversationRef) return ctx.badRequest('conversation is required');
+
+    const conversation = typeof conversationRef === 'number'
+      ? await strapi.query('api::conversation.conversation').findOne({
+          where: { id: conversationRef },
+          populate: { users_permissions_users: { select: ['id'] } },
+        })
+      : await strapi.documents('api::conversation.conversation').findOne({
+          documentId: conversationRef,
+          populate: { users_permissions_users: { fields: ['id'] } },
+        });
+
+    if (!conversation) return ctx.badRequest('Conversation not found');
+
+    const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
+    const members: any[] = (conversation as any).users_permissions_users || [];
+    const isMember = members.some((m) => m.id === user.id);
+    if (!isAdmin && !isMember) return ctx.forbidden('Access denied');
+
     // Принудительно устанавливаем sender = текущий user
     ctx.request.body = {
       ...ctx.request.body as any,

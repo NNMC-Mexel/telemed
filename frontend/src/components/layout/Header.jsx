@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Bell, Search, Menu, X, Loader2, CheckCheck } from 'lucide-react'
 import { cn } from '../../utils/helpers'
 import Avatar from '../ui/Avatar'
@@ -8,6 +9,7 @@ import useNotificationStore from '../../stores/notificationStore'
 import { getMediaUrl } from '../../services/api'
 
 function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
@@ -62,10 +64,10 @@ function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
     const minutes = Math.floor(diff / 60000)
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
-    if (minutes < 1) return 'только что'
-    if (minutes < 60) return `${minutes} мин назад`
-    if (hours < 24) return `${hours} ч назад`
-    return `${days} дн назад`
+    if (minutes < 1) return t('notifications.just_now')
+    if (minutes < 60) return t('notifications.minutes_ago', { count: minutes })
+    if (hours < 24) return t('notifications.hours_ago', { count: hours })
+    return t('notifications.days_ago', { count: days })
   }
 
   const badgeText = unreadCount > 9 ? '9+' : String(unreadCount)
@@ -96,7 +98,7 @@ function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Поиск..."
+                  placeholder={t('common.search')}
                   autoFocus
                   onBlur={() => setShowSearch(false)}
                   className="w-full pl-10 pr-4 py-2 text-sm bg-slate-100 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -141,9 +143,11 @@ function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
                 <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-slideDown">
                   <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-2">
                     <div>
-                      <h3 className="font-semibold text-slate-900">Уведомления</h3>
+                      <h3 className="font-semibold text-slate-900">{t('notifications.title')}</h3>
                       {unreadCount > 0 && (
-                        <p className="text-xs text-slate-500">{unreadCount} непрочитанных</p>
+                        <p className="text-xs text-slate-500">
+                          {t('notifications.unread_count', { count: unreadCount })}
+                        </p>
                       )}
                     </div>
                     {unreadCount > 0 && (
@@ -152,7 +156,7 @@ function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
                         className="text-xs text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
                       >
                         <CheckCheck className="w-3.5 h-3.5" />
-                        Прочитать все
+                        {t('notifications.mark_all_read')}
                       </button>
                     )}
                   </div>
@@ -164,7 +168,7 @@ function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
                     ) : notifications.length === 0 ? (
                       <div className="py-8 text-center text-slate-500">
                         <Bell className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                        <p className="text-sm">Нет уведомлений</p>
+                        <p className="text-sm">{t('notifications.no_notifications')}</p>
                       </div>
                     ) : (
                       notifications.slice(0, 6).map((n) => (
@@ -206,7 +210,7 @@ function Header({ title, subtitle, onMenuClick, isMobileMenuOpen }) {
                       onClick={handleShowAll}
                       className="w-full text-sm text-teal-600 hover:text-teal-700 font-medium py-2 px-4 bg-white rounded-xl border border-slate-200 hover:border-teal-300 transition-colors"
                     >
-                      Показать все
+                      {t('notifications.show_all')}
                     </button>
                   </div>
                 </div>

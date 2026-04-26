@@ -37,10 +37,11 @@ import {
   Download,
   Image,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { io } from 'socket.io-client'
 import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
-import { cn } from '../utils/helpers'
+import { cn, getSpecName } from '../utils/helpers'
 import useAuthStore from '../stores/authStore'
 import api, { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl, getSignalingUrl } from '../services/api'
 
@@ -74,6 +75,8 @@ const SIGNALING_SERVER = getSignalingUrl();
 function VideoConsultation() {
   const { roomId } = useParams()
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const timeLocale = i18n.language === 'kk' ? 'kk-KZ' : i18n.language === 'en' ? 'en-US' : 'ru-RU'
   const { user, token } = useAuthStore()
 
   const [connectionState, setConnectionState] = useState('initializing')
@@ -170,7 +173,6 @@ function VideoConsultation() {
   useEffect(() => {
     const handleOrientationChange = () => {
       socketRef.current?.emit('orientation-update', {
-        roomId,
         isPortrait: window.innerHeight > window.innerWidth,
       })
     }
@@ -289,33 +291,29 @@ function VideoConsultation() {
   const getParticipantInfo = () => {
     if (!appointment) {
       if (remoteUser?.userName) {
-        return { name: remoteUser.userName, role: remoteUser.userRole === 'doctor' ? 'Врач' : 'Пациент' }
+        return { name: remoteUser.userName, role: remoteUser.userRole === 'doctor' ? t('video.doctor') : t('video.patient') }
       }
-      return { name: 'Ожидание...', role: '' }
+      return { name: t('video.waiting_label'), role: '' }
     }
 
     if (isDoctor) {
-      // Doctor sees patient info
       const patientName = remoteUser?.userName ||
                           appointment.patient?.fullName ||
                           appointment.patient?.username ||
                           appointment.patient?.email?.split('@')[0] ||
-                          'Пациент'
+                          t('video.patient')
       return {
         name: patientName,
-        role: 'Пациент'
+        role: t('video.patient')
       }
     }
 
-    // Patient sees doctor info
     const doctorName = appointment.doctor?.fullName ||
                        remoteUser?.userName ||
-                       'Врач'
+                       t('video.doctor')
     return {
       name: doctorName,
-      role: typeof appointment.doctor?.specialization === 'object'
-        ? appointment.doctor.specialization?.name
-        : appointment.doctor?.specialization || 'Специалист'
+      role: getSpecName(appointment.doctor?.specialization, i18n.language) || t('video.specialist')
     }
   }
 
@@ -353,20 +351,23 @@ function VideoConsultation() {
         socket.on('connect', () => {
           socket.emit('join-room', {
             roomId,
-            userId: user?.id,
-            userName: user?.fullName || user?.username,
-            userRole: user?.userRole || 'patient',
             isPortrait: window.innerHeight > window.innerWidth,
           })
           socket.emit('orientation-update', {
-            roomId,
             isPortrait: window.innerHeight > window.innerWidth,
           })
           setConnectionState('waiting')
         })
 
         socket.on('connect_error', () => {
-          setError('Не удалось подключиться к серверу')
+          setError(t('video.conn_error'))
+          setConnectionState('failed')
+        })
+
+        socket.on('join-room-error', ({ reason } = {}) => {
+          setError(reason === 'Access denied'
+            ? t('video.no_access')
+            : t('video.room_error'))
           setConnectionState('failed')
         })
 
@@ -385,7 +386,6 @@ function VideoConsultation() {
           setRemoteIsPortrait(data.isPortrait ?? false)
           // Re-send our orientation to the newly joined user
           socket.emit('orientation-update', {
-            roomId,
             isPortrait: window.innerHeight > window.innerWidth,
           })
 
@@ -479,7 +479,7 @@ function VideoConsultation() {
       } catch (err) {
         console.error('Error initializing:', err)
         if (mounted) {
-          setError('Не удалось получить доступ к камере и микрофону')
+          setError(t('video.media_error'))
           setConnectionState('failed')
         }
       }
@@ -518,9 +518,6 @@ function VideoConsultation() {
       if (socket?.connected) {
         socket.emit('join-room', {
           roomId,
-          userId: user?.id,
-          userName: user?.fullName || user?.username,
-          userRole: user?.userRole || 'patient',
           isPortrait: window.innerHeight > window.innerWidth,
         })
       } else {
@@ -681,7 +678,7 @@ function VideoConsultation() {
     try {
       await saveChatLog(messages)
       await appointmentsAPI.update(appointment.documentId, { status: 'completed' })
-      socketRef.current?.emit('force-end-call', { roomId })
+      socketRef.current?.emit('force-end-call')
       cleanupCall()
       navigate('/doctor')
     } catch (err) {
@@ -719,9 +716,7 @@ function VideoConsultation() {
     if (!newMessage.trim() || !socketRef.current) return
 
     socketRef.current.emit('chat-message', {
-      roomId,
       message: newMessage,
-      senderName: user?.fullName || user?.username,
     })
     setNewMessage('')
   }
@@ -738,8 +733,8 @@ function VideoConsultation() {
       setMessages(prev => [...prev, {
         id: Date.now(),
         sender: 'system',
-        senderName: 'Система',
-        text: `Файл "${file.name}" слишком большой (макс. 10 МБ)`,
+        senderName: t('video.system'),
+        text: t('video.file_too_large', { name: file.name }),
         time: new Date(),
       }])
       return
@@ -768,12 +763,10 @@ function VideoConsultation() {
       // 4. Send chat message so doctor sees notification instantly
       const fileIcon = file.type?.startsWith('image/') ? '🖼' : '📎'
       const sizeKb = Math.round(file.size / 1024)
-      const sizeStr = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} МБ` : `${sizeKb} КБ`
+      const sizeStr = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} ${t('video.size_mb')}` : `${sizeKb} ${t('video.size_kb')}`
 
       socketRef.current?.emit('chat-message', {
-        roomId,
-        message: `${fileIcon} Прикреплён документ: ${file.name} (${sizeStr})`,
-        senderName: user?.fullName || user?.username,
+        message: t('video.file_attached', { icon: fileIcon, name: file.name, size: sizeStr }),
       })
 
       // 5. Refresh doctor's document list if they have it open
@@ -783,12 +776,11 @@ function VideoConsultation() {
       }
     } catch (err) {
       console.error('Error uploading chat file:', err)
-      // Show error in chat so user sees feedback
       setMessages(prev => [...prev, {
         id: Date.now(),
         sender: 'system',
-        senderName: 'Система',
-        text: `Ошибка загрузки файла "${file.name}". Попробуйте ещё раз.`,
+        senderName: t('video.system'),
+        text: t('video.file_upload_error', { name: file.name }),
         time: new Date(),
       }])
     } finally {
@@ -846,7 +838,7 @@ function VideoConsultation() {
         })
       } else {
         const res = await documentsAPI.create({
-          title: 'Заключение врача',
+          title: t('video.doc_conclusion'),
           type: 'certificate',
           description: diagnosisText || '',
           file: diagnosisFile?.id,
@@ -877,7 +869,7 @@ function VideoConsultation() {
         })
       } else {
         const res = await documentsAPI.create({
-          title: 'План обследования',
+          title: t('video.doc_plan'),
           type: 'other',
           description: planText,
           ...(planFile?.id && { file: planFile.id }),
@@ -908,7 +900,7 @@ function VideoConsultation() {
         })
       } else {
         const res = await documentsAPI.create({
-          title: 'Назначения',
+          title: t('video.doc_prescriptions'),
           type: 'prescription',
           description: prescriptionsText,
           ...(prescriptionsFile?.id && { file: prescriptionsFile.id }),
@@ -932,7 +924,7 @@ function VideoConsultation() {
     return (
       <div className="min-h-[calc(var(--app-height)-var(--safe-top))] bg-slate-900 flex flex-col items-center justify-center text-white px-6 pt-[var(--safe-top)]">
         <Loader2 className="w-10 h-10 animate-spin text-teal-400 mb-4" />
-        <p className="text-slate-200">Проверка доступа к консультации…</p>
+        <p className="text-slate-200">{t('video.checking')}</p>
       </div>
     )
   }
@@ -941,7 +933,7 @@ function VideoConsultation() {
     const formatKz = (iso) => {
       if (!iso) return ''
       try {
-        return new Date(iso).toLocaleString('ru-RU', {
+        return new Date(iso).toLocaleString(timeLocale, {
           timeZone: 'Asia/Almaty',
           day: '2-digit',
           month: '2-digit',
@@ -953,20 +945,20 @@ function VideoConsultation() {
     }
     const reasonMap = {
       too_early: {
-        title: 'Консультация ещё не началась',
+        title: t('video.deny_too_early_title'),
         detail: accessDenyInfo?.dateTime
-          ? `Подключение откроется за 15 минут до начала — в ${formatKz(accessDenyInfo.windowStart)}. Начало консультации: ${formatKz(accessDenyInfo.dateTime)} (время Астаны).`
-          : 'Подключение откроется ближе ко времени консультации.',
+          ? t('video.deny_too_early_detail_time', { windowStart: formatKz(accessDenyInfo.windowStart), dateTime: formatKz(accessDenyInfo.dateTime) })
+          : t('video.deny_too_early_detail'),
       },
       too_late: {
-        title: 'Время консультации истекло',
-        detail: 'Окно подключения закрыто. Свяжитесь с поддержкой, если считаете это ошибкой.',
+        title: t('video.deny_too_late_title'),
+        detail: t('video.deny_too_late_detail'),
       },
-      cancelled: { title: 'Консультация отменена', detail: 'Эта запись была отменена.' },
-      wrong_status: { title: 'Подключение недоступно', detail: 'Консультация уже завершена или недоступна.' },
-      not_participant: { title: 'Нет доступа', detail: 'Вы не являетесь участником этой консультации.' },
-      not_found: { title: 'Консультация не найдена', detail: 'Проверьте ссылку и попробуйте снова.' },
-      error: { title: 'Ошибка проверки доступа', detail: 'Попробуйте ещё раз через несколько секунд.' },
+      cancelled: { title: t('video.deny_cancelled_title'), detail: t('video.deny_cancelled_detail') },
+      wrong_status: { title: t('video.deny_wrong_status_title'), detail: t('video.deny_wrong_status_detail') },
+      not_participant: { title: t('video.deny_not_participant_title'), detail: t('video.deny_not_participant_detail') },
+      not_found: { title: t('video.deny_not_found_title'), detail: t('video.deny_not_found_detail') },
+      error: { title: t('video.deny_error_title'), detail: t('video.deny_error_detail') },
     }
     const { title, detail } = reasonMap[accessDenyInfo?.reason] || reasonMap.error
     return (
@@ -979,7 +971,7 @@ function VideoConsultation() {
             variant="secondary"
             onClick={() => navigate(isDoctor ? '/doctor/schedule' : '/patient/appointments')}
           >
-            Вернуться к записям
+            {t('video.back_to_appointments')}
           </Button>
         </div>
       </div>
@@ -1035,7 +1027,7 @@ function VideoConsultation() {
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm transition-colors"
             >
               {linkCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <LinkIcon className="w-4 h-4" />}
-              <span className="hidden sm:inline">{linkCopied ? 'Скопировано' : 'Ссылка'}</span>
+              <span className="hidden sm:inline">{linkCopied ? t('video.copied') : t('video.link')}</span>
             </button>
             <button
               onClick={toggleFullscreen}
@@ -1063,8 +1055,8 @@ function VideoConsultation() {
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-slate-800 flex items-center justify-center">
                   <Loader2 className="w-10 h-10 text-teal-500 animate-spin" />
                 </div>
-                <p className="text-white text-xl font-medium">Подготовка...</p>
-                <p className="text-slate-400 mt-2">Настройка камеры и микрофона</p>
+                <p className="text-white text-xl font-medium">{t('video.init_title')}</p>
+                <p className="text-slate-400 mt-2">{t('video.init_desc')}</p>
               </div>
             </div>
           )}
@@ -1075,13 +1067,13 @@ function VideoConsultation() {
                 <div className="w-28 h-28 mx-auto mb-6 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center ring-4 ring-slate-700/50">
                   <User className="w-14 h-14 text-slate-500" />
                 </div>
-                <h3 className="text-white text-2xl font-semibold mb-2">Ожидание собеседника</h3>
+                <h3 className="text-white text-2xl font-semibold mb-2">{t('video.waiting_title')}</h3>
                 <p className="text-slate-400 mb-8">
-                  {isDoctor ? 'Пациент скоро подключится к консультации' : 'Врач скоро присоединится к вам'}
+                  {isDoctor ? t('video.waiting_patient') : t('video.waiting_doctor')}
                 </p>
 
                 <div className="bg-slate-800/80 backdrop-blur rounded-2xl p-5 text-left">
-                  <p className="text-slate-400 text-sm mb-3">Ссылка для подключения:</p>
+                  <p className="text-slate-400 text-sm mb-3">{t('video.invite_link_label')}</p>
                   <div className="flex items-center gap-2 bg-slate-900/50 rounded-xl p-3">
                     <code className="flex-1 text-teal-400 text-sm truncate">{window.location.href}</code>
                     <button
@@ -1112,7 +1104,7 @@ function VideoConsultation() {
                 <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-teal-500 to-sky-500 flex items-center justify-center animate-pulse">
                   <Avatar name={participant.name} size="xl" />
                 </div>
-                <p className="text-white text-xl font-medium mb-2">Подключение к {participant.name}...</p>
+                <p className="text-white text-xl font-medium mb-2">{t('video.connecting_to', { name: participant.name })}</p>
                 <div className="flex justify-center gap-1">
                   <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
                   <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
@@ -1128,8 +1120,8 @@ function VideoConsultation() {
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-amber-500/20 flex items-center justify-center">
                   <Loader2 className="w-10 h-10 text-amber-400 animate-spin" />
                 </div>
-                <p className="text-white text-xl font-medium mb-2">Восстановление связи...</p>
-                <p className="text-slate-400 text-sm">Попытка {reconnectAttemptsRef.current} из 3</p>
+                <p className="text-white text-xl font-medium mb-2">{t('video.reconnecting')}</p>
+                <p className="text-slate-400 text-sm">{t('video.reconnect_attempt', { attempt: reconnectAttemptsRef.current })}</p>
               </div>
             </div>
           )}
@@ -1140,9 +1132,9 @@ function VideoConsultation() {
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-rose-500/20 flex items-center justify-center">
                   <AlertCircle className="w-10 h-10 text-rose-500" />
                 </div>
-                <h3 className="text-white text-xl font-medium mb-2">Ошибка подключения</h3>
-                <p className="text-slate-400 mb-6">{error || 'Не удалось установить соединение'}</p>
-                <Button onClick={() => window.location.reload()}>Попробовать снова</Button>
+                <h3 className="text-white text-xl font-medium mb-2">{t('video.failed_title')}</h3>
+                <p className="text-slate-400 mb-6">{error || t('video.failed_desc')}</p>
+                <Button onClick={() => window.location.reload()}>{t('video.retry')}</Button>
               </div>
             </div>
           )}
@@ -1201,7 +1193,7 @@ function VideoConsultation() {
               </div>
             )}
             <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/50 rounded-lg">
-              <p className="text-white text-xs">Вы</p>
+              <p className="text-white text-xs">{t('video.you')}</p>
             </div>
           </div>
 
@@ -1213,15 +1205,15 @@ function VideoConsultation() {
                 className="pointer-events-auto inline-flex max-w-full items-center gap-2 rounded-full bg-slate-800/92 px-4 py-2 text-sm font-medium text-white shadow-xl ring-1 ring-white/10 backdrop-blur-xl transition-all hover:bg-emerald-600"
               >
                 <Check className="w-4 h-4" />
-                <span className="truncate">Завершить встречу</span>
+                <span className="truncate">{t('video.complete_btn')}</span>
               </button>
             )}
 
             <div className="pointer-events-auto flex items-center justify-center gap-2 rounded-3xl bg-slate-950/90 px-3 py-3 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl">
               <button
                 onClick={toggleMute}
-                title={isMuted ? 'Включить микрофон' : 'Выключить микрофон'}
-                aria-label={isMuted ? 'Включить микрофон' : 'Выключить микрофон'}
+                title={isMuted ? t('common.mic_on') : t('common.mic_off')}
+                aria-label={isMuted ? t('common.mic_on') : t('common.mic_off')}
                 className={cn(
                   'h-12 w-12 rounded-2xl flex items-center justify-center transition-all',
                   isMuted
@@ -1234,8 +1226,8 @@ function VideoConsultation() {
 
               <button
                 onClick={toggleVideo}
-                title={isVideoOn ? 'Выключить камеру' : 'Включить камеру'}
-                aria-label={isVideoOn ? 'Выключить камеру' : 'Включить камеру'}
+                title={isVideoOn ? t('common.cam_off') : t('common.cam_on')}
+                aria-label={isVideoOn ? t('common.cam_off') : t('common.cam_on')}
                 className={cn(
                   'h-12 w-12 rounded-2xl flex items-center justify-center transition-all',
                   !isVideoOn
@@ -1250,8 +1242,8 @@ function VideoConsultation() {
 
               <button
                 onClick={endCall}
-                title="Выйти из звонка"
-                aria-label="Выйти из звонка"
+                title={t('common.leave_call')}
+                aria-label={t('common.leave_call')}
                 className="h-12 w-16 rounded-2xl bg-rose-500 text-white flex items-center justify-center transition-all hover:bg-rose-600"
               >
                 <PhoneOff className="w-5 h-5" />
@@ -1279,7 +1271,7 @@ function VideoConsultation() {
               )}
             >
               <MessageCircle className="w-4 h-4" />
-              Чат
+              {t('video.tab_chat')}
             </button>
             {isDoctor && (
               <button
@@ -1292,7 +1284,7 @@ function VideoConsultation() {
                 )}
               >
                 <ClipboardList className="w-4 h-4" />
-                Записи
+                {t('video.tab_notes')}
               </button>
             )}
           </div>
@@ -1313,8 +1305,8 @@ function VideoConsultation() {
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                     <MessageCircle className="w-8 h-8 text-slate-300" />
                   </div>
-                  <p className="text-slate-500 text-sm">Сообщений пока нет</p>
-                  <p className="text-slate-400 text-xs mt-1">Начните общение прямо сейчас</p>
+                  <p className="text-slate-500 text-sm">{t('video.no_messages')}</p>
+                  <p className="text-slate-400 text-xs mt-1">{t('video.start_chat')}</p>
                 </div>
               ) : (
                 messages.map((msg) => (
@@ -1336,7 +1328,7 @@ function VideoConsultation() {
                         'text-xs mt-1',
                         msg.sender === 'me' ? 'text-teal-100' : 'text-slate-400'
                       )}>
-                        {msg.time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                        {msg.time.toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
@@ -1365,7 +1357,7 @@ function VideoConsultation() {
                       ? "bg-teal-100 text-teal-600"
                       : "bg-slate-100 text-slate-500 hover:text-teal-600 hover:bg-teal-50"
                   )}
-                  title="Прикрепить документ"
+                  title={t('video.attach_doc')}
                 >
                   {isUploadingChatFile
                     ? <Loader2 className="w-5 h-5 animate-spin" />
@@ -1376,7 +1368,7 @@ function VideoConsultation() {
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Введите сообщение..."
+                  placeholder={t('video.msg_placeholder')}
                   className="flex-1 px-4 py-3 bg-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
                 <button
@@ -1402,10 +1394,10 @@ function VideoConsultation() {
             {/* Notes Sub-tabs */}
             <div className="flex items-center gap-1.5 p-4 border-b border-slate-100 overflow-x-auto">
               {[
-                { id: 'diagnosis', label: 'Диагноз', icon: Stethoscope },
-                { id: 'plan', label: 'План', icon: ClipboardList },
-                { id: 'prescriptions', label: 'Назначения', icon: Pill },
-                { id: 'documents', label: 'Документы', icon: FolderOpen },
+                { id: 'diagnosis', label: t('video.tab_diagnosis'), icon: Stethoscope },
+                { id: 'plan', label: t('video.tab_plan'), icon: ClipboardList },
+                { id: 'prescriptions', label: t('video.tab_prescriptions'), icon: Pill },
+                { id: 'documents', label: t('video.tab_documents'), icon: FolderOpen },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1428,10 +1420,10 @@ function VideoConsultation() {
                 <>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-medium text-slate-700">Заключение врача</label>
+                      <label className="text-sm font-medium text-slate-700">{t('video.conclusion_label')}</label>
                       <label className="flex items-center gap-1.5 text-xs text-teal-600 cursor-pointer hover:text-teal-700">
                         <Upload className="w-3.5 h-3.5" />
-                        Загрузить файл
+                        {t('video.upload_file')}
                         <input
                           type="file"
                           className="hidden"
@@ -1444,7 +1436,7 @@ function VideoConsultation() {
                       value={diagnosisText}
                       onChange={(e) => setDiagnosisText(e.target.value)}
                       className="w-full h-48 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      placeholder="Введите диагноз и заключение..."
+                      placeholder={t('video.diagnosis_placeholder')}
                     />
                     {diagnosisFile && (
                       <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg text-sm">
@@ -1466,11 +1458,11 @@ function VideoConsultation() {
                       disabled={isSavingDiagnosis || (!diagnosisText && !diagnosisFile)}
                       className="flex-1"
                     >
-                      {isSavingDiagnosis ? 'Сохранение...' : 'Сохранить'}
+                      {isSavingDiagnosis ? t('video.saving') : t('video.save')}
                     </Button>
                     {diagnosisSaved && (
                       <span className="flex items-center gap-1 text-sm text-emerald-600">
-                        <Check className="w-4 h-4" /> Сохранено
+                        <Check className="w-4 h-4" /> {t('video.saved')}
                       </span>
                     )}
                   </div>
@@ -1481,10 +1473,10 @@ function VideoConsultation() {
                 <>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-medium text-slate-700">План обследования</label>
+                      <label className="text-sm font-medium text-slate-700">{t('video.plan_label')}</label>
                       <label className="flex items-center gap-1.5 text-xs text-teal-600 cursor-pointer hover:text-teal-700">
                         <Upload className="w-3.5 h-3.5" />
-                        {isUploadingPlanFile ? 'Загрузка...' : 'Загрузить файл'}
+                        {isUploadingPlanFile ? t('video.uploading') : t('video.upload_file')}
                         <input
                           type="file"
                           className="hidden"
@@ -1498,7 +1490,7 @@ function VideoConsultation() {
                       value={planText}
                       onChange={(e) => setPlanText(e.target.value)}
                       className="w-full h-48 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      placeholder="Введите план обследования пациента..."
+                      placeholder={t('video.plan_placeholder')}
                     />
                     {planFile && (
                       <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg text-sm">
@@ -1520,11 +1512,11 @@ function VideoConsultation() {
                       disabled={isSavingPlan || (!planText.trim() && !planFile)}
                       className="flex-1"
                     >
-                      {isSavingPlan ? 'Сохранение...' : 'Сохранить'}
+                      {isSavingPlan ? t('video.saving') : t('video.save')}
                     </Button>
                     {planSaved && (
                       <span className="flex items-center gap-1 text-sm text-emerald-600">
-                        <Check className="w-4 h-4" /> Сохранено
+                        <Check className="w-4 h-4" /> {t('video.saved')}
                       </span>
                     )}
                   </div>
@@ -1535,10 +1527,10 @@ function VideoConsultation() {
                 <>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-medium text-slate-700">Назначения</label>
+                      <label className="text-sm font-medium text-slate-700">{t('video.prescriptions_label')}</label>
                       <label className="flex items-center gap-1.5 text-xs text-teal-600 cursor-pointer hover:text-teal-700">
                         <Upload className="w-3.5 h-3.5" />
-                        {isUploadingPrescriptionsFile ? 'Загрузка...' : 'Загрузить файл'}
+                        {isUploadingPrescriptionsFile ? t('video.uploading') : t('video.upload_file')}
                         <input
                           type="file"
                           className="hidden"
@@ -1552,7 +1544,7 @@ function VideoConsultation() {
                       value={prescriptionsText}
                       onChange={(e) => setPrescriptionsText(e.target.value)}
                       className="w-full h-48 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      placeholder="Введите назначения и рекомендации..."
+                      placeholder={t('video.prescriptions_placeholder')}
                     />
                     {prescriptionsFile && (
                       <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg text-sm">
@@ -1574,11 +1566,11 @@ function VideoConsultation() {
                       disabled={isSavingPrescriptions || (!prescriptionsText.trim() && !prescriptionsFile)}
                       className="flex-1"
                     >
-                      {isSavingPrescriptions ? 'Сохранение...' : 'Сохранить'}
+                      {isSavingPrescriptions ? t('video.saving') : t('video.save')}
                     </Button>
                     {prescriptionsSaved && (
                       <span className="flex items-center gap-1 text-sm text-emerald-600">
-                        <Check className="w-4 h-4" /> Сохранено
+                        <Check className="w-4 h-4" /> {t('video.saved')}
                       </span>
                     )}
                   </div>
@@ -1588,7 +1580,7 @@ function VideoConsultation() {
               {notesTab === 'documents' && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-3">
-                    Документы пациента
+                    {t('video.patient_docs')}
                   </label>
                   {isLoadingDocs ? (
                     <div className="flex items-center justify-center py-12">
@@ -1597,17 +1589,17 @@ function VideoConsultation() {
                   ) : patientDocuments.length === 0 ? (
                     <div className="text-center py-12">
                       <FolderOpen className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                      <p className="text-slate-500 text-sm">У пациента нет загруженных документов</p>
+                      <p className="text-slate-500 text-sm">{t('video.no_patient_docs')}</p>
                     </div>
                   ) : (() => {
                     const typeConfig = {
-                      analysis: { label: 'Анализы', icon: 'bg-blue-100', iconColor: 'text-blue-600', folderColor: 'bg-blue-50 border-blue-100' },
-                      prescription: { label: 'Назначения', icon: 'bg-emerald-100', iconColor: 'text-emerald-600', folderColor: 'bg-emerald-50 border-emerald-100' },
-                      certificate: { label: 'Справки', icon: 'bg-violet-100', iconColor: 'text-violet-600', folderColor: 'bg-violet-50 border-violet-100' },
-                      mrt: { label: 'МРТ', icon: 'bg-purple-100', iconColor: 'text-purple-600', folderColor: 'bg-purple-50 border-purple-100' },
-                      xray: { label: 'Рентген', icon: 'bg-rose-100', iconColor: 'text-rose-600', folderColor: 'bg-rose-50 border-rose-100' },
-                      ultrasound: { label: 'УЗИ', icon: 'bg-cyan-100', iconColor: 'text-cyan-600', folderColor: 'bg-cyan-50 border-cyan-100' },
-                      other: { label: 'Другое', icon: 'bg-amber-100', iconColor: 'text-amber-600', folderColor: 'bg-amber-50 border-amber-100' },
+                      analysis: { label: t('video.doctype_analysis'), icon: 'bg-blue-100', iconColor: 'text-blue-600', folderColor: 'bg-blue-50 border-blue-100' },
+                      prescription: { label: t('video.doctype_prescription'), icon: 'bg-emerald-100', iconColor: 'text-emerald-600', folderColor: 'bg-emerald-50 border-emerald-100' },
+                      certificate: { label: t('video.doctype_certificate'), icon: 'bg-violet-100', iconColor: 'text-violet-600', folderColor: 'bg-violet-50 border-violet-100' },
+                      mrt: { label: t('video.doctype_mrt'), icon: 'bg-purple-100', iconColor: 'text-purple-600', folderColor: 'bg-purple-50 border-purple-100' },
+                      xray: { label: t('video.doctype_xray'), icon: 'bg-rose-100', iconColor: 'text-rose-600', folderColor: 'bg-rose-50 border-rose-100' },
+                      ultrasound: { label: t('video.doctype_ultrasound'), icon: 'bg-cyan-100', iconColor: 'text-cyan-600', folderColor: 'bg-cyan-50 border-cyan-100' },
+                      other: { label: t('video.doctype_other'), icon: 'bg-amber-100', iconColor: 'text-amber-600', folderColor: 'bg-amber-50 border-amber-100' },
                     }
                     const grouped = patientDocuments.reduce((acc, doc) => {
                       const type = doc.type || 'other'
@@ -1631,7 +1623,7 @@ function VideoConsultation() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h4 className="text-sm font-medium text-slate-900">{config.label}</h4>
-                                  <p className="text-xs text-slate-500">{docs.length} док.</p>
+                                  <p className="text-xs text-slate-500">{t('video.doc_count', { count: docs.length })}</p>
                                 </div>
                                 <ChevronDown className="w-4 h-4 text-slate-400 transition-transform [[open]>&]:rotate-180 flex-shrink-0" />
                               </summary>
@@ -1648,10 +1640,10 @@ function VideoConsultation() {
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <h4 className="text-sm font-medium text-slate-900 truncate">
-                                          {doc.title || 'Документ'}
+                                          {doc.title || t('video.doc_label')}
                                         </h4>
                                         <p className="text-xs text-slate-500 mt-0.5">
-                                          {doc.createdAt && new Date(doc.createdAt).toLocaleDateString('ru-RU')}
+                                          {doc.createdAt && new Date(doc.createdAt).toLocaleDateString(timeLocale)}
                                         </p>
                                         {doc.description && (
                                           <p className="text-xs text-slate-600 mt-1 line-clamp-2">{doc.description}</p>
@@ -1693,9 +1685,9 @@ function VideoConsultation() {
               <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <PhoneOff className="w-7 h-7 text-amber-600" />
               </div>
-              <h2 className="text-lg font-bold text-slate-900">Завершить встречу?</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t('video.complete_confirm_title')}</h2>
               <p className="text-slate-500 text-sm mt-1">
-                Статус записи будет изменён на «Завершён». Это действие нельзя отменить.
+                {t('video.complete_confirm_desc')}
               </p>
             </div>
             <div className="flex gap-3">
@@ -1704,7 +1696,7 @@ function VideoConsultation() {
                 className="flex-1"
                 onClick={() => setShowCompleteConfirm(false)}
               >
-                Отмена
+                {t('video.cancel')}
               </Button>
               <Button
                 className="flex-1 bg-emerald-500 hover:bg-emerald-600"
@@ -1716,7 +1708,7 @@ function VideoConsultation() {
                 ) : (
                   <Check className="w-4 h-4 mr-2" />
                 )}
-                Завершить
+                {t('video.complete')}
               </Button>
             </div>
           </div>
@@ -1732,9 +1724,9 @@ function VideoConsultation() {
               <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Star className="w-8 h-8 text-teal-600" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">Оцените консультацию</h2>
+              <h2 className="text-xl font-bold text-slate-900">{t('video.rate_title')}</h2>
               <p className="text-slate-500 text-sm mt-1">
-                Ваш отзыв поможет улучшить качество обслуживания
+                {t('video.rate_desc')}
               </p>
             </div>
 
@@ -1762,11 +1754,7 @@ function VideoConsultation() {
 
             {rating > 0 && (
               <p className="text-center text-sm font-medium text-slate-600 mb-4">
-                {rating === 1 && 'Плохо'}
-                {rating === 2 && 'Ниже среднего'}
-                {rating === 3 && 'Нормально'}
-                {rating === 4 && 'Хорошо'}
-                {rating === 5 && 'Отлично'}
+                {t(`video.rating_${rating}`)}
               </p>
             )}
 
@@ -1775,7 +1763,7 @@ function VideoConsultation() {
               <textarea
                 value={reviewText}
                 onChange={(e) => setReviewText(e.target.value)}
-                placeholder="Напишите отзыв (необязательно)..."
+                placeholder={t('video.review_placeholder')}
                 className="w-full h-28 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
               />
             </div>
@@ -1790,7 +1778,7 @@ function VideoConsultation() {
                 {isSubmittingRating ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 ) : null}
-                Отправить
+                {t('video.submit')}
               </Button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Users,
   Search,
@@ -22,6 +23,7 @@ import api, { normalizeResponse, getMediaUrl } from '../../services/api'
 import { formatDate } from '../../utils/helpers'
 
 function DoctorPatients() {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const [patients, setPatients] = useState([])
@@ -93,8 +95,8 @@ function DoctorPatients() {
     <div className="space-y-6 animate-fadeIn">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Мои пациенты</h1>
-          <p className="text-slate-600">Список пациентов, которые обращались к вам</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('patients.title')}</h1>
+          <p className="text-slate-600">{t('patients.subtitle')}</p>
         </div>
       </div>
 
@@ -107,7 +109,7 @@ function DoctorPatients() {
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-900">{patients.length}</p>
-              <p className="text-sm text-slate-500">Всего пациентов</p>
+              <p className="text-sm text-slate-500">{t('patients.stat_total')}</p>
             </div>
           </CardContent>
         </Card>
@@ -125,7 +127,7 @@ function DoctorPatients() {
                   return lastVisit >= weekAgo
                 }).length}
               </p>
-              <p className="text-sm text-slate-500">За эту неделю</p>
+              <p className="text-sm text-slate-500">{t('patients.stat_week')}</p>
             </div>
           </CardContent>
         </Card>
@@ -138,7 +140,7 @@ function DoctorPatients() {
               <p className="text-2xl font-bold text-slate-900">
                 {patients.filter(p => p.status === 'pending' || p.status === 'confirmed').length}
               </p>
-              <p className="text-sm text-slate-500">Ожидают приёма</p>
+              <p className="text-sm text-slate-500">{t('patients.stat_waiting')}</p>
             </div>
           </CardContent>
         </Card>
@@ -151,7 +153,7 @@ function DoctorPatients() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Поиск пациентов..."
+              placeholder={t('patients.search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-slate-100 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -166,12 +168,10 @@ function DoctorPatients() {
           <CardContent className="text-center py-12">
             <Users className="w-16 h-16 mx-auto text-slate-300 mb-4" />
             <h3 className="text-lg font-medium text-slate-900 mb-2">
-              {searchQuery ? 'Пациенты не найдены' : 'Пока нет пациентов'}
+              {searchQuery ? t('patients.empty_search_title') : t('patients.empty_title')}
             </h3>
             <p className="text-slate-600">
-              {searchQuery 
-                ? 'Попробуйте изменить параметры поиска' 
-                : 'Здесь появятся пациенты, которые запишутся к вам на приём'}
+              {searchQuery ? t('patients.empty_search_desc') : t('patients.empty_desc')}
             </p>
           </CardContent>
         </Card>
@@ -195,7 +195,7 @@ function DoctorPatients() {
                     />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-slate-900 truncate">
-                        {patient.fullName || patient.username || 'Пациент'}
+                        {patient.fullName || patient.username || t('patients.patient_label')}
                       </h3>
                       <p className="text-xs text-slate-500 truncate mt-0.5">
                         {patient.email}
@@ -203,7 +203,7 @@ function DoctorPatients() {
                     </div>
                     <div className="text-center flex-shrink-0">
                       <p className="text-xl font-bold text-teal-600">{patient.appointmentsCount}</p>
-                      <p className="text-xs text-slate-500">визитов</p>
+                      <p className="text-xs text-slate-500">{t('patients.visits')}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-slate-500 mb-3 px-1">
@@ -213,12 +213,12 @@ function DoctorPatients() {
                         {patient.phone}
                       </span>
                     )}
-                    <span>Визит: {formatDate(patient.lastVisit, 'dd.MM.yyyy')}</span>
+                    <span>{t('patients.visit_label')} {formatDate(patient.lastVisit, 'dd.MM.yyyy')}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="secondary" size="sm" className="flex-1" onClick={(e) => e.stopPropagation()}>
                       <MessageCircle className="w-4 h-4 mr-1" />
-                      Чат
+                      {t('patients.chat_btn')}
                     </Button>
                     <Button
                       size="sm"
@@ -229,7 +229,7 @@ function DoctorPatients() {
                       }}
                     >
                       <History className="w-4 h-4 mr-1" />
-                      История
+                      {t('patients.history_btn')}
                     </Button>
                   </div>
                 </div>
@@ -243,7 +243,7 @@ function DoctorPatients() {
                   />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-slate-900">
-                      {patient.fullName || patient.username || 'Пациент'}
+                      {patient.fullName || patient.username || t('patients.patient_label')}
                     </h3>
                     <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
                       {patient.email && (
@@ -261,12 +261,12 @@ function DoctorPatients() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-slate-500">Последний визит</p>
+                    <p className="text-sm text-slate-500">{t('patients.last_visit')}</p>
                     <p className="font-medium text-slate-900">{formatDate(patient.lastVisit)}</p>
                   </div>
                   <div className="text-center px-4">
                     <p className="text-2xl font-bold text-teal-600">{patient.appointmentsCount}</p>
-                    <p className="text-xs text-slate-500">визитов</p>
+                    <p className="text-xs text-slate-500">{t('patients.visits')}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="secondary" size="sm" onClick={(e) => e.stopPropagation()}>
@@ -290,7 +290,7 @@ function DoctorPatients() {
                       }}
                     >
                       <History className="w-4 h-4 mr-1.5" />
-                      История
+                      {t('patients.history_btn')}
                     </Button>
                   </div>
                 </div>

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Check, XCircle } from "lucide-react";
 import { format } from "date-fns";
-import { ru } from "date-fns/locale";
+import { ru, kk, enUS } from "date-fns/locale";
 import { io } from "socket.io-client";
 import Button from "../components/ui/Button";
 import useAuthStore from "../stores/authStore";
@@ -11,6 +12,8 @@ import { getSignalingUrl } from "../services/api";
 
 function PaymentSuccess() {
     const navigate = useNavigate();
+    const { t, i18n } = useTranslation();
+    const dateLocale = i18n.language === 'kk' ? kk : i18n.language === 'en' ? enUS : ru;
     const { _hasHydrated } = useAuthStore();
     const [status, setStatus] = useState("creating"); // creating | success | error
     const [appointmentInfo, setAppointmentInfo] = useState(null);
@@ -75,7 +78,7 @@ function PaymentSuccess() {
                     );
                 } else {
                     sessionStorage.removeItem("pendingBooking");
-                    setErrorMessage(result.error || "Ошибка создания записи");
+                    setErrorMessage(result.error || t('payment.error_create'));
                     setStatus("error");
                 }
             }
@@ -87,7 +90,7 @@ function PaymentSuccess() {
                 );
             } else {
                 sessionStorage.removeItem("pendingBooking");
-                setErrorMessage("Произошла ошибка. Обратитесь в поддержку.");
+                setErrorMessage(t('payment.error_fallback'));
                 setStatus("error");
             }
         }
@@ -116,10 +119,10 @@ function PaymentSuccess() {
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-slate-700 text-lg font-medium">
-                        Оплата прошла успешно!
+                        {t('payment.creating_title')}
                     </p>
                     <p className="text-slate-500 mt-2">
-                        Создаём вашу запись...
+                        {t('payment.creating_desc')}
                     </p>
                 </div>
             </div>
@@ -134,25 +137,25 @@ function PaymentSuccess() {
                         <XCircle className="w-10 h-10 text-red-600" />
                     </div>
                     <h2 className="text-xl font-semibold text-slate-900 mb-2">
-                        Ошибка создания записи
+                        {t('payment.error_title')}
                     </h2>
                     <p className="text-slate-600 mb-2">{errorMessage}</p>
                     <p className="text-sm text-slate-500 mb-2">
-                        Оплата прошла успешно, но запись не создалась автоматически.
+                        {t('payment.error_payment_ok')}
                     </p>
                     <p className="text-sm text-slate-500 mb-6">
-                        Напишите нам на{' '}
+                        {t('payment.error_support')}{' '}
                         <a href="mailto:support@nnmc.kz" className="text-teal-600 underline">
                             support@nnmc.kz
                         </a>{' '}
-                        с чеком об оплате — мы создадим запись вручную.
+                        {t('payment.error_support_postfix')}
                     </p>
                     <div className="flex gap-3 justify-center">
                         <Button variant="outline" onClick={() => navigate("/patient/appointments")}>
-                            Мои записи
+                            {t('payment.my_appointments')}
                         </Button>
                         <Button onClick={() => window.location.href = "mailto:support@nnmc.kz"}>
-                            Написать в поддержку
+                            {t('payment.contact_support')}
                         </Button>
                     </div>
                 </div>
@@ -167,39 +170,39 @@ function PaymentSuccess() {
                     <Check className="w-10 h-10 text-emerald-600" />
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                    Оплата успешна!
+                    {t('payment.success_title')}
                 </h2>
                 <p className="text-slate-600 mb-6">
-                    Ваша запись подтверждена
+                    {t('payment.success_confirmed')}
                 </p>
 
                 {appointmentInfo && (
                     <div className="bg-slate-50 rounded-xl p-4 mb-6 text-left space-y-2">
                         <div className="flex justify-between">
-                            <span className="text-slate-500">Врач</span>
+                            <span className="text-slate-500">{t('payment.doctor_label')}</span>
                             <span className="font-medium text-slate-900">
                                 {appointmentInfo.doctorName}
                             </span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-slate-500">Дата</span>
+                            <span className="text-slate-500">{t('payment.date_label')}</span>
                             <span className="font-medium text-slate-900">
                                 {format(
                                     appointmentInfo.dateTime,
                                     "d MMMM yyyy",
-                                    { locale: ru }
+                                    { locale: dateLocale }
                                 )}
                             </span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-slate-500">Время</span>
+                            <span className="text-slate-500">{t('payment.time_label')}</span>
                             <span className="font-medium text-slate-900">
                                 {format(appointmentInfo.dateTime, "HH:mm")}
                             </span>
                         </div>
                         <div className="flex justify-between border-t border-slate-200 pt-2 mt-2">
                             <span className="font-semibold text-teal-700">
-                                Оплачено
+                                {t('payment.paid_label')}
                             </span>
                             <span className="font-bold text-teal-700">
                                 {formatPrice(appointmentInfo.price)}
@@ -210,23 +213,22 @@ function PaymentSuccess() {
 
                 <div className="bg-slate-50 rounded-xl p-4 mb-6 text-left">
                     <p className="text-sm text-slate-600 mb-1">
-                        📧 Подтверждение отправлено на вашу почту
+                        {t('payment.email_sent')}
                     </p>
                     <p className="text-sm text-slate-600">
-                        🔗 Ссылка на видеоконсультацию появится в личном
-                        кабинете
+                        {t('payment.link_note')}
                     </p>
                 </div>
 
                 <div className="flex gap-3 justify-center">
                     <Button variant="outline" onClick={() => navigate("/")}>
-                        На главную
+                        {t('payment.home_btn')}
                     </Button>
                     <Button
                         onClick={() =>
                             navigate("/patient/appointments")
                         }>
-                        Мои записи
+                        {t('payment.my_appointments')}
                     </Button>
                 </div>
             </div>

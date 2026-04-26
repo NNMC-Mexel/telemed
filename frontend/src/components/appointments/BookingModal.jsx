@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { io } from "socket.io-client";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -9,7 +10,7 @@ import {
     isBefore,
     startOfDay,
 } from "date-fns";
-import { ru } from "date-fns/locale";
+import { ru, kk, enUS } from "date-fns/locale";
 import {
     Calendar,
     Clock,
@@ -26,7 +27,7 @@ import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import Avatar from "../ui/Avatar";
 import Badge from "../ui/Badge";
-import { cn, formatPrice } from "../../utils/helpers";
+import { cn, formatPrice, getSpecName } from "../../utils/helpers";
 import { getMediaUrl, getBookedSlots, getSignalingUrl } from "../../services/api";
 import useAppointmentStore from "../../stores/appointmentStore";
 import useAuthStore from "../../stores/authStore";
@@ -104,48 +105,21 @@ const filterPastSlots = (slots, selectedDate) => {
 // Режим оплаты:
 // - VITE_PAYMENTS_LIVE=true → реальные платежи (Halyk, карта)
 // - Иначе → тестовая оплата (мгновенное подтверждение)
-// По умолчанию тестовый режим — включить реальные платежи через .env
-const IS_PAYMENTS_LIVE = import.meta.env.VITE_PAYMENTS_LIVE === "true";
+// Production fail-closed: production builds use live payments unless explicitly
+// disabled for a controlled non-production preview.
+const IS_PAYMENTS_LIVE = import.meta.env.PROD
+    ? import.meta.env.VITE_PAYMENTS_LIVE !== "false"
+    : import.meta.env.VITE_PAYMENTS_LIVE === "true";
 
-const LIVE_PAYMENT_METHODS = [
-    {
-        id: "kaspi",
-        name: "Kaspi QR",
-        icon: "🏦",
-        description: "Оплата через Kaspi.kz",
-        badge: "Скоро",
-        disabled: true,
-    },
-    {
-        id: "halyk",
-        name: "Halyk Bank",
-        icon: "🏛️",
-        description: "QR-оплата через Halyk Home Bank",
-        badge: "Рекомендуем",
-        disabled: false,
-    },
-    {
-        id: "card",
-        name: "Банковская карта",
-        icon: "💳",
-        description: "Visa / Mastercard · для международных платежей",
-        badge: null,
-        disabled: false,
-    },
+const LIVE_PAYMENT_BASE = [
+    { id: "kaspi", icon: "🏦", disabled: true },
+    { id: "halyk", icon: "🏛️", disabled: false },
+    { id: "card", icon: "💳", disabled: false },
 ];
 
-const TEST_PAYMENT_METHODS = [
-    {
-        id: "test",
-        name: "Тестовая оплата",
-        icon: "🧪",
-        description: "Мгновенное подтверждение без реальной оплаты",
-        badge: "Тест",
-        disabled: false,
-    },
+const TEST_PAYMENT_BASE = [
+    { id: "test", icon: "🧪", disabled: false },
 ];
-
-const paymentMethods = IS_PAYMENTS_LIVE ? LIVE_PAYMENT_METHODS : TEST_PAYMENT_METHODS;
 
 const isMobileDevice = () =>
     /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -168,15 +142,31 @@ const loadHalykScript = () =>
         script.src = src;
         script.onload = resolve;
         script.onerror = () =>
-            reject(new Error("Не удалось загрузить платёжный модуль"));
+            reject(new Error("Failed to load payment module"));
         document.body.appendChild(script);
     });
 
 function BookingModal({ isOpen, onClose, doctor }) {
+    const { t, i18n } = useTranslation();
+    const dateLocale = i18n.language === 'kk' ? kk : i18n.language === 'en' ? enUS : ru;
     const { user, token } = useAuthStore();
     const { createAppointment, fetchTimeSlots, timeSlots } =
         useAppointmentStore();
     const toast = useToast();
+
+    const paymentMethods = IS_PAYMENTS_LIVE
+        ? LIVE_PAYMENT_BASE.map((m) => ({
+              ...m,
+              name: m.id === "kaspi" ? "Kaspi QR" : m.id === "halyk" ? "Halyk Bank" : t('booking.pm_card_name'),
+              description: m.id === "kaspi" ? t('booking.pm_kaspi_desc') : m.id === "card" ? t('booking.pm_card_desc') : "",
+              badge: m.id === "kaspi" ? t('booking.pm_kaspi_badge') : m.id === "halyk" ? t('booking.pm_halyk_badge') : null,
+          }))
+        : TEST_PAYMENT_BASE.map((m) => ({
+              ...m,
+              name: t('booking.pm_test_name'),
+              description: t('booking.pm_test_desc'),
+              badge: t('booking.pm_test_badge'),
+          }));
 
     const [step, setStep] = useState(1);
     const [selectedDate, setSelectedDate] = useState(null);
@@ -226,14 +216,16 @@ function BookingModal({ isOpen, onClose, doctor }) {
     };
     
     const workingDays = getWorkingDays();
-    const isWorkingDay = (date) => workingDays.includes(date.getDay());
+    // JS getDay(): 0=Sun … 6=Sat. DB workingDays uses ISO: 1=Mon … 7=Sun.
+    const isWorkingDay = (date) => {
+        const jsDay = date.getDay();
+        const isoDay = jsDay === 0 ? 7 : jsDay;
+        return workingDays.includes(isoDay);
+    };
 
-    // Безопасное получение данных врача
-    const doctorName = doctor?.fullName || doctor?.name || "Врач";
-    const doctorSpecialization =
-        typeof doctor?.specialization === "object"
-            ? doctor?.specialization?.name
-            : doctor?.specialization || "Специалист";
+    const doctorName = doctor?.fullName || doctor?.name || t('booking.doctor_fallback');
+    const doctorSpecialization = getSpecName(doctor?.specialization, i18n.language)
+        || t('booking.specialist_fallback');
     const doctorPrice = doctor?.price || 0;
 
     useEffect(() => {
@@ -277,7 +269,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 const fresh = await getBookedSlots(doctor.id, dateStr)
                 setBookedSlots(fresh)
                 if (selectedTimeRef.current && fresh.includes(selectedTimeRef.current)) {
-                    toast.error("К сожалению, это время уже забронировано. Выберите другое.")
+                    toast.error(t('booking.slot_taken_other'))
                     setSelectedTime(null)
                     setStep(1)
                 }
@@ -304,7 +296,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
             // If the user had this exact time selected (possible after their own
             // TTL expired and someone else grabbed it), kick them back to step 1.
             if (selectedTimeRef.current === time) {
-                toast.error("Это время только что выбрал другой пациент. Пожалуйста, выберите другое.")
+                toast.error(t('booking.slot_taken_live'))
                 setSelectedTime(null)
                 setStep(1)
             }
@@ -321,7 +313,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
         // When our own reservation is rejected by the server
         socket.on("reserve-slot-result", ({ success, time, reason }) => {
             if (!success) {
-                toast.error(reason || "Это время уже выбрано другим пациентом")
+                toast.error(reason || t('booking.slot_taken_default'))
                 setSelectedTime(null)
             }
         })
@@ -338,7 +330,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
             // they won't see it disappear from the picker — reset them so they
             // can't continue to payment with a now-booked slot.
             if (selectedTimeRef.current === time) {
-                toast.error("К сожалению, это время только что забронировал другой пациент. Выберите другое.")
+                toast.error(t('booking.slot_taken_booked'))
                 setSelectedTime(null)
                 setStep(1)
             }
@@ -408,9 +400,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
         setBookedSlots(freshBooked);
 
         if (freshBooked.includes(selectedTime)) {
-            toast.error(
-                "К сожалению, выбранное время было забронировано другим пациентом. Пожалуйста, выберите другое свободное время."
-            );
+            toast.error(t('booking.slot_taken_long'));
             setSelectedTime(null);
             setStep(1);
             return null;
@@ -434,17 +424,16 @@ function BookingModal({ isOpen, onClose, doctor }) {
             );
             const verifyData = await verifyRes.json();
             if (!verifyData.available) {
-                toast.error(
-                    verifyData.reason ||
-                        "Это время уже недоступно. Выберите другое."
-                );
+                toast.error(verifyData.reason || t('booking.slot_unavailable'));
                 setSelectedTime(null);
                 setStep(1);
                 return null;
             }
         } catch {
-            // If verify endpoint is unreachable, proceed with caution
-            // (Strapi mutex will still protect against duplicates)
+            toast.error(t('booking.slot_unavailable'));
+            setSelectedTime(null);
+            setStep(1);
+            return null;
         }
 
         const dateTime = new Date(selectedDate);
@@ -491,7 +480,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 broadcastSlotConfirmed();
                 setIsComplete(true);
             } else {
-                const msg = result.error || "Ошибка создания записи";
+                const msg = result.error || t('booking.err_create');
                 toast.error(msg);
                 setError(msg);
                 if (msg.includes("забронировано") || msg.includes("занято")) {
@@ -501,7 +490,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 }
             }
         } catch (err) {
-            setError("Произошла ошибка. Попробуйте позже.");
+            setError(t('booking.err_generic'));
         } finally {
             setIsProcessing(false);
         }
@@ -561,9 +550,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
             if (!tokenRes.ok) {
                 const err = await tokenRes.json().catch(() => ({}));
-                throw new Error(
-                    err.error || "Не удалось инициализировать оплату"
-                );
+                throw new Error(err.error || t('booking.err_init_payment'));
             }
 
             const { auth, terminalId } = await tokenRes.json();
@@ -593,10 +580,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
             // ePay now controls the page — no setIsProcessing(false) needed
         } catch (err) {
             console.error("ePay error:", err);
-            setError(
-                err.message ||
-                    "Ошибка инициализации оплаты. Попробуйте другой способ."
-            );
+            setError(err.message || t('booking.err_init_fallback'));
             setIsProcessing(false);
             sessionStorage.removeItem("pendingBooking");
         }
@@ -645,7 +629,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || "Не удалось сгенерировать QR-код");
+                throw new Error(errData.error || t('booking.err_qr_gen'));
             }
 
             const { billNumber, qrcode, homebankLink } = await res.json();
@@ -708,10 +692,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
             }, 20 * 60 * 1000);
         } catch (err) {
             console.error("Halyk QR error:", err);
-            setError(
-                err.message ||
-                    "Ошибка генерации QR-кода. Попробуйте другой способ."
-            );
+            setError(err.message || t('booking.err_qr_fallback'));
         } finally {
             setIsProcessing(false);
         }
@@ -743,7 +724,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 broadcastSlotConfirmed();
                 setIsComplete(true);
             } else {
-                const msg = result.error || "Ошибка создания записи";
+                const msg = result.error || t('booking.err_create');
                 toast.error(msg);
                 setError(msg);
                 if (msg.includes("забронировано") || msg.includes("занято")) {
@@ -753,7 +734,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 }
             }
         } catch (err) {
-            setError("Произошла ошибка. Попробуйте позже.");
+            setError(t('booking.err_generic'));
         } finally {
             setIsProcessing(false);
         }
@@ -819,7 +800,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         <ChevronLeft className='w-4 h-4' />
                     ) : undefined
                 }>
-                {step === 1 ? "Отмена" : "Назад"}
+                {step === 1 ? t('common.cancel') : t('booking.back')}
             </Button>
 
             {step < 4 ? (
@@ -827,7 +808,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     onClick={handleNext}
                     disabled={!canProceed()}
                     rightIcon={<ChevronRight className='w-4 h-4' />}>
-                    Далее
+                    {t('booking.next')}
                 </Button>
             ) : (
                 <Button
@@ -835,12 +816,12 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     isLoading={isProcessing}
                     leftIcon={<CreditCard className='w-4 h-4' />}>
                     {paymentMethod === "kaspi"
-                        ? `Записаться · ${formatPrice(doctorPrice)}`
+                        ? t('booking.book_kaspi', { price: formatPrice(doctorPrice) })
                         : paymentMethod === "halyk"
                         ? isMobileDevice()
-                            ? `Открыть Halyk · ${formatPrice(doctorPrice)}`
-                            : `Получить QR · ${formatPrice(doctorPrice)}`
-                        : `Оплатить · ${formatPrice(doctorPrice)}`}
+                            ? t('booking.book_halyk_mobile', { price: formatPrice(doctorPrice) })
+                            : t('booking.book_halyk_qr', { price: formatPrice(doctorPrice) })
+                        : t('booking.book_pay', { price: formatPrice(doctorPrice) })}
                 </Button>
             )}
         </div>
@@ -860,7 +841,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     setHalykQR(null);
                     setHalykQRStatus("pending");
                 }}
-                title="Оплата через Halyk Bank"
+                title={t('booking.halyk_modal_title')}
                 size="lg">
                 <div className="flex flex-col items-center text-center py-4 space-y-5">
                     {isPaid ? (
@@ -870,10 +851,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             </div>
                             <div>
                                 <h3 className="text-xl font-semibold text-slate-900 mb-1">
-                                    Оплата прошла!
+                                    {t('booking.halyk_paid_title')}
                                 </h3>
                                 <p className="text-slate-500 text-sm">
-                                    Создаём вашу запись…
+                                    {t('booking.halyk_paid_desc')}
                                 </p>
                             </div>
                         </>
@@ -884,14 +865,14 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             </div>
                             <div>
                                 <h3 className="text-xl font-semibold text-slate-900 mb-1">
-                                    Оплата отклонена
+                                    {t('booking.halyk_rejected_title')}
                                 </h3>
                                 <p className="text-slate-500 text-sm">
-                                    Попробуйте снова или выберите другой способ.
+                                    {t('booking.halyk_rejected_desc')}
                                 </p>
                             </div>
                             <Button onClick={() => { setHalykQR(null); setHalykQRStatus("pending"); }}>
-                                Попробовать снова
+                                {t('booking.halyk_retry')}
                             </Button>
                         </>
                     ) : isExpired ? (
@@ -901,14 +882,14 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             </div>
                             <div>
                                 <h3 className="text-xl font-semibold text-slate-900 mb-1">
-                                    QR-код истёк
+                                    {t('booking.halyk_expired_title')}
                                 </h3>
                                 <p className="text-slate-500 text-sm">
-                                    Время действия QR-кода (20 мин) вышло. Получите новый.
+                                    {t('booking.halyk_expired_desc')}
                                 </p>
                             </div>
                             <Button onClick={() => { setHalykQR(null); setHalykQRStatus("pending"); }}>
-                                Получить новый QR
+                                {t('booking.halyk_get_new_qr')}
                             </Button>
                         </>
                     ) : (
@@ -921,15 +902,15 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             {mobile && halykQR.homebankLink ? (
                                 <div className="space-y-3 w-full max-w-xs">
                                     <h3 className="text-lg font-semibold text-slate-900">
-                                        Оплатите в Halyk Home Bank
+                                        {t('booking.halyk_pay_title_mobile')}
                                     </h3>
                                     <a
                                         href={halykQR.homebankLink}
                                         className="block w-full py-3 px-6 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-colors">
-                                        Открыть Halyk Home Bank
+                                        {t('booking.halyk_open_app')}
                                     </a>
                                     <p className="text-xs text-slate-400">
-                                        После оплаты в приложении вернитесь сюда — запись создастся автоматически.
+                                        {t('booking.halyk_open_note')}
                                     </p>
                                 </div>
                             ) : null}
@@ -939,12 +920,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                 <div className="space-y-3">
                                     <div>
                                         <h3 className="text-lg font-semibold text-slate-900 mb-1">
-                                            Отсканируйте QR-код
+                                            {t('booking.halyk_scan_title')}
                                         </h3>
                                         <p className="text-slate-500 text-sm">
-                                            Откройте{" "}
-                                            <strong>Halyk Home Bank</strong> →{" "}
-                                            Платежи → Сканировать QR
+                                            {t('booking.halyk_scan_desc')}
                                         </p>
                                     </div>
                                     <div className="p-4 bg-white rounded-2xl shadow-md border border-slate-200 inline-block">
@@ -963,11 +942,11 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             {/* Amount + polling indicator */}
                             <div className="bg-teal-50 rounded-xl px-4 py-3 text-sm text-teal-800 max-w-xs w-full">
                                 <p className="font-semibold mb-1">
-                                    К оплате: {formatPrice(doctorPrice)}
+                                    {t('booking.halyk_amount', { price: formatPrice(doctorPrice) })}
                                 </p>
                                 <div className="flex items-center justify-center gap-2 text-teal-600 mt-1">
                                     <div className="w-3 h-3 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                                    <span className="text-xs">Ожидаем оплату…</span>
+                                    <span className="text-xs">{t('booking.halyk_waiting')}</span>
                                 </div>
                             </div>
 
@@ -977,7 +956,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                     setHalykQRStatus("pending");
                                 }}
                                 className="text-sm text-slate-400 hover:text-slate-600 flex items-center gap-1">
-                                <X className="w-4 h-4" /> Выбрать другой способ оплаты
+                                <X className="w-4 h-4" /> {t('booking.halyk_change_method')}
                             </button>
                         </>
                     )}
@@ -990,7 +969,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
         <Modal
             isOpen={isOpen}
             onClose={resetAndClose}
-            title={isComplete ? "Запись подтверждена!" : "Запись к врачу"}
+            title={isComplete ? t('booking.modal_title_complete') : t('booking.modal_title')}
             size='lg'
             footer={footerButtons}>
             {isComplete ? (
@@ -999,54 +978,50 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         <Check className='w-10 h-10 text-emerald-600' />
                     </div>
                     <h3 className='text-xl font-semibold text-slate-900 mb-2'>
-                        Запись создана!
+                        {t('booking.complete_title')}
                     </h3>
                     <p className='text-slate-600 mb-6'>
-                        Консультация с {doctorName}
+                        {t('booking.complete_desc', { name: doctorName })}
                         <br />
                         {selectedDate &&
                             format(selectedDate, "d MMMM yyyy", {
-                                locale: ru,
+                                locale: dateLocale,
                             })}{" "}
-                        в {selectedTime}
+                        {selectedTime}
                     </p>
 
                     {/* Kaspi payment instructions */}
                     {paymentMethod === "kaspi" && (
                         <div className='bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-left'>
                             <p className='text-sm font-semibold text-amber-900 mb-2'>
-                                🏦 Оплата через Kaspi QR
+                                {t('booking.kaspi_title')}
                             </p>
                             <p className='text-sm text-amber-800 mb-1'>
-                                Переведите{" "}
-                                <strong>{formatPrice(doctorPrice)}</strong>{" "}
-                                через Kaspi.kz на реквизиты клиники.
+                                {t('booking.kaspi_amount', { price: formatPrice(doctorPrice) })}
                             </p>
                             <p className='text-xs text-amber-700'>
-                                После оплаты запись будет подтверждена
-                                администратором в течение 30 минут.
+                                {t('booking.kaspi_note')}
                             </p>
                         </div>
                     )}
 
                     <div className='bg-slate-50 rounded-xl p-4 mb-6 text-left'>
                         <p className='text-sm text-slate-600 mb-2'>
-                            📧 Подтверждение отправлено на вашу почту
+                            {t('booking.email_note')}
                         </p>
                         <p className='text-sm text-slate-600'>
-                            🔗 Ссылка на видеоконсультацию появится в личном
-                            кабинете
+                            {t('booking.link_note')}
                         </p>
                     </div>
                     <div className='flex gap-3 justify-center'>
                         <Button variant='outline' onClick={resetAndClose}>
-                            Закрыть
+                            {t('common.close')}
                         </Button>
                         <Button
                             onClick={() =>
                                 (window.location.href = "/patient/appointments")
                             }>
-                            Мои записи
+                            {t('booking.my_appointments')}
                         </Button>
                     </div>
                 </div>
@@ -1055,10 +1030,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     {/* Progress Steps */}
                     <div className='flex items-center mb-6'>
                         {[
-                            { num: 1, label: "Дата" },
-                            { num: 2, label: "Тип" },
-                            { num: 3, label: "Оплата" },
-                            { num: 4, label: "Готово" },
+                            { num: 1, label: t('booking.step_date') },
+                            { num: 2, label: t('booking.step_type') },
+                            { num: 3, label: t('booking.step_payment') },
+                            { num: 4, label: t('booking.step_done') },
                         ].flatMap((s, i) => {
                             const items = [
                                 <div key={s.num} className='flex flex-col items-center gap-1 shrink-0'>
@@ -1104,7 +1079,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             size='lg'
                         />
                         <div className='min-w-0'>
-                            <h3 className='font-semibold text-slate-900 break-words'>
+                            <h3 className='font-semibold text-slate-900 wrap-break-word'>
                                 {doctorName}
                             </h3>
                             <p className='text-sm text-teal-600'>
@@ -1116,7 +1091,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                 {formatPrice(doctorPrice)}
                             </p>
                             <p className='text-xs text-slate-500'>
-                                за консультацию
+                                {t('booking.per_consultation')}
                             </p>
                         </div>
                     </div>
@@ -1126,7 +1101,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         <div className='space-y-6'>
                             <div>
                                 <label className='block text-sm font-medium text-slate-700 mb-3'>
-                                    Выберите дату
+                                    {t('booking.select_date')}
                                 </label>
                                 <div className='flex gap-2 overflow-x-auto pb-2'>
                                     {dates.map((date) => {
@@ -1147,7 +1122,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                                 }}
                                                 disabled={isDisabled}
                                                 className={cn(
-                                                    "flex-shrink-0 w-16 py-3 rounded-xl text-center transition-all",
+                                                    "shrink-0 w-16 py-3 rounded-xl text-center transition-all",
                                                     isSelected
                                                         ? "bg-teal-600 text-white"
                                                         : isDisabled
@@ -1156,7 +1131,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                                 )}>
                                                 <div className='text-xs opacity-70'>
                                                     {format(date, "EEE", {
-                                                        locale: ru,
+                                                        locale: dateLocale,
                                                     })}
                                                 </div>
                                                 <div className='text-lg font-semibold'>
@@ -1164,12 +1139,12 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                                 </div>
                                                 <div className='text-xs opacity-70'>
                                                     {format(date, "MMM", {
-                                                        locale: ru,
+                                                        locale: dateLocale,
                                                     })}
                                                 </div>
                                                 {isDisabled && (
                                                     <div className='text-[10px] text-slate-400'>
-                                                        выходной
+                                                        {t('booking.day_off')}
                                                     </div>
                                                 )}
                                             </button>
@@ -1181,20 +1156,20 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             {selectedDate && (
                                 <div>
                                     <label className='block text-sm font-medium text-slate-700 mb-3'>
-                                        Выберите время
+                                        {t('booking.select_time')}
                                     </label>
                                     {isLoadingSlots ? (
                                         <div className='flex items-center justify-center py-8'>
                                             <div className='w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin'></div>
-                                            <span className='ml-2 text-slate-500'>Загрузка слотов...</span>
+                                            <span className='ml-2 text-slate-500'>{t('booking.loading_slots')}</span>
                                         </div>
                                     ) : availableSlots.length === 0 ? (
                                         <div className='text-center py-4'>
                                             <p className='text-slate-500'>
-                                            Нет доступных слотов на эту дату
-                                        </p>
+                                                {t('booking.no_slots_date')}
+                                            </p>
                                             <p className='text-xs text-slate-400 mt-1'>
-                                                Попробуйте выбрать другой день
+                                                {t('booking.try_another_day')}
                                             </p>
                                         </div>
                                     ) : (
@@ -1211,7 +1186,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                                         key={time}
                                                         onClick={() => !isHeld && setSelectedTime(time)}
                                                         disabled={isHeld}
-                                                        title={isHeld ? `Кто-то выбирает этот слот (~${minsLeft} мин)` : undefined}
+                                                        title={isHeld ? t('booking.slot_held_title', { mins: minsLeft }) : undefined}
                                                         className={cn(
                                                             "py-2 px-1 rounded-lg text-xs font-medium transition-all flex flex-col items-center gap-0.5",
                                                             isSelected
@@ -1226,10 +1201,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                                 );
                                             })}
                                         </div>
-                                        {[...reservedByOthers.keys()].some(t => t !== selectedTime) && (
+                                        {[...reservedByOthers.keys()].some(k => k !== selectedTime) && (
                                             <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
                                                 <Lock className="w-3 h-3" />
-                                                Слоты с замком временно заняты другим пользователем
+                                                {t('booking.slots_held_notice')}
                                             </p>
                                         )}
                                         </>
@@ -1243,7 +1218,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     {step === 2 && (
                         <div className='space-y-4'>
                             <label className='block text-sm font-medium text-slate-700 mb-3'>
-                                Тип консультации
+                                {t('booking.select_type')}
                             </label>
 
                             <button
@@ -1266,15 +1241,14 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                     </div>
                                     <div className='flex-1 min-w-0'>
                                         <h4 className='font-semibold text-slate-900'>
-                                            Видеоконсультация
+                                            {t('booking.video_title')}
                                         </h4>
                                         <p className='text-sm text-slate-500'>
-                                            Общение через видеосвязь в реальном
-                                            времени
+                                            {t('booking.video_desc')}
                                         </p>
                                     </div>
                                     <Badge variant='primary' className='self-start sm:self-auto'>
-                                        Рекомендуем
+                                        {t('booking.recommend')}
                                     </Badge>
                                 </div>
                             </button>
@@ -1286,14 +1260,14 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                     </div>
                                     <div className='flex-1 min-w-0'>
                                         <h4 className='font-semibold text-slate-400'>
-                                            Чат-консультация
+                                            {t('booking.chat_title')}
                                         </h4>
                                         <p className='text-sm text-slate-400'>
-                                            Переписка с врачом в течение дня
+                                            {t('booking.chat_desc')}
                                         </p>
                                     </div>
                                     <span className='text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg self-start sm:self-auto shrink-0'>
-                                        В разработке
+                                        {t('booking.in_development')}
                                     </span>
                                 </div>
                             </div>
@@ -1304,7 +1278,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     {step === 3 && (
                         <div className='space-y-4'>
                             <label className='block text-sm font-medium text-slate-700 mb-3'>
-                                Способ оплаты
+                                {t('booking.payment_method_label')}
                             </label>
 
                             {paymentMethods.map((method) => (
@@ -1349,8 +1323,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                             )}>
                                                 {method.id === "halyk"
                                                     ? isMobileDevice()
-                                                        ? "QR-оплата · Halyk Home Bank"
-                                                        : "QR-оплата · сканирование в приложении"
+                                                        ? t('booking.pm_halyk_desc_mobile')
+                                                        : t('booking.pm_halyk_desc_desktop')
                                                     : method.description}
                                             </p>
                                             {method.badge && (
@@ -1371,15 +1345,14 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             {/* ePay / Halyk informer — required by Halyk Bank internet-acquiring agreement */}
                             <div className='mt-2 p-4 bg-slate-50 rounded-xl space-y-3'>
                                 <p className='text-sm text-slate-600'>
-                                    🔒 Оплата защищена шифрованием (3-D Secure). Возврат
-                                    средств возможен не позднее чем за 24 часа до приёма.{' '}
+                                    {t('booking.epay_security')}{' '}
                                     <a
                                         href='/terms#refund'
                                         target='_blank'
                                         rel='noopener noreferrer'
                                         className='text-teal-600 hover:underline'
                                     >
-                                        Политика возврата
+                                        {t('booking.epay_refund_link')}
                                     </a>
                                 </p>
                                 <div className='flex items-center gap-3 pt-2 border-t border-slate-200'>
@@ -1392,7 +1365,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                         <div className='w-8 h-8 rounded-lg bg-[#FF6B00] flex items-center justify-center shrink-0'>
                                             <span className='text-white font-bold text-[10px] leading-none'>ePay</span>
                                         </div>
-                                        <span>Платёжный партнёр —<br /><strong className='text-slate-600'>Halyk Bank / ePay</strong></span>
+                                        <span>{t('booking.epay_partner_text')}</span>
                                     </a>
                                 </div>
                             </div>
@@ -1403,54 +1376,54 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     {step === 4 && (
                         <div className='space-y-4'>
                             <h3 className='font-semibold text-slate-900 mb-4'>
-                                Проверьте данные записи
+                                {t('booking.confirm_title')}
                             </h3>
 
                             <div className='bg-slate-50 rounded-xl divide-y divide-slate-200'>
                                 <div className='p-4 flex justify-between'>
-                                    <span className='text-slate-600'>Врач</span>
+                                    <span className='text-slate-600'>{t('booking.field_doctor')}</span>
                                     <span className='font-medium text-slate-900'>
                                         {doctorName}
                                     </span>
                                 </div>
                                 <div className='p-4 flex justify-between'>
                                     <span className='text-slate-600'>
-                                        Специализация
+                                        {t('booking.field_spec')}
                                     </span>
                                     <span className='font-medium text-slate-900'>
                                         {doctorSpecialization}
                                     </span>
                                 </div>
                                 <div className='p-4 flex justify-between'>
-                                    <span className='text-slate-600'>Дата</span>
+                                    <span className='text-slate-600'>{t('booking.field_date')}</span>
                                     <span className='font-medium text-slate-900'>
                                         {selectedDate &&
                                             format(
                                                 selectedDate,
                                                 "d MMMM yyyy",
-                                                { locale: ru }
+                                                { locale: dateLocale }
                                             )}
                                     </span>
                                 </div>
                                 <div className='p-4 flex justify-between'>
                                     <span className='text-slate-600'>
-                                        Время
+                                        {t('booking.field_time')}
                                     </span>
                                     <span className='font-medium text-slate-900'>
                                         {selectedTime}
                                     </span>
                                 </div>
                                 <div className='p-4 flex justify-between'>
-                                    <span className='text-slate-600'>Тип</span>
+                                    <span className='text-slate-600'>{t('booking.field_type')}</span>
                                     <span className='font-medium text-slate-900'>
                                         {consultationType === "video"
-                                            ? "Видеоконсультация"
-                                            : "Чат-консультация"}
+                                            ? t('booking.video_title')
+                                            : t('booking.chat_title')}
                                     </span>
                                 </div>
                                 <div className='p-4 flex justify-between'>
                                     <span className='text-slate-600'>
-                                        Оплата
+                                        {t('booking.field_payment')}
                                     </span>
                                     <span className='font-medium text-slate-900'>
                                         {
@@ -1462,7 +1435,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                 </div>
                                 <div className='p-4 flex justify-between bg-teal-50'>
                                     <span className='font-semibold text-teal-700'>
-                                        Итого к оплате
+                                        {t('booking.field_total')}
                                     </span>
                                     <span className='font-bold text-teal-700'>
                                         {formatPrice(doctorPrice)}

@@ -25,7 +25,9 @@ import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import Badge from '../components/ui/Badge'
 import useAuthStore from '../stores/authStore'
+import { useTranslation } from 'react-i18next'
 import { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl } from '../services/api'
+import { getSpecName } from '../utils/helpers'
 
 // 48-hour window for post-consultation notes
 const WINDOW_HOURS = 48
@@ -33,6 +35,8 @@ const WINDOW_HOURS = 48
 function AppointmentDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const dateLocale = i18n.language === 'kk' ? 'kk-KZ' : i18n.language === 'en' ? 'en-US' : 'ru-RU'
   const { user } = useAuthStore()
   const userRole = user?.userRole || 'patient'
   const isDoctor = userRole === 'doctor'
@@ -135,7 +139,7 @@ function AppointmentDetail() {
         })
       } else {
         const res = await documentsAPI.create({
-          title: 'Заключение врача',
+          title: t('video.doc_conclusion'),
           type: 'certificate',
           description: diagnosisText || '',
           ...(diagnosisFile?.id && { file: diagnosisFile.id }),
@@ -194,7 +198,7 @@ function AppointmentDetail() {
         })
       } else {
         const res = await documentsAPI.create({
-          title: 'План обследования',
+          title: t('video.doc_plan'),
           type: 'other',
           description: planText,
           ...(planFile?.id && { file: planFile.id }),
@@ -225,7 +229,7 @@ function AppointmentDetail() {
         })
       } else {
         const res = await documentsAPI.create({
-          title: 'Назначения',
+          title: t('video.doc_prescriptions'),
           type: 'prescription',
           description: prescriptionsText,
           ...(prescriptionsFile?.id && { file: prescriptionsFile.id }),
@@ -259,40 +263,37 @@ function AppointmentDetail() {
     return (
       <div className="p-6">
         <div className="text-center py-16">
-          <p className="text-slate-500 mb-4">Запись не найдена</p>
-          <Button onClick={() => navigate(backPath)}>Назад</Button>
+          <p className="text-slate-500 mb-4">{t('appointment_detail.not_found')}</p>
+          <Button onClick={() => navigate(backPath)}>{t('appointment_detail.back')}</Button>
         </div>
       </div>
     )
   }
 
-  const doctorName = appointment.doctor?.fullName || 'Врач'
-  const specName =
-    typeof appointment.doctor?.specialization === 'object'
-      ? appointment.doctor.specialization?.name
-      : appointment.doctor?.specialization || ''
+  const doctorName = appointment.doctor?.fullName || t('video.doctor')
+  const specName = getSpecName(appointment.doctor?.specialization, i18n.language)
   const patientName =
     appointment.patient?.fullName ||
     appointment.patient?.username ||
     appointment.patient?.email?.split('@')[0] ||
-    'Пациент'
+    t('video.patient')
 
   const appointmentDate = new Date(appointment.dateTime)
-  const formattedDate = appointmentDate.toLocaleDateString('ru-RU', {
+  const formattedDate = appointmentDate.toLocaleDateString(dateLocale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   })
-  const formattedTime = appointmentDate.toLocaleTimeString('ru-RU', {
+  const formattedTime = appointmentDate.toLocaleTimeString(dateLocale, {
     hour: '2-digit',
     minute: '2-digit',
   })
 
   const statusMap = {
-    confirmed: { label: 'Подтверждён', variant: 'success' },
-    pending: { label: 'Ожидает', variant: 'default' },
-    cancelled: { label: 'Отменён', variant: 'danger' },
-    completed: { label: 'Завершён', variant: 'success' },
+    confirmed: { label: t('appointment_detail.status_confirmed'), variant: 'success' },
+    pending: { label: t('appointment_detail.status_pending'), variant: 'default' },
+    cancelled: { label: t('appointment_detail.status_cancelled'), variant: 'danger' },
+    completed: { label: t('appointment_detail.status_completed'), variant: 'success' },
   }
 
   const status = statusMap[appointment.status || appointment.statuse] || statusMap.pending
@@ -312,16 +313,16 @@ function AppointmentDetail() {
   const isCompleted = isPast && (appointment.statuse || appointment.status) !== 'cancelled'
 
   const typeLabels = {
-    analysis: 'Анализ',
-    prescription: 'Назначение',
-    certificate: 'Справка',
-    other: 'Другое',
+    analysis: t('appointment_detail.doctype_analysis'),
+    prescription: t('appointment_detail.doctype_prescription'),
+    certificate: t('appointment_detail.doctype_certificate'),
+    other: t('appointment_detail.doctype_other'),
   }
 
   const notesTabs = [
-    { key: 'diagnosis', label: 'Диагноз' },
-    { key: 'plan', label: 'План обследования' },
-    { key: 'prescriptions', label: 'Назначения' },
+    { key: 'diagnosis', label: t('video.tab_diagnosis') },
+    { key: 'plan', label: t('video.plan_label') },
+    { key: 'prescriptions', label: t('video.prescriptions_label') },
   ]
 
   return (
@@ -332,15 +333,15 @@ function AppointmentDetail() {
         className="inline-flex items-center gap-2 text-slate-600 hover:text-teal-600 transition-colors mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span className="text-sm font-medium">Назад</span>
+        <span className="text-sm font-medium">{t('appointment_detail.back')}</span>
       </Link>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Детали записи</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t('appointment_detail.title')}</h1>
         <div className="flex items-center gap-2">
           {isPast && (appointment.status || appointment.statuse) !== 'cancelled' ? (
-            <Badge variant="success">Завершён</Badge>
+            <Badge variant="success">{t('appointment_detail.status_completed')}</Badge>
           ) : (
             <Badge variant={status.variant}>{status.label}</Badge>
           )}
@@ -383,7 +384,7 @@ function AppointmentDetail() {
                         <MessageCircle className="w-4 h-4 text-slate-400" />
                       )}
                       <span className="text-sm">
-                        {appointment.type === 'video' ? 'Видеоконсультация' : 'Чат'}
+                        {appointment.type === 'video' ? t('appointment_detail.type_video') : t('appointment_detail.type_chat')}
                       </span>
                     </div>
                   </div>
@@ -399,16 +400,16 @@ function AppointmentDetail() {
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Stethoscope className="w-5 h-5 text-teal-600" />
-                    Заключение по консультации
+                    {t('appointment_detail.notes_title')}
                   </div>
                   {isWithinWindow ? (
                     <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg">
-                      Осталось {hoursRemaining} ч.
+                      {t('appointment_detail.hours_left', { hours: hoursRemaining })}
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
                       <Lock className="w-3 h-3" />
-                      Заблокировано
+                      {t('appointment_detail.locked')}
                     </span>
                   )}
                 </CardTitle>
@@ -419,9 +420,9 @@ function AppointmentDetail() {
                   <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4">
                     <Lock className="w-5 h-5 text-slate-400 shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-slate-700">Срок добавления заключения истёк</p>
+                      <p className="text-sm font-medium text-slate-700">{t('appointment_detail.window_expired_title')}</p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Заключение можно добавлять в течение {WINDOW_HOURS} часов после консультации
+                        {t('appointment_detail.window_info', { hours: WINDOW_HOURS })}
                       </p>
                     </div>
                   </div>
@@ -451,7 +452,7 @@ function AppointmentDetail() {
                       value={diagnosisText}
                       onChange={e => setDiagnosisText(e.target.value)}
                       disabled={!isWithinWindow}
-                      placeholder="Введите диагноз и заключение..."
+                      placeholder={t('appointment_detail.diagnosis_placeholder')}
                       rows={5}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                     />
@@ -460,10 +461,10 @@ function AppointmentDetail() {
                         <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-teal-500 hover:bg-teal-50 transition-colors text-sm text-slate-600">
                           <Paperclip className="w-4 h-4" />
                           {isUploadingFile
-                            ? 'Загрузка...'
+                            ? t('appointment_detail.uploading')
                             : diagnosisFile
-                            ? (diagnosisFile.name || 'Файл прикреплён')
-                            : 'Прикрепить файл'}
+                            ? (diagnosisFile.name || t('appointment_detail.file_attached'))
+                            : t('appointment_detail.attach_file')}
                           <input
                             type="file"
                             className="hidden"
@@ -484,7 +485,7 @@ function AppointmentDetail() {
                     {!isWithinWindow && diagnosisFile && (
                       <div className="flex items-center gap-2 text-sm text-slate-600">
                         <Paperclip className="w-4 h-4 text-slate-400" />
-                        <span>{diagnosisFile.name || 'Прикреплённый файл'}</span>
+                        <span>{diagnosisFile.name || t('appointment_detail.file_attached')}</span>
                         {diagnosisFile.url && (
                           <a
                             href={getMediaUrl(diagnosisFile)}
@@ -492,7 +493,7 @@ function AppointmentDetail() {
                             rel="noopener noreferrer"
                             className="text-teal-600 hover:underline"
                           >
-                            Открыть
+                            {t('appointment_detail.open')}
                           </a>
                         )}
                       </div>
@@ -505,7 +506,7 @@ function AppointmentDetail() {
                         leftIcon={diagnosisSaved ? <Check className="w-4 h-4" /> : null}
                         className={diagnosisSaved ? 'bg-green-600! hover:bg-green-700!' : ''}
                       >
-                        {diagnosisSaved ? 'Сохранено' : 'Сохранить'}
+                        {diagnosisSaved ? t('appointment_detail.saved') : t('appointment_detail.save')}
                       </Button>
                     )}
                   </div>
@@ -518,7 +519,7 @@ function AppointmentDetail() {
                       value={planText}
                       onChange={e => setPlanText(e.target.value)}
                       disabled={!isWithinWindow}
-                      placeholder="Введите план обследования и рекомендации..."
+                      placeholder={t('appointment_detail.plan_placeholder')}
                       rows={5}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                     />
@@ -526,7 +527,7 @@ function AppointmentDetail() {
                       <div className="flex items-center gap-3 flex-wrap">
                         <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-teal-500 hover:bg-teal-50 transition-colors text-sm text-slate-600">
                           <Paperclip className="w-4 h-4" />
-                          {isUploadingPlanFile ? 'Загрузка...' : planFile ? (planFile.name || 'Файл прикреплён') : 'Прикрепить файл'}
+                          {isUploadingPlanFile ? t('appointment_detail.uploading') : planFile ? (planFile.name || t('appointment_detail.file_attached')) : t('appointment_detail.attach_file')}
                           <input type="file" className="hidden" onChange={handlePlanFile} disabled={isUploadingPlanFile} />
                         </label>
                         {planFile && (
@@ -539,9 +540,9 @@ function AppointmentDetail() {
                     {!isWithinWindow && planFile && (
                       <div className="flex items-center gap-2 text-sm text-slate-600">
                         <Paperclip className="w-4 h-4 text-slate-400" />
-                        <span>{planFile.name || 'Прикреплённый файл'}</span>
+                        <span>{planFile.name || t('appointment_detail.file_attached')}</span>
                         {planFile.url && (
-                          <a href={getMediaUrl(planFile)} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline">Открыть</a>
+                          <a href={getMediaUrl(planFile)} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline">{t('appointment_detail.open')}</a>
                         )}
                       </div>
                     )}
@@ -553,7 +554,7 @@ function AppointmentDetail() {
                         leftIcon={planSaved ? <Check className="w-4 h-4" /> : null}
                         className={planSaved ? 'bg-green-600! hover:bg-green-700!' : ''}
                       >
-                        {planSaved ? 'Сохранено' : 'Сохранить'}
+                        {planSaved ? t('appointment_detail.saved') : t('appointment_detail.save')}
                       </Button>
                     )}
                   </div>
@@ -566,7 +567,7 @@ function AppointmentDetail() {
                       value={prescriptionsText}
                       onChange={e => setPrescriptionsText(e.target.value)}
                       disabled={!isWithinWindow}
-                      placeholder="Введите назначения и лекарства..."
+                      placeholder={t('appointment_detail.prescriptions_placeholder')}
                       rows={5}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                     />
@@ -574,7 +575,7 @@ function AppointmentDetail() {
                       <div className="flex items-center gap-3 flex-wrap">
                         <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-teal-500 hover:bg-teal-50 transition-colors text-sm text-slate-600">
                           <Paperclip className="w-4 h-4" />
-                          {isUploadingPrescriptionsFile ? 'Загрузка...' : prescriptionsFile ? (prescriptionsFile.name || 'Файл прикреплён') : 'Прикрепить файл'}
+                          {isUploadingPrescriptionsFile ? t('appointment_detail.uploading') : prescriptionsFile ? (prescriptionsFile.name || t('appointment_detail.file_attached')) : t('appointment_detail.attach_file')}
                           <input type="file" className="hidden" onChange={handlePrescriptionsFile} disabled={isUploadingPrescriptionsFile} />
                         </label>
                         {prescriptionsFile && (
@@ -587,9 +588,9 @@ function AppointmentDetail() {
                     {!isWithinWindow && prescriptionsFile && (
                       <div className="flex items-center gap-2 text-sm text-slate-600">
                         <Paperclip className="w-4 h-4 text-slate-400" />
-                        <span>{prescriptionsFile.name || 'Прикреплённый файл'}</span>
+                        <span>{prescriptionsFile.name || t('appointment_detail.file_attached')}</span>
                         {prescriptionsFile.url && (
-                          <a href={getMediaUrl(prescriptionsFile)} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline">Открыть</a>
+                          <a href={getMediaUrl(prescriptionsFile)} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline">{t('appointment_detail.open')}</a>
                         )}
                       </div>
                     )}
@@ -601,7 +602,7 @@ function AppointmentDetail() {
                         leftIcon={prescriptionsSaved ? <Check className="w-4 h-4" /> : null}
                         className={prescriptionsSaved ? 'bg-green-600! hover:bg-green-700!' : ''}
                       >
-                        {prescriptionsSaved ? 'Сохранено' : 'Сохранить'}
+                        {prescriptionsSaved ? t('appointment_detail.saved') : t('appointment_detail.save')}
                       </Button>
                     )}
                   </div>
@@ -616,7 +617,7 @@ function AppointmentDetail() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-teal-600" />
-                  История переписки
+                  {t('appointment_detail.chat_history')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -640,7 +641,7 @@ function AppointmentDetail() {
                           <p className="whitespace-pre-wrap wrap-break-word">{msg.text}</p>
                           {msg.time && (
                             <p className={`text-xs mt-1 ${isMe ? 'text-teal-100' : 'text-slate-400'}`}>
-                              {new Date(msg.time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(msg.time).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           )}
                         </div>
@@ -657,14 +658,14 @@ function AppointmentDetail() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FolderOpen className="w-5 h-5 text-teal-600" />
-                Медицинские документы
+                {t('appointment_detail.medical_docs')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {documents.length === 0 ? (
                 <div className="text-center py-8">
                   <FileText className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                  <p className="text-slate-500 text-sm">Нет документов по данной записи</p>
+                  <p className="text-slate-500 text-sm">{t('appointment_detail.no_docs')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -680,12 +681,12 @@ function AppointmentDetail() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-medium text-slate-900">
-                            {doc.title || 'Документ'}
+                            {doc.title || t('appointment_detail.doc_label')}
                           </h4>
                           <p className="text-xs text-slate-500 mt-0.5">
                             {typeLabels[doc.type] || doc.type}
                             {doc.createdAt && (
-                              <> &middot; {new Date(doc.createdAt).toLocaleDateString('ru-RU')}</>
+                              <> &middot; {new Date(doc.createdAt).toLocaleDateString(dateLocale)}</>
                             )}
                           </p>
                           {doc.description && (
@@ -719,7 +720,7 @@ function AppointmentDetail() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                {isDoctor ? 'Пациент' : 'Врач'}
+                {isDoctor ? t('video.patient') : t('video.doctor')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -760,9 +761,9 @@ function AppointmentDetail() {
           {(appointment.price || appointment.doctor?.price) && (
             <Card>
               <CardContent>
-                <p className="text-sm text-slate-500 mb-1">Стоимость</p>
+                <p className="text-sm text-slate-500 mb-1">{t('appointment_detail.price_label')}</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {(appointment.price || appointment.doctor?.price || 0).toLocaleString('ru-RU')} ₸
+                  {(appointment.price || appointment.doctor?.price || 0).toLocaleString(dateLocale)} ₸
                 </p>
               </CardContent>
             </Card>
@@ -779,13 +780,13 @@ function AppointmentDetail() {
                     <Lock className="w-4 h-4 text-slate-400" />
                   )}
                   <p className="text-sm font-medium text-slate-700">
-                    {isWithinWindow ? 'Окно заключения открыто' : 'Окно заключения закрыто'}
+                    {isWithinWindow ? t('appointment_detail.window_open') : t('appointment_detail.window_closed')}
                   </p>
                 </div>
                 <p className="text-xs text-slate-500">
                   {isWithinWindow
-                    ? `Доступно ещё ${hoursRemaining} ч. для добавления заключения`
-                    : `Срок в ${WINDOW_HOURS} часов после консультации истёк`}
+                    ? t('appointment_detail.window_available', { hours: hoursRemaining })
+                    : t('appointment_detail.window_expired_detail', { hours: WINDOW_HOURS })}
                 </p>
               </CardContent>
             </Card>

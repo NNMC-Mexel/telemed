@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import Cropper from 'react-easy-crop'
 import { ZoomIn, ZoomOut, RotateCw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import Modal from './Modal'
 import Button from './Button'
 
@@ -49,6 +50,7 @@ function createImage(url) {
 }
 
 function ImageCropModal({ isOpen, onClose, imageSrc, onCropComplete, aspect = 1 }) {
+  const { t } = useTranslation()
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [rotation, setRotation] = useState(0)
@@ -85,17 +87,17 @@ function ImageCropModal({ isOpen, onClose, imageSrc, onCropComplete, aspect = 1 
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Обрезка фото"
-      description="Выберите область, которая будет отображаться на карточке"
+      title={t('image_crop.title')}
+      description={t('image_crop.description')}
       size="lg"
       closeOnOverlay={false}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={isSaving}>
-            Отмена
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSave} isLoading={isSaving}>
-            Сохранить
+            {t('common.save')}
           </Button>
         </>
       }
@@ -143,7 +145,7 @@ function ImageCropModal({ isOpen, onClose, imageSrc, onCropComplete, aspect = 1 
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
           >
             <RotateCw className="w-4 h-4" />
-            Повернуть
+            {t('image_crop.rotate')}
           </button>
         </div>
       </div>

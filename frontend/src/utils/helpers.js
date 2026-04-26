@@ -1,10 +1,22 @@
 import { format, formatDistanceToNow, isToday, isTomorrow, isYesterday, parseISO } from 'date-fns'
-import { ru } from 'date-fns/locale'
+import { ru } from 'date-fns/locale/ru'
+import { enUS } from 'date-fns/locale/en-US'
+import { kk } from 'date-fns/locale/kk'
+
+const getDateLocale = (lang) => {
+  if (lang === 'en') return enUS
+  if (lang === 'kk') return kk
+  return ru
+}
 
 // Date formatting
-export const formatDate = (date, formatStr = 'dd MMMM yyyy') => {
+// Second arg can be a lang code ('ru'|'en'|'kk') OR a format string for backward-compat.
+export const formatDate = (date, langOrFormat = 'dd MMMM yyyy', extraFormat) => {
   const parsed = typeof date === 'string' ? parseISO(date) : date
-  return format(parsed, formatStr, { locale: ru })
+  const isLang = ['ru', 'en', 'kk'].includes(langOrFormat)
+  const locale = isLang ? getDateLocale(langOrFormat) : ru
+  const fmt = isLang ? (extraFormat || 'dd MMMM yyyy') : langOrFormat
+  return format(parsed, fmt, { locale })
 }
 
 export const formatTime = (date) => {
@@ -12,24 +24,24 @@ export const formatTime = (date) => {
   return format(parsed, 'HH:mm', { locale: ru })
 }
 
-export const formatDateTime = (date) => {
+export const formatDateTime = (date, lang = 'ru') => {
   const parsed = typeof date === 'string' ? parseISO(date) : date
-  return format(parsed, 'dd MMM yyyy, HH:mm', { locale: ru })
+  return format(parsed, 'dd MMM yyyy, HH:mm', { locale: getDateLocale(lang) })
 }
 
-export const formatRelativeDate = (date) => {
+export const formatRelativeDate = (date, lang = 'ru', labels = { today: 'Сегодня', tomorrow: 'Завтра', yesterday: 'Вчера' }) => {
   const parsed = typeof date === 'string' ? parseISO(date) : date
-  
-  if (isToday(parsed)) return `Сегодня, ${formatTime(parsed)}`
-  if (isTomorrow(parsed)) return `Завтра, ${formatTime(parsed)}`
-  if (isYesterday(parsed)) return `Вчера, ${formatTime(parsed)}`
-  
-  return formatDateTime(parsed)
+
+  if (isToday(parsed)) return `${labels.today}, ${formatTime(parsed)}`
+  if (isTomorrow(parsed)) return `${labels.tomorrow}, ${formatTime(parsed)}`
+  if (isYesterday(parsed)) return `${labels.yesterday}, ${formatTime(parsed)}`
+
+  return formatDateTime(parsed, lang)
 }
 
-export const formatTimeAgo = (date) => {
+export const formatTimeAgo = (date, lang = 'ru') => {
   const parsed = typeof date === 'string' ? parseISO(date) : date
-  return formatDistanceToNow(parsed, { addSuffix: true, locale: ru })
+  return formatDistanceToNow(parsed, { addSuffix: true, locale: getDateLocale(lang) })
 }
 
 // Name formatting
@@ -80,6 +92,16 @@ export const formatPrice = (price) => {
     currency: 'KZT',
     minimumFractionDigits: 0,
   }).format(price)
+}
+
+// Get localised specialization name from API object (uses nameEn / nameKk from Strapi)
+export const getSpecName = (spec, lang) => {
+  if (!spec) return ''
+  const name = typeof spec === 'object' ? spec.name : spec
+  if (!name) return ''
+  if (lang === 'en') return (typeof spec === 'object' && spec.nameEn) || name
+  if (lang === 'kk') return (typeof spec === 'object' && spec.nameKk) || name
+  return name
 }
 
 // ClassNames helper

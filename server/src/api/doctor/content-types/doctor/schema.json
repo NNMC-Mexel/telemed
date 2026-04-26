@@ -29,6 +29,15 @@
     "education": {
       "type": "text"
     },
+    "licenseNumber": {
+      "type": "string"
+    },
+    "position": {
+      "type": "string"
+    },
+    "workplace": {
+      "type": "string"
+    },
     "languages": {
       "type": "json"
     },

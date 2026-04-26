@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Bell,
   Calendar,
@@ -36,6 +37,7 @@ const notificationColors = {
 }
 
 function NotificationsPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const notifications = useNotificationStore((s) => s.notifications)
   const unreadCount = useNotificationStore((s) => s.unreadCount)
@@ -76,20 +78,20 @@ function NotificationsPage() {
     <div className="space-y-6 animate-fadeIn">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Уведомления</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t('notifications.title')}</h1>
           <p className="text-slate-600">
             {unreadCount > 0
-              ? `У вас ${unreadCount} непрочитанных уведомлений`
+              ? t('notifications.subtitle_unread', { count: unreadCount })
               : notifications.length > 0
-                ? 'Все уведомления прочитаны'
-                : 'Нет новых уведомлений'}
+                ? t('notifications.subtitle_read')
+                : t('notifications.subtitle_empty')}
           </p>
         </div>
         <div className="flex gap-2">
           {unreadCount > 0 && (
             <Button variant="secondary" onClick={markAllAsRead}>
               <CheckCheck className="w-4 h-4 mr-2" />
-              Прочитать все
+              {t('notifications.mark_all_read')}
             </Button>
           )}
         </div>
@@ -104,7 +106,7 @@ function NotificationsPage() {
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >
-          Все ({notifications.length})
+          {t('notifications.filter_all', { count: notifications.length })}
         </button>
         <button
           onClick={() => setFilter('unread')}
@@ -114,7 +116,7 @@ function NotificationsPage() {
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >
-          Непрочитанные ({unreadCount})
+          {t('notifications.filter_unread', { count: unreadCount })}
         </button>
       </div>
 
@@ -122,11 +124,11 @@ function NotificationsPage() {
         <Card>
           <CardContent className="text-center py-12">
             <Bell className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-2">Нет уведомлений</h3>
+            <h3 className="text-lg font-medium text-slate-900 mb-2">{t('notifications.no_notifications')}</h3>
             <p className="text-slate-600">
               {filter === 'unread'
-                ? 'Все уведомления прочитаны'
-                : 'Здесь появятся ваши уведомления'}
+                ? t('notifications.empty_unread')
+                : t('notifications.empty_all')}
             </p>
           </CardContent>
         </Card>
@@ -171,7 +173,7 @@ function NotificationsPage() {
                             markAsRead(docId)
                           }}
                           className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
-                          title="Отметить как прочитанное"
+                          title={t('notifications.mark_read_btn')}
                         >
                           <Check className="w-4 h-4" />
                         </button>
@@ -182,7 +184,7 @@ function NotificationsPage() {
                           remove(docId)
                         }}
                         className="p-2 hover:bg-red-100 rounded-lg text-slate-500 hover:text-red-600"
-                        title="Удалить"
+                        title={t('notifications.delete_btn')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Eye, EyeOff, Mail, Lock, Activity, ArrowLeft, Stethoscope, UserCircle } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -7,19 +8,16 @@ import { Card, CardContent } from '../components/ui/Card'
 import useAuthStore from '../stores/authStore'
 
 function LoginPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const { login, isLoading, error, clearError } = useAuthStore()
 
-  // Получаем тип пользователя из URL параметра (?type=doctor или ?type=patient)
   const initialUserType = searchParams.get('type') || 'patient'
   const [userType, setUserType] = useState(initialUserType)
 
-  const [formData, setFormData] = useState({
-    identifier: '',
-    password: '',
-  })
+  const [formData, setFormData] = useState({ identifier: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [formErrors, setFormErrors] = useState({})
 
@@ -28,20 +26,14 @@ function LoginPage() {
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
-    if (formErrors[name]) {
-      setFormErrors((prev) => ({ ...prev, [name]: null }))
-    }
+    if (formErrors[name]) setFormErrors((prev) => ({ ...prev, [name]: null }))
     if (error) clearError()
   }
 
   const validate = () => {
     const errors = {}
-    if (!formData.identifier) {
-      errors.identifier = 'Введите email или телефон'
-    }
-    if (!formData.password) {
-      errors.password = 'Введите пароль'
-    }
+    if (!formData.identifier) errors.identifier = t('auth.login.error_identifier')
+    if (!formData.password) errors.password = t('auth.login.error_password')
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -58,13 +50,9 @@ function LoginPage() {
     const result = await login(formData.identifier, formData.password)
     if (result.success) {
       const role = result.user?.userRole || result.user?.role?.type || result.user?.role
-      if (role === 'admin') {
-        navigate('/admin')
-      } else if (role === 'doctor') {
-        navigate('/doctor')
-      } else {
-        navigate('/patient')
-      }
+      if (role === 'admin') navigate('/admin')
+      else if (role === 'doctor') navigate('/doctor')
+      else navigate('/patient')
     }
   }
 
@@ -78,16 +66,12 @@ function LoginPage() {
             className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-8"
           >
             <ArrowLeft className="w-4 h-4" />
-            На главную
+            {t('auth.login.back_home')}
           </Link>
 
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">
-              Добро пожаловать
-            </h1>
-            <p className="text-slate-600">
-              Войдите в свой аккаунт для доступа к личному кабинету
-            </p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('auth.login.title')}</h1>
+            <p className="text-slate-600">{t('auth.login.subtitle')}</p>
           </div>
 
           {/* User Type Tabs */}
@@ -102,7 +86,7 @@ function LoginPage() {
               }`}
             >
               <UserCircle className="w-5 h-5" />
-              Пациент
+              {t('auth.login.patient_tab')}
             </button>
             <button
               type="button"
@@ -114,7 +98,7 @@ function LoginPage() {
               }`}
             >
               <Stethoscope className="w-5 h-5" />
-              Врач
+              {t('auth.login.doctor_tab')}
             </button>
           </div>
 
@@ -122,7 +106,7 @@ function LoginPage() {
             <CardContent className="p-6">
               <form onSubmit={handleSubmit} className="space-y-5">
                 <Input
-                  label="Email или телефон"
+                  label={t('auth.login.email_phone')}
                   name="identifier"
                   type="text"
                   placeholder="example@mail.com"
@@ -134,7 +118,7 @@ function LoginPage() {
                 />
 
                 <Input
-                  label="Пароль"
+                  label={t('auth.login.password')}
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
@@ -148,11 +132,7 @@ function LoginPage() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="text-slate-400 hover:text-slate-600"
                     >
-                      {showPassword ? (
-                        <EyeOff className="w-5 h-5" />
-                      ) : (
-                        <Eye className="w-5 h-5" />
-                      )}
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   }
                   required
@@ -164,13 +144,10 @@ function LoginPage() {
                       type="checkbox"
                       className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                     />
-                    <span className="text-sm text-slate-600">Запомнить меня</span>
+                    <span className="text-sm text-slate-600">{t('auth.login.remember_me')}</span>
                   </label>
-                  <Link
-                    to="/forgot-password"
-                    className="text-sm text-teal-600 hover:text-teal-700 font-medium"
-                  >
-                    Забыли пароль?
+                  <Link to="/forgot-password" className="text-sm text-teal-600 hover:text-teal-700 font-medium">
+                    {t('auth.login.forgot_password')}
                   </Link>
                 </div>
 
@@ -180,25 +157,17 @@ function LoginPage() {
                   </div>
                 )}
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="lg"
-                  isLoading={isLoading}
-                >
-                  Войти
+                <Button type="submit" className="w-full" size="lg" isLoading={isLoading}>
+                  {t('auth.login.submit')}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
           <p className="text-center mt-6 text-slate-600">
-            Нет аккаунта?{' '}
-            <Link
-              to="/register"
-              className="text-teal-600 hover:text-teal-700 font-medium"
-            >
-              Зарегистрироваться
+            {t('auth.login.no_account')}{' '}
+            <Link to="/register" className="text-teal-600 hover:text-teal-700 font-medium">
+              {t('auth.login.register_link')}
             </Link>
           </p>
         </div>
@@ -206,11 +175,10 @@ function LoginPage() {
 
       {/* Right Side - Decoration */}
       <div className={`hidden lg:flex flex-1 items-center justify-center p-12 relative overflow-hidden transition-all duration-500 ${
-        userType === 'doctor' 
-          ? 'bg-gradient-to-br from-sky-600 via-sky-700 to-indigo-800' 
+        userType === 'doctor'
+          ? 'bg-gradient-to-br from-sky-600 via-sky-700 to-indigo-800'
           : 'bg-gradient-to-br from-teal-600 via-teal-700 to-sky-800'
       }`}>
-        {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-20 w-96 h-96 bg-sky-300 rounded-full blur-3xl" />
@@ -221,52 +189,49 @@ function LoginPage() {
             {userType === 'doctor' ? (
               <Stethoscope className="w-10 h-10 text-white" />
             ) : (
-            <Activity className="w-10 h-10 text-white" />
+              <Activity className="w-10 h-10 text-white" />
             )}
           </div>
           <h2 className="text-3xl font-bold mb-4">
-            {userType === 'doctor' ? 'Личный кабинет врача' : 'MedConnect'}
+            {userType === 'doctor' ? t('auth.login.doctor_title') : 'MedConnect'}
           </h2>
           <p className="text-xl text-white/80 mb-8">
-            {userType === 'doctor' 
-              ? 'Управляйте расписанием, проводите консультации и помогайте пациентам онлайн'
-              : 'Современная платформа телемедицины для онлайн-консультаций с врачами'
-            }
+            {userType === 'doctor' ? t('auth.login.doctor_desc') : t('auth.login.platform_desc')}
           </p>
           <div className="flex items-center justify-center gap-8 text-white/60 text-sm">
             {userType === 'doctor' ? (
               <>
                 <div>
                   <div className="text-2xl font-bold text-white">24/7</div>
-                  <div>Доступ</div>
+                  <div>{t('auth.login.stats_access')}</div>
                 </div>
                 <div className="w-px h-12 bg-white/20" />
                 <div>
-                  <div className="text-2xl font-bold text-white">30 мин</div>
-                  <div>Слоты</div>
+                  <div className="text-2xl font-bold text-white">30 {t('common.year_1')}</div>
+                  <div>{t('auth.login.stats_slots')}</div>
                 </div>
                 <div className="w-px h-12 bg-white/20" />
                 <div>
                   <div className="text-2xl font-bold text-white">HD</div>
-                  <div>Качество</div>
+                  <div>{t('auth.login.stats_quality')}</div>
                 </div>
               </>
             ) : (
               <>
-            <div>
-              <div className="text-2xl font-bold text-white">500+</div>
-              <div>Врачей</div>
-            </div>
-            <div className="w-px h-12 bg-white/20" />
-            <div>
-              <div className="text-2xl font-bold text-white">50K+</div>
-              <div>Консультаций</div>
-            </div>
-            <div className="w-px h-12 bg-white/20" />
-            <div>
-              <div className="text-2xl font-bold text-white">4.9</div>
-              <div>Рейтинг</div>
-            </div>
+                <div>
+                  <div className="text-2xl font-bold text-white">500+</div>
+                  <div>{t('auth.login.stats_doctors')}</div>
+                </div>
+                <div className="w-px h-12 bg-white/20" />
+                <div>
+                  <div className="text-2xl font-bold text-white">50K+</div>
+                  <div>{t('auth.login.stats_consultations')}</div>
+                </div>
+                <div className="w-px h-12 bg-white/20" />
+                <div>
+                  <div className="text-2xl font-bold text-white">4.9</div>
+                  <div>{t('auth.login.stats_rating')}</div>
+                </div>
               </>
             )}
           </div>

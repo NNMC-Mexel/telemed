@@ -1,37 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import { cn } from '../../utils/helpers'
 
-const pageTitles = {
-  '/patient': { title: 'Главная', subtitle: 'Добро пожаловать в личный кабинет' },
-  '/patient/appointments': { title: 'Мои записи', subtitle: 'Управление записями к врачам' },
-  '/patient/doctors': { title: 'Врачи', subtitle: 'Найдите нужного специалиста' },
-  '/patient/chat': { title: 'Сообщения', subtitle: 'Чат с врачами' },
-  '/patient/documents': { title: 'Документы', subtitle: 'Медицинские документы' },
-  '/patient/profile': { title: 'Профиль', subtitle: 'Личные данные' },
-  '/doctor': { title: 'Главная', subtitle: 'Рабочий кабинет врача' },
-  '/doctor/schedule': { title: 'Расписание', subtitle: 'Управление рабочим временем' },
-  '/doctor/patients': { title: 'Пациенты', subtitle: 'Список пациентов' },
-  '/doctor/chat': { title: 'Сообщения', subtitle: 'Чат с пациентами' },
-  '/doctor/profile': { title: 'Профиль', subtitle: 'Личные и профессиональные данные' },
-  '/admin': { title: 'Дашборд', subtitle: 'Обзор системы' },
-  '/admin/users': { title: 'Пользователи', subtitle: 'Управление пользователями' },
-  '/admin/doctors': { title: 'Врачи', subtitle: 'Управление врачами' },
-  '/admin/appointments': { title: 'Записи', subtitle: 'Все записи на приём' },
-  '/admin/specializations': { title: 'Специализации', subtitle: 'Направления врачей' },
-  '/admin/settings': { title: 'Настройки', subtitle: 'Настройки системы' },
-}
-
 function DashboardLayout({ navItems }) {
+  const { t } = useTranslation()
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const sidebarTouchStartX = useRef(null)
 
-  const pageInfo = pageTitles[location.pathname] || { title: 'Страница', subtitle: '' }
+  const path = location.pathname
+  const title = t(`dashboard.page_titles.${path}`, t('dashboard.page_titles.default'))
+  const subtitle = t(`dashboard.page_titles.${path}_sub`, '')
 
-  // Auto-close sidebar on route change
   useEffect(() => {
     setIsMobileMenuOpen(false)
   }, [location.pathname])
@@ -67,8 +50,8 @@ function DashboardLayout({ navItems }) {
       {/* Main Content */}
       <div className="lg:ml-64 min-h-[var(--app-height)] flex flex-col">
         <Header
-          title={pageInfo.title}
-          subtitle={pageInfo.subtitle}
+          title={title}
+          subtitle={subtitle}
           onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMobileMenuOpen={isMobileMenuOpen}
         />

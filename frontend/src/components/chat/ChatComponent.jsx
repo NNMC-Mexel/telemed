@@ -1,13 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Paperclip, Image, Smile, MoreVertical, Phone, Video, Search, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import Avatar from '../ui/Avatar'
 import Button from '../ui/Button'
-import { cn, formatTimeAgo } from '../../utils/helpers'
+import { cn, formatTimeAgo, getSpecName } from '../../utils/helpers'
 import useChatStore from '../../stores/chatStore'
 import useAuthStore from '../../stores/authStore'
 import { getMediaUrl, appointmentsAPI } from '../../services/api'
 
 function ChatComponent({ userRole = 'patient' }) {
+  const { t, i18n } = useTranslation()
+  const lang = i18n.language
+  const dateLocale = i18n.language === 'en' ? 'en-US' : i18n.language === 'kk' ? 'kk-KZ' : 'ru-RU'
   const { user } = useAuthStore()
   const { 
     conversations, 
@@ -109,7 +113,7 @@ function ChatComponent({ userRole = 'patient' }) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Поиск..."
+              placeholder={t('common.search')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -125,20 +129,18 @@ function ChatComponent({ userRole = 'patient' }) {
             </div>
           ) : filteredConversations.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-slate-500 text-sm">Нет диалогов</p>
+              <p className="text-slate-500 text-sm">{t('chat.no_conversations')}</p>
               <p className="text-slate-400 text-xs mt-1">
-                Диалоги появятся после записи к врачу
+                {t('chat.no_conversations_hint')}
               </p>
             </div>
           ) : (
             filteredConversations.map((conversation) => {
               const participant = getParticipant(conversation)
-              const participantName = participant.fullName || participant.username || 'Собеседник'
+              const participantName = participant.fullName || participant.username || t('chat.interlocutor')
               const isOnline = participant.isOnline || false
               const spec = userRole === 'patient'
-                ? (typeof participant.specialization === 'object'
-                    ? participant.specialization?.name
-                    : participant.specialization || '')
+                ? getSpecName(participant.specialization, lang)
                 : ''
 
               return (
@@ -173,7 +175,7 @@ function ChatComponent({ userRole = 'patient' }) {
                     </div>
                     {spec && <p className="text-xs text-teal-600">{spec}</p>}
                     <p className="text-sm text-slate-500 truncate">
-                      {conversation.lastMessage?.content || 'Нет сообщений'}
+                      {conversation.lastMessage?.content || t('chat.no_messages')}
                     </p>
                   </div>
                   {conversation.unreadCount > 0 && (
@@ -190,13 +192,11 @@ function ChatComponent({ userRole = 'patient' }) {
           {consultationChats.length > 0 && (
             <>
               <div className="px-4 py-2 border-t border-slate-100">
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">История консультаций</p>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{t('chat.history_title')}</p>
               </div>
               {consultationChats.map((apt) => {
-                const doctorName = apt.doctor?.fullName || 'Врач'
-                const spec = typeof apt.doctor?.specialization === 'object'
-                  ? apt.doctor.specialization?.name
-                  : apt.doctor?.specialization || ''
+                const doctorName = apt.doctor?.fullName || t('booking.doctor_fallback')
+                const spec = getSpecName(apt.doctor?.specialization, lang)
                 const lastMsg = apt.chatLog?.[apt.chatLog.length - 1]
                 const aptDate = new Date(apt.dateTime)
                 return (
@@ -222,12 +222,12 @@ function ChatComponent({ userRole = 'patient' }) {
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium text-slate-900 truncate">{doctorName}</h4>
                         <span className="text-xs text-slate-400">
-                          {aptDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                          {aptDate.toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' })}
                         </span>
                       </div>
                       {spec && <p className="text-xs text-teal-600">{spec}</p>}
                       <p className="text-sm text-slate-500 truncate">
-                        {lastMsg?.text || 'Нет сообщений'}
+                        {lastMsg?.text || t('chat.no_messages')}
                       </p>
                     </div>
                   </button>
@@ -252,21 +252,21 @@ function ChatComponent({ userRole = 'patient' }) {
             </button>
             <Avatar
               src={getMediaUrl(selectedConsultation.doctor?.photo)}
-              name={selectedConsultation.doctor?.fullName || 'Врач'}
+              name={selectedConsultation.doctor?.fullName || t('booking.doctor_fallback')}
               size="md"
             />
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-slate-900 truncate">
-                {selectedConsultation.doctor?.fullName || 'Врач'}
+                {selectedConsultation.doctor?.fullName || t('booking.doctor_fallback')}
               </h3>
               <p className="text-sm text-slate-500">
-                Видеоконсультация &middot;{' '}
-                {new Date(selectedConsultation.dateTime).toLocaleDateString('ru-RU', {
+                {t('chat.video_consultation')} &middot;{' '}
+                {new Date(selectedConsultation.dateTime).toLocaleDateString(dateLocale, {
                   day: 'numeric', month: 'long', year: 'numeric',
                 })}
               </p>
             </div>
-            <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">Архив</span>
+            <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">{t('chat.archive')}</span>
           </div>
 
           {/* Messages (read-only) */}
@@ -284,7 +284,7 @@ function ChatComponent({ userRole = 'patient' }) {
                     <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                     {msg.time && (
                       <p className={cn('text-xs mt-1', isMe ? 'text-teal-100' : 'text-slate-400')}>
-                        {new Date(msg.time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(msg.time).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     )}
                   </div>
@@ -295,7 +295,7 @@ function ChatComponent({ userRole = 'patient' }) {
 
           {/* Read-only notice */}
           <div className="p-4 border-t border-slate-100 bg-slate-50">
-            <p className="text-center text-sm text-slate-400">Это архив переписки — отвечать нельзя</p>
+            <p className="text-center text-sm text-slate-400">{t('chat.archive_notice')}</p>
           </div>
         </div>
       ) : currentConversation ? (
@@ -311,12 +311,10 @@ function ChatComponent({ userRole = 'patient' }) {
               </button>
               {(() => {
                 const participant = getParticipant(currentConversation)
-                const participantName = participant.fullName || participant.username || 'Собеседник'
+                const participantName = participant.fullName || participant.username || t('chat.interlocutor')
                 const isOnline = participant.isOnline || false
                 const spec = userRole === 'patient'
-                  ? (typeof participant.specialization === 'object'
-                      ? participant.specialization?.name
-                      : participant.specialization || '')
+                  ? getSpecName(participant.specialization, lang)
                   : ''
 
                 return (
@@ -331,7 +329,7 @@ function ChatComponent({ userRole = 'patient' }) {
                       <p className="text-sm text-slate-500">
                         {spec}
                         {isOnline && (
-                          <span className="text-emerald-600 ml-2">● онлайн</span>
+                          <span className="text-emerald-600 ml-2">{t('chat.online_status')}</span>
                         )}
                       </p>
                     </div>
@@ -360,8 +358,8 @@ function ChatComponent({ userRole = 'patient' }) {
               </div>
             ) : messages.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-slate-500">Нет сообщений</p>
-                <p className="text-slate-400 text-sm mt-1">Начните диалог первым!</p>
+                <p className="text-slate-500">{t('chat.no_messages')}</p>
+                <p className="text-slate-400 text-sm mt-1">{t('chat.start_dialog')}</p>
               </div>
             ) : (
               messages.map((message) => {
@@ -384,7 +382,7 @@ function ChatComponent({ userRole = 'patient' }) {
                         'text-xs mt-1',
                         isMe ? 'text-teal-100' : 'text-slate-400'
                       )}>
-                        {time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                        {time.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
@@ -407,7 +405,7 @@ function ChatComponent({ userRole = 'patient' }) {
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Написать сообщение..."
+                placeholder={t('chat.message_placeholder')}
                 className="flex-1 px-4 py-3 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
               <button type="button" className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-500">
@@ -432,10 +430,10 @@ function ChatComponent({ userRole = 'patient' }) {
               <Send className="w-8 h-8 text-slate-400" />
             </div>
             <h3 className="text-lg font-medium text-slate-900 mb-2">
-              Выберите диалог
+              {t('chat.select_dialog')}
             </h3>
             <p className="text-slate-500">
-              Выберите диалог из списка слева, чтобы начать общение
+              {t('chat.select_dialog_hint')}
             </p>
           </div>
         </div>

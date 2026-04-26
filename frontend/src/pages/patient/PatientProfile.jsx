@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { User, Mail, Phone, Calendar, CreditCard, Shield, Bell, LogOut } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -8,6 +9,7 @@ import useAuthStore from '../../stores/authStore'
 import { formatDate } from '../../utils/helpers'
 
 function PatientProfile() {
+  const { t } = useTranslation()
   const { user, updateProfile, logout } = useAuthStore()
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -33,11 +35,11 @@ function PatientProfile() {
   }
 
   const profileFields = [
-    { name: 'fullName', label: 'ФИО', icon: User, type: 'text' },
-    { name: 'email', label: 'Email', icon: Mail, type: 'email' },
-    { name: 'phone', label: 'Телефон', icon: Phone, type: 'tel' },
-    { name: 'iin', label: 'ИИН', icon: CreditCard, type: 'text' },
-    { name: 'birthDate', label: 'Дата рождения', icon: Calendar, type: 'date' },
+    { name: 'fullName', label: t('profile.full_name'), icon: User, type: 'text' },
+    { name: 'email', label: t('profile.email'), icon: Mail, type: 'email' },
+    { name: 'phone', label: t('profile.phone'), icon: Phone, type: 'tel' },
+    { name: 'iin', label: t('profile.iin'), icon: CreditCard, type: 'text' },
+    { name: 'birthDate', label: t('profile.birth_date'), icon: Calendar, type: 'date' },
   ]
 
   return (
@@ -61,22 +63,22 @@ function PatientProfile() {
             </h1>
             <p className="text-slate-600">{user?.email}</p>
             <p className="text-sm text-slate-500 mt-1">
-              Пациент с {formatDate(user?.createdAt || new Date(), 'MMMM yyyy')}
+              {t('profile.patient_since', { date: formatDate(user?.createdAt || new Date(), 'MMMM yyyy') })}
             </p>
           </div>
           <div className="sm:ml-auto">
             {isEditing ? (
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => setIsEditing(false)}>
-                  Отмена
+                  {t('profile.cancel')}
                 </Button>
                 <Button onClick={handleSave} isLoading={isSaving}>
-                  Сохранить
+                  {t('profile.save')}
                 </Button>
               </div>
             ) : (
               <Button variant="outline" onClick={() => setIsEditing(true)}>
-                Редактировать
+                {t('profile.edit')}
               </Button>
             )}
           </div>
@@ -86,7 +88,7 @@ function PatientProfile() {
       {/* Personal Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Личные данные</CardTitle>
+          <CardTitle>{t('profile.personal_data')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -113,18 +115,18 @@ function PatientProfile() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="w-5 h-5" />
-              Безопасность
+              {t('profile.security')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button variant="outline" className="w-full justify-start">
-              Изменить пароль
+              {t('profile.change_password')}
             </Button>
             <Button variant="outline" className="w-full justify-start">
-              Двухфакторная аутентификация
+              {t('profile.two_factor')}
             </Button>
             <Button variant="outline" className="w-full justify-start">
-              Активные сессии
+              {t('profile.active_sessions')}
             </Button>
           </CardContent>
         </Card>
@@ -134,31 +136,23 @@ function PatientProfile() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="w-5 h-5" />
-              Уведомления
+              {t('profile.notifications_title')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-700">Email уведомления</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" defaultChecked />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
-              </label>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-700">SMS уведомления</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" defaultChecked />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
-              </label>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-700">Напоминания о записях</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" defaultChecked />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
-              </label>
-            </div>
+            {[
+              { key: 'email_notif', label: t('profile.email_notif') },
+              { key: 'sms_notif', label: t('profile.sms_notif') },
+              { key: 'appointment_reminders', label: t('profile.appointment_reminders') },
+            ].map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between">
+                <span className="text-slate-700">{label}</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" defaultChecked />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                </label>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
@@ -168,15 +162,15 @@ function PatientProfile() {
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-medium text-slate-900">Выйти из аккаунта</h3>
-              <p className="text-sm text-slate-500">Завершить текущую сессию</p>
+              <h3 className="font-medium text-slate-900">{t('profile.logout_title')}</h3>
+              <p className="text-sm text-slate-500">{t('profile.logout_desc')}</p>
             </div>
             <Button
               variant="danger"
               leftIcon={<LogOut className="w-4 h-4" />}
               onClick={logout}
             >
-              Выйти
+              {t('profile.logout')}
             </Button>
           </div>
         </CardContent>

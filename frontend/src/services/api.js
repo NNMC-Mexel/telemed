@@ -341,8 +341,11 @@ export const doctorsAPI = {
         query.append("sort", "rating:desc");
         query.append("pagination[limit]", LARGE_COLLECTION_LIMIT);
 
-        // Убрал фильтр isActive - показываем всех врачей
-        // Можно добавить обратно: query.append('filters[isActive][$eq]', 'true')
+        // B2B model: public catalog shows only active clinic-approved doctors.
+        // Admin screens pass includeInactive=true to manage hidden/disabled profiles.
+        if (!params.includeInactive) {
+            query.append('filters[isActive][$eq]', 'true');
+        }
 
         if (params.specialization) {
             query.append(
@@ -361,7 +364,7 @@ export const doctorsAPI = {
 
     getBySpecialization: (specializationId) =>
         api.get(
-            `/api/doctors?filters[specialization][id][$eq]=${specializationId}&populate=*&pagination[limit]=${LARGE_COLLECTION_LIMIT}`
+            `/api/doctors?filters[specialization][id][$eq]=${specializationId}&filters[isActive][$eq]=true&populate=*&pagination[limit]=${LARGE_COLLECTION_LIMIT}`
         ),
 
     create: async (data) => {

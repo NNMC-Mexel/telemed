@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from 'react-i18next'
 import {
     Calendar,
     Clock,
@@ -28,6 +29,7 @@ import {
 } from "../../utils/helpers";
 
 function DoctorDashboard() {
+    const { t, i18n } = useTranslation()
     const { user } = useAuthStore();
     const [doctor, setDoctor] = useState(null);
     const [appointments, setAppointments] = useState([]);
@@ -52,37 +54,29 @@ function DoctorDashboard() {
                 `/api/doctors?filters[userId][$eq]=${user.id}&populate=*&pagination[limit]=1`,
             );
             const doctorData = doctorRes.data?.data?.[0];
-            console.log("Found doctor for userId", user.id, ":", doctorData);
             setDoctor(doctorData);
 
             if (doctorData?.id) {
                 const today = new Date().toISOString().split("T")[0];
 
-                // Получаем ВСЕ записи и фильтруем на клиенте
                 const appointmentsRes = await api.get(
                     `/api/appointments?populate=*&pagination[limit]=1000`,
                 );
-                console.log("All appointments response:", appointmentsRes.data);
 
-                const { data: allAppointments } =
-                    normalizeResponse(appointmentsRes);
+                const { data: allAppointments } = normalizeResponse(appointmentsRes);
 
-                // Фильтруем записи для этого врача
                 const doctorAppointments = (allAppointments || []).filter(
                     (apt) => {
                         return (
                             apt.doctor?.id === doctorData.id ||
                             (doctorData.documentId &&
-                                apt.doctor?.documentId ===
-                                    doctorData.documentId)
+                                apt.doctor?.documentId === doctorData.documentId)
                         );
                     },
                 );
-                console.log("Doctor appointments:", doctorAppointments);
 
                 setAppointments(doctorAppointments);
 
-                // Получаем отзывы (все, фильтруем на клиенте)
                 const reviewsRes = await api.get(`/api/reviews?populate=*&pagination[limit]=1000`);
                 const { data: allReviews } = normalizeResponse(reviewsRes);
                 const allDoctorReviews = (allReviews || [])
@@ -90,21 +84,16 @@ function DoctorDashboard() {
                 const doctorReviews = allDoctorReviews.slice(0, 5);
                 setReviews(doctorReviews);
 
-                // Вычисляем рейтинг из реальных отзывов
                 const computedRating = allDoctorReviews.length > 0
                     ? allDoctorReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / allDoctorReviews.length
                     : 0;
 
-                // Подсчитываем статистику на основе уже полученных данных
                 const todayStr = today;
                 const todayAppts = doctorAppointments.filter((a) => {
-                    const aptDate = new Date(a.dateTime)
-                        .toISOString()
-                        .split("T")[0];
+                    const aptDate = new Date(a.dateTime).toISOString().split("T")[0];
                     return aptDate === todayStr && (a.statuse || a.status) === "confirmed";
                 });
 
-                // Месячная статистика
                 const monthStart = new Date();
                 monthStart.setDate(1);
                 const monthlyCompleted = doctorAppointments.filter((a) => {
@@ -134,13 +123,13 @@ function DoctorDashboard() {
     const getStatusBadge = (status) => {
         switch (status) {
             case "completed":
-                return <Badge variant='success'>Завершён</Badge>;
+                return <Badge variant='success'>{t('appointment.status_completed')}</Badge>;
             case "confirmed":
-                return <Badge variant='primary'>Подтверждён</Badge>;
+                return <Badge variant='primary'>{t('appointment.status_confirmed')}</Badge>;
             case "pending":
-                return <Badge variant='warning'>Ожидает</Badge>;
+                return <Badge variant='warning'>{t('appointment.status_pending')}</Badge>;
             case "cancelled":
-                return <Badge variant='danger'>Отменён</Badge>;
+                return <Badge variant='danger'>{t('appointment.status_cancelled')}</Badge>;
             default:
                 return null;
         }
@@ -156,6 +145,10 @@ function DoctorDashboard() {
         (a) => (a.statuse || a.status) === "confirmed" && new Date(a.dateTime) > new Date(),
     );
 
+    const todayCountWord = stats.todayPatients === 1
+        ? t('doctor.count_word_1')
+        : t('doctor.count_word_many')
+
     if (isLoading) {
         return (
             <div className='flex items-center justify-center py-12'>
@@ -170,17 +163,15 @@ function DoctorDashboard() {
             <div className='flex items-center justify-between'>
                 <div>
                     <h1 className='text-2xl font-bold text-slate-900'>
-                        Добрый день, {user?.fullName?.split(" ")[1] || "Доктор"}
-                        ! 👨‍⚕️
+                        {t('doctor.greeting', { name: user?.fullName?.split(" ")[1] || user?.fullName?.split(" ")[0] || t('doctor.patient_default') })}
                     </h1>
                     <p className='text-slate-600 mt-1'>
-                        У вас сегодня {stats.todayPatients}{" "}
-                        {stats.todayPatients === 1 ? "запись" : "записей"}
+                        {t('doctor.today_appointments', { count: stats.todayPatients, word: todayCountWord })}
                     </p>
                 </div>
                 <Link to='/doctor/schedule'>
                     <Button rightIcon={<ChevronRight className='w-4 h-4' />}>
-                        Расписание
+                        {t('doctor.schedule_link')}
                     </Button>
                 </Link>
             </div>
@@ -198,7 +189,7 @@ function DoctorDashboard() {
                             {stats.todayPatients}
                         </p>
                         <p className='text-sm text-slate-500'>
-                            Пациентов сегодня
+                            {t('doctor.stat_patients_today')}
                         </p>
                     </CardContent>
                 </Card>
@@ -212,7 +203,7 @@ function DoctorDashboard() {
                         <p className='text-2xl font-bold text-slate-900'>
                             {formatPrice(stats.monthlyEarnings)}
                         </p>
-                        <p className='text-sm text-slate-500'>За месяц</p>
+                        <p className='text-sm text-slate-500'>{t('doctor.stat_monthly_earnings')}</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -225,7 +216,7 @@ function DoctorDashboard() {
                         <p className='text-2xl font-bold text-slate-900'>
                             {stats.rating.toFixed(1)}
                         </p>
-                        <p className='text-sm text-slate-500'>Рейтинг</p>
+                        <p className='text-sm text-slate-500'>{t('doctor.stat_rating')}</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -239,7 +230,7 @@ function DoctorDashboard() {
                             {stats.monthlyConsultations}
                         </p>
                         <p className='text-sm text-slate-500'>
-                            Консультаций за месяц
+                            {t('doctor.stat_monthly_consultations')}
                         </p>
                     </CardContent>
                 </Card>
@@ -250,11 +241,11 @@ function DoctorDashboard() {
                 <div className='md:col-span-2 min-w-0'>
                     <Card className='min-w-0'>
                         <CardHeader className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between min-w-0'>
-                            <CardTitle>Расписание на сегодня</CardTitle>
+                            <CardTitle>{t('doctor.today_schedule')}</CardTitle>
                             <Link
                                 to='/doctor/schedule'
                                 className='text-sm text-teal-600 hover:text-teal-700 self-start sm:self-auto'>
-                                Полное расписание
+                                {t('doctor.full_schedule')}
                             </Link>
                         </CardHeader>
                         <CardContent className='space-y-3 min-w-0'>
@@ -262,7 +253,7 @@ function DoctorDashboard() {
                                 <div className='text-center py-8'>
                                     <Calendar className='w-12 h-12 mx-auto text-slate-300 mb-3' />
                                     <p className='text-slate-600'>
-                                        На сегодня записей нет
+                                        {t('doctor.no_today_appointments')}
                                     </p>
                                 </div>
                             ) : (
@@ -270,59 +261,36 @@ function DoctorDashboard() {
                                     const patientName =
                                         appointment.patient?.fullName ||
                                         appointment.patient?.username ||
-                                        "Пациент";
-                                    const time = new Date(
-                                        appointment.dateTime,
-                                    ).toLocaleTimeString("ru-RU", {
+                                        t('doctor.patient_default');
+                                    const time = new Date(appointment.dateTime).toLocaleTimeString("ru-RU", {
                                         hour: "2-digit",
                                         minute: "2-digit",
                                     });
                                     const now = getServerNow();
-                                    const aptTime = new Date(
-                                        appointment.dateTime,
-                                    );
+                                    const aptTime = new Date(appointment.dateTime);
 
-                                    // Длительность консультации (из настроек врача или 30 мин по умолчанию)
-                                    const consultationDuration =
-                                        doctor?.consultationDuration || 30;
-                                    // Буфер после окончания консультации (5 минут)
+                                    const consultationDuration = doctor?.consultationDuration || 30;
                                     const bufferMinutes = 5;
 
-                                    // Можно подключиться: за 15 минут до начала и до окончания консультации + буфер
-                                    const fifteenMinBefore = new Date(
-                                        aptTime.getTime() - 15 * 60 * 1000,
-                                    );
+                                    const fifteenMinBefore = new Date(aptTime.getTime() - 15 * 60 * 1000);
                                     const consultationEnd = new Date(
-                                        aptTime.getTime() +
-                                            (consultationDuration +
-                                                bufferMinutes) *
-                                                60 *
-                                                1000,
+                                        aptTime.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000,
                                     );
                                     const canJoin =
-                                        ["confirmed", "pending"].includes(
-                                            appointment.statuse || appointment.status,
-                                        ) &&
+                                        ["confirmed", "pending"].includes(appointment.statuse || appointment.status) &&
                                         now >= fifteenMinBefore &&
                                         now <= consultationEnd;
 
-                                    // Консультация прошла (по времени или принудительно завершена)
                                     const isPastConsultation =
-                                        now > consultationEnd ||
-                                        appointment.statuse === 'completed';
+                                        now > consultationEnd || appointment.statuse === 'completed';
 
-                                    const isNow =
-                                        Math.abs(now - aptTime) <
-                                        30 * 60 * 1000; // ±30 минут (для выделения)
+                                    const isNow = Math.abs(now - aptTime) < 30 * 60 * 1000;
 
                                     return (
                                         <div
                                             key={appointment.id}
                                             className={`p-3 sm:p-4 rounded-xl ${
-                                                isNow &&
-                                                appointment.status ===
-                                                    "confirmed" &&
-                                                !isPastConsultation
+                                                isNow && appointment.status === "confirmed" && !isPastConsultation
                                                     ? "bg-teal-50 border-2 border-teal-200"
                                                     : isPastConsultation
                                                       ? "bg-slate-100"
@@ -336,7 +304,7 @@ function DoctorDashboard() {
                                                             {time}
                                                         </p>
                                                         <p className='text-[10px] text-slate-500'>
-                                                            {appointment.type === "video" ? "Видео" : "Чат"}
+                                                            {appointment.type === "video" ? t('doctor.type_video') : t('doctor.type_chat')}
                                                         </p>
                                                     </div>
                                                     <div className='w-px h-10 bg-slate-200 shrink-0' />
@@ -355,7 +323,7 @@ function DoctorDashboard() {
                                                     </div>
                                                     <div className='shrink-0'>
                                                         {isPastConsultation && (appointment.statuse || appointment.status) !== "cancelled" ? (
-                                                            <Badge variant='success'>Завершён</Badge>
+                                                            <Badge variant='success'>{t('doctor.status_completed')}</Badge>
                                                         ) : (
                                                             getStatusBadge(appointment.statuse || appointment.status)
                                                         )}
@@ -364,16 +332,14 @@ function DoctorDashboard() {
                                                 {canJoin && appointment.roomId && (
                                                     <Link to={`/consultation/${appointment.roomId}`} className='block mt-2'>
                                                         <Button size='sm' className='w-full' leftIcon={<Video className='w-4 h-4' />}>
-                                                            Начать приём
+                                                            {t('doctor.start_appointment')}
                                                         </Button>
                                                     </Link>
                                                 )}
                                                 {!canJoin && isPastConsultation && appointment.roomId && (
-                                                    <Link
-                                                        to={`/doctor/appointments/${appointment.documentId || appointment.id}`}
-                                                        className='block mt-2'>
+                                                    <Link to={`/doctor/appointments/${appointment.documentId || appointment.id}`} className='block mt-2'>
                                                         <Button size='sm' variant='secondary' className='w-full'>
-                                                            Детали
+                                                            {t('doctor.details')}
                                                         </Button>
                                                     </Link>
                                                 )}
@@ -387,7 +353,7 @@ function DoctorDashboard() {
                                                             {time}
                                                         </p>
                                                         <p className='text-xs text-slate-500'>
-                                                            {appointment.type === "video" ? "Видео" : "Чат"}
+                                                            {appointment.type === "video" ? t('doctor.type_video') : t('doctor.type_chat')}
                                                         </p>
                                                     </div>
                                                     <div className='w-px h-12 bg-slate-200' />
@@ -407,19 +373,19 @@ function DoctorDashboard() {
                                                 </div>
                                                 <div className='flex items-center gap-2 shrink-0'>
                                                     {isPastConsultation && (appointment.statuse || appointment.status) !== "cancelled" ? (
-                                                        <Badge variant='success'>Завершён</Badge>
+                                                        <Badge variant='success'>{t('doctor.status_completed')}</Badge>
                                                     ) : (
                                                         getStatusBadge(appointment.statuse || appointment.status)
                                                     )}
                                                     {canJoin && appointment.roomId ? (
                                                         <Link to={`/consultation/${appointment.roomId}`}>
                                                             <Button size='sm' leftIcon={<Video className='w-4 h-4' />}>
-                                                                Подключиться
+                                                                {t('doctor.connect')}
                                                             </Button>
                                                         </Link>
                                                     ) : isPastConsultation && appointment.roomId ? (
                                                         <Link to={`/doctor/appointments/${appointment.documentId || appointment.id}`}>
-                                                            <Button size='sm' variant='secondary'>Детали</Button>
+                                                            <Button size='sm' variant='secondary'>{t('doctor.details')}</Button>
                                                         </Link>
                                                     ) : null}
                                                 </div>
@@ -439,71 +405,50 @@ function DoctorDashboard() {
                         (() => {
                             const now = getServerNow();
                             const aptTime = new Date(nextAppointment.dateTime);
-                            const consultationDuration =
-                                doctor?.consultationDuration || 30;
+                            const consultationDuration = doctor?.consultationDuration || 30;
                             const bufferMinutes = 5;
-                            const fifteenMinBefore = new Date(
-                                aptTime.getTime() - 15 * 60 * 1000,
-                            );
+                            const fifteenMinBefore = new Date(aptTime.getTime() - 15 * 60 * 1000);
                             const consultationEnd = new Date(
-                                aptTime.getTime() +
-                                    (consultationDuration + bufferMinutes) *
-                                        60 *
-                                        1000,
+                                aptTime.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000,
                             );
-                            const canJoinNext =
-                                now >= fifteenMinBefore &&
-                                now <= consultationEnd;
+                            const canJoinNext = now >= fifteenMinBefore && now <= consultationEnd;
 
                             return (
-                    <Card className='bg-gradient-to-br from-teal-500 to-sky-500 text-white min-w-0'>
-                        <CardContent className='min-w-0'>
+                                <Card className='bg-gradient-to-br from-teal-500 to-sky-500 text-white min-w-0'>
+                                    <CardContent className='min-w-0'>
                                         <div className='flex items-center gap-2 mb-4'>
                                             <Clock className='w-5 h-5' />
                                             <span className='font-medium'>
-                                                Следующий приём
+                                                {t('doctor.next_appointment')}
                                             </span>
                                         </div>
                                         <div className='flex items-center gap-4'>
                                             <Avatar
-                                                src={getMediaUrl(
-                                                    nextAppointment.patient
-                                                        ?.avatar,
-                                                )}
-                                                name={
-                                                    nextAppointment.patient
-                                                        ?.fullName || "Пациент"
-                                                }
+                                                src={getMediaUrl(nextAppointment.patient?.avatar)}
+                                                name={nextAppointment.patient?.fullName || t('doctor.patient_default')}
                                                 size='lg'
                                             />
                                             <div>
                                                 <h4 className='font-semibold'>
-                                                    {nextAppointment.patient?.fullName
-                                                        ?.split(" ")
-                                                        .slice(0, 2)
-                                                        .join(" ") || "Пациент"}
+                                                    {nextAppointment.patient?.fullName?.split(" ").slice(0, 2).join(" ") || t('doctor.patient_default')}
                                                 </h4>
                                                 <p className='text-white/80 text-sm'>
-                                                    {formatRelativeDate(
-                                                        nextAppointment.dateTime,
-                                                    )}
+                                                    {formatRelativeDate(nextAppointment.dateTime)}
                                                 </p>
                                             </div>
                                         </div>
-                                        {nextAppointment.roomId &&
-                                        canJoinNext ? (
-                                            <Link
-                                                to={`/consultation/${nextAppointment.roomId}`}>
-                                                <Button className='w-full mt-4  text-teal-600 hover:bg-white/90 text-teal-600 '>
+                                        {nextAppointment.roomId && canJoinNext ? (
+                                            <Link to={`/consultation/${nextAppointment.roomId}`}>
+                                                <Button className='w-full mt-4 text-teal-600 hover:bg-white/90'>
                                                     <Video className='w-4 h-4 mr-2' />
-                                                    Начать приём
+                                                    {t('doctor.start_appointment')}
                                                 </Button>
                                             </Link>
                                         ) : (
                                             <div className='w-full mt-4 py-2.5 px-4 bg-white/20 text-white text-center rounded-xl text-sm'>
                                                 {nextAppointment.roomId
-                                                    ? "Комната откроется за 15 минут до приёма"
-                                                    : "Комната будет доступна перед началом"}
+                                                    ? t('doctor.room_opens_15min')
+                                                    : t('doctor.room_available_soon')}
                                             </div>
                                         )}
                                     </CardContent>
@@ -516,32 +461,27 @@ function DoctorDashboard() {
                         <CardHeader className='min-w-0'>
                             <CardTitle className='flex items-center gap-2'>
                                 <Star className='w-5 h-5 text-amber-400' />
-                                Отзывы
+                                {t('doctor.reviews_title')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className='space-y-3 min-w-0'>
                             {reviews.length === 0 ? (
                                 <p className='text-center text-slate-500 py-4 text-sm'>
-                                    Пока нет отзывов
+                                    {t('doctor.no_reviews')}
                                 </p>
                             ) : (
                                 reviews.map((review) => (
-                                    <div
-                                        key={review.id}
-                                        className='p-3 bg-slate-50 rounded-xl min-w-0'>
+                                    <div key={review.id} className='p-3 bg-slate-50 rounded-xl min-w-0'>
                                         <div className='flex items-center justify-between mb-2'>
                                             <span className='font-medium text-slate-900 text-sm min-w-0 truncate'>
-                                                {review.patient?.fullName?.split(
-                                                    " ",
-                                                )[0] || "Пациент"}
+                                                {review.patient?.fullName?.split(" ")[0] || t('doctor.patient_default')}
                                             </span>
                                             <div className='flex items-center gap-0.5'>
                                                 {[...Array(5)].map((_, i) => (
                                                     <Star
                                                         key={i}
                                                         className={`w-3 h-3 ${
-                                                            i <
-                                                            (review.rating || 0)
+                                                            i < (review.rating || 0)
                                                                 ? "text-amber-400 fill-amber-400"
                                                                 : "text-slate-200"
                                                         }`}
@@ -553,7 +493,7 @@ function DoctorDashboard() {
                                             {review.comment || review.text}
                                         </p>
                                         <p className='text-xs text-slate-400 mt-1'>
-                                            {formatDate(review.createdAt)}
+                                            {formatDate(review.createdAt, i18n.language)}
                                         </p>
                                     </div>
                                 ))

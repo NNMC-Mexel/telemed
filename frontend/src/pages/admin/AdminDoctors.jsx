@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Camera, Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -19,6 +20,9 @@ const defaultForm = {
   specialization: '',
   experience: '0',
   price: '8000',
+  licenseNumber: '',
+  position: '',
+  workplace: 'ННМЦ',
   bio: '',
   education: '',
   isActive: true,
@@ -36,6 +40,9 @@ function toPayload(form) {
     specialization: form.specialization ? Number(form.specialization) : null,
     experience: Number(form.experience) || 0,
     price: Number(form.price) || 0,
+    licenseNumber: form.licenseNumber.trim(),
+    position: form.position.trim(),
+    workplace: form.workplace.trim(),
     bio: form.bio || '',
     education: form.education || '',
     isActive: Boolean(form.isActive),
@@ -49,6 +56,7 @@ function toPayload(form) {
 }
 
 function AdminDoctors() {
+  const { t } = useTranslation()
   const [doctors, setDoctors] = useState([])
   const [specializations, setSpecializations] = useState([])
   const [search, setSearch] = useState('')
@@ -106,7 +114,7 @@ function AdminDoctors() {
     setIsLoading(true)
     try {
       const [doctorsRes, specsRes] = await Promise.all([
-        doctorsAPI.getAll(),
+        doctorsAPI.getAll({ includeInactive: true }),
         specializationsAPI.getAll(),
       ])
 
@@ -193,7 +201,7 @@ function AdminDoctors() {
   }
 
   const openEditModal = (doctor) => {
-      const linkedUser = extractUser(doctor.users_permissions_user) || null
+    const linkedUser = extractUser(doctor.users_permissions_user) || null
     setEditingDoctor(doctor)
     setForm({
       username: linkedUser?.username || '',
@@ -207,6 +215,9 @@ function AdminDoctors() {
           : String(doctor.specialization || ''),
       experience: String(doctor.experience || 0),
       price: String(doctor.price || 0),
+      licenseNumber: doctor.licenseNumber || '',
+      position: doctor.position || '',
+      workplace: doctor.workplace || 'ННМЦ',
       bio: doctor.bio || '',
       education: doctor.education || '',
       isActive: doctor.isActive !== false,
@@ -228,12 +239,12 @@ function AdminDoctors() {
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      alert('Можно загрузить только изображение')
+      alert(t('admin_doc.err_image_only'))
       return
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Максимальный размер файла: 5MB')
+      alert(t('admin_doc.err_size'))
       return
     }
 
@@ -262,42 +273,47 @@ function AdminDoctors() {
     e.preventDefault()
 
     if (!form.username.trim()) {
-      alert('Введите логин врача')
+      alert(t('admin_doc.err_login'))
       return
     }
 
     if (!form.email.trim()) {
-      alert('Введите email врача')
+      alert(t('admin_doc.err_email'))
       return
     }
 
     if (!form.fullName.trim()) {
-      alert('Введите ФИО врача')
+      alert(t('admin_doc.err_name'))
       return
     }
 
     if (!form.price || Number(form.price) < 0) {
-      alert('Укажите корректную цену')
+      alert(t('admin_doc.err_price'))
+      return
+    }
+
+    if (!form.licenseNumber.trim()) {
+      alert(t('admin_doc.err_license'))
       return
     }
 
     if ((!editingDoctor || !(extractUser(editingDoctor.users_permissions_user)?.id)) && !form.password) {
-      alert('Введите пароль для нового аккаунта врача')
+      alert(t('admin_doc.err_password'))
       return
     }
 
     if (!doctorRoleId && (!editingDoctor || !(extractUser(editingDoctor.users_permissions_user)?.id))) {
-      alert('Роль doctor не найдена. Проверьте роли в Strapi и перезапустите backend.')
+      alert(t('admin_doc.err_no_role'))
       return
     }
 
     if (form.password && form.password.length < 6) {
-      alert('Пароль должен быть минимум 6 символов')
+      alert(t('admin_doc.err_short_password'))
       return
     }
 
     if (form.password !== form.confirmPassword) {
-      alert('Пароли не совпадают')
+      alert(t('admin_doc.err_password_mismatch'))
       return
     }
 
@@ -357,8 +373,8 @@ function AdminDoctors() {
       await loadData()
     } catch (error) {
       console.error('Error saving doctor:', error)
-      const message = error?.response?.data?.error?.message || error?.message || 'Не удалось сохранить врача'
-      alert(`Не удалось сохранить врача: ${message}`)
+      const message = error?.response?.data?.error?.message || error?.message || t('admin_doc.err_save')
+      alert(t('admin_doc.err_save_msg', { message }))
     } finally {
       setIsSaving(false)
     }
@@ -367,7 +383,7 @@ function AdminDoctors() {
   const handleDelete = async (doctor) => {
     if (!doctor?.documentId) return
 
-    const confirmed = window.confirm(`Удалить врача ${doctor.fullName}?`)
+    const confirmed = window.confirm(t('admin_doc.confirm_delete', { name: doctor.fullName }))
     if (!confirmed) return
 
     try {
@@ -375,7 +391,7 @@ function AdminDoctors() {
       await loadData()
     } catch (error) {
       console.error('Error deleting doctor:', error)
-      alert('Не удалось удалить врача')
+      alert(t('admin_doc.err_delete'))
     }
   }
 
@@ -391,11 +407,11 @@ function AdminDoctors() {
     <div className='space-y-6 animate-fadeIn'>
       <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4'>
         <div>
-          <h1 className='text-2xl font-bold text-slate-900'>Врачи</h1>
-          <p className='text-slate-600'>Создание и управление профилями врачей</p>
+          <h1 className='text-2xl font-bold text-slate-900'>{t('admin_doc.title')}</h1>
+          <p className='text-slate-600'>{t('admin_doc.subtitle')}</p>
         </div>
         <Button leftIcon={<Plus className='w-4 h-4' />} onClick={openCreateModal}>
-          Добавить врача
+          {t('admin_doc.add_btn')}
         </Button>
       </div>
 
@@ -403,42 +419,43 @@ function AdminDoctors() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder='Поиск по ФИО или био...'
+          placeholder={t('admin_doc.search_placeholder')}
           leftIcon={<Search className='w-4 h-4' />}
         />
         <Select
           value={specFilter}
           onChange={(e) => setSpecFilter(e.target.value)}
           options={[
-            { value: 'all', label: 'Все специализации' },
+            { value: 'all', label: t('admin_doc.filter_all') },
             ...specializationOptions,
           ]}
-          placeholder='Фильтр по специализации'
+          placeholder={t('admin_doc.filter_placeholder')}
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Список врачей ({filteredDoctors.length})</CardTitle>
+          <CardTitle>{t('admin_doc.list_title', { count: filteredDoctors.length })}</CardTitle>
         </CardHeader>
         <CardContent className='p-0'>
           <div className='overflow-x-auto'>
             <table className='w-full'>
               <thead>
                 <tr className='border-b border-slate-200'>
-                  <th className='text-left py-4 px-6 font-medium text-slate-500'>ФИО</th>
-                  <th className='text-left py-4 px-6 font-medium text-slate-500'>Специализация</th>
-                  <th className='text-left py-4 px-6 font-medium text-slate-500'>Стаж</th>
-                  <th className='text-left py-4 px-6 font-medium text-slate-500'>Цена</th>
-                  <th className='text-left py-4 px-6 font-medium text-slate-500'>Статус</th>
-                  <th className='text-right py-4 px-6 font-medium text-slate-500'>Действия</th>
+                  <th className='text-left py-4 px-6 font-medium text-slate-500'>{t('admin_doc.col_name')}</th>
+                  <th className='text-left py-4 px-6 font-medium text-slate-500'>{t('admin_doc.col_spec')}</th>
+                  <th className='text-left py-4 px-6 font-medium text-slate-500'>{t('admin_doc.col_license')}</th>
+                  <th className='text-left py-4 px-6 font-medium text-slate-500'>{t('admin_doc.col_exp')}</th>
+                  <th className='text-left py-4 px-6 font-medium text-slate-500'>{t('admin_doc.col_price')}</th>
+                  <th className='text-left py-4 px-6 font-medium text-slate-500'>{t('admin_doc.col_status')}</th>
+                  <th className='text-right py-4 px-6 font-medium text-slate-500'>{t('admin_doc.col_actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredDoctors.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className='text-center py-10 text-slate-500'>
-                      Врачи не найдены
+                    <td colSpan={7} className='text-center py-10 text-slate-500'>
+                      {t('admin_doc.not_found')}
                     </td>
                   </tr>
                 ) : (
@@ -447,16 +464,19 @@ function AdminDoctors() {
                       <td className='py-4 px-6 font-medium text-slate-900'>{doctor.fullName}</td>
                       <td className='py-4 px-6 text-slate-600'>
                         {typeof doctor.specialization === 'object'
-                          ? doctor.specialization?.name || 'Не указана'
-                          : doctor.specialization || 'Не указана'}
+                          ? doctor.specialization?.name || t('admin_doc.no_spec')
+                          : doctor.specialization || t('admin_doc.no_spec')}
                       </td>
-                      <td className='py-4 px-6 text-slate-600'>{doctor.experience || 0} лет</td>
+                      <td className='py-4 px-6 text-slate-600'>{doctor.licenseNumber || '—'}</td>
+                      <td className='py-4 px-6 text-slate-600'>
+                        {t('admin_doc.exp_years', { count: doctor.experience || 0 })}
+                      </td>
                       <td className='py-4 px-6 text-slate-600'>
                         {(doctor.price || 0).toLocaleString('ru-RU')} ₸
                       </td>
                       <td className='py-4 px-6'>
                         <Badge variant={doctor.isActive === false ? 'danger' : 'success'}>
-                          {doctor.isActive === false ? 'Неактивен' : 'Активен'}
+                          {doctor.isActive === false ? t('admin_doc.inactive') : t('admin_doc.active')}
                         </Badge>
                       </td>
                       <td className='py-4 px-6'>
@@ -465,7 +485,7 @@ function AdminDoctors() {
                             size='icon'
                             variant='secondary'
                             onClick={() => openEditModal(doctor)}
-                            aria-label='Редактировать'
+                            aria-label={t('admin_doc.edit_aria')}
                           >
                             <Pencil className='w-4 h-4' />
                           </Button>
@@ -473,7 +493,7 @@ function AdminDoctors() {
                             size='icon'
                             variant='secondary'
                             onClick={() => handleDelete(doctor)}
-                            aria-label='Удалить'
+                            aria-label={t('admin_doc.delete_aria')}
                           >
                             <Trash2 className='w-4 h-4 text-rose-600' />
                           </Button>
@@ -491,15 +511,15 @@ function AdminDoctors() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingDoctor ? 'Редактировать врача' : 'Добавить врача'}
+        title={editingDoctor ? t('admin_doc.modal_title_edit') : t('admin_doc.modal_title_add')}
         size='xl'
         footer={
           <>
             <Button variant='secondary' onClick={() => setIsModalOpen(false)} disabled={isSaving}>
-              Отмена
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSave} isLoading={isSaving}>
-              {editingDoctor ? 'Сохранить' : 'Создать'}
+              {editingDoctor ? t('admin_doc.save') : t('admin_doc.create')}
             </Button>
           </>
         }
@@ -507,11 +527,11 @@ function AdminDoctors() {
         <form onSubmit={handleSave} className='space-y-4'>
           <div className='grid md:grid-cols-2 gap-4'>
             <Input
-              label='Логин'
+              label={t('admin_doc.label_login')}
               required
               value={form.username}
               onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value }))}
-              placeholder='Например: doctor_ivanov'
+              placeholder={t('admin_doc.placeholder_login')}
             />
             <Input
               label='Email'
@@ -525,28 +545,28 @@ function AdminDoctors() {
 
           <div className='grid md:grid-cols-2 gap-4'>
             <Input
-              label={editingDoctor ? 'Новый пароль (опционально)' : 'Пароль'}
+              label={editingDoctor ? t('admin_doc.label_password_new') : t('admin_doc.label_password')}
               type='password'
               required={!editingDoctor}
               value={form.password}
               onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-              placeholder={editingDoctor ? 'Оставьте пустым, если не менять' : 'Минимум 6 символов'}
-              hint={editingDoctor ? 'Текущий пароль не отображается. Чтобы изменить, введите новый.' : undefined}
+              placeholder={editingDoctor ? t('admin_doc.placeholder_password_new') : t('admin_doc.placeholder_password')}
+              hint={editingDoctor ? t('admin_doc.hint_password') : undefined}
             />
             <Input
-              label={editingDoctor ? 'Подтверждение нового пароля' : 'Подтверждение пароля'}
+              label={editingDoctor ? t('admin_doc.label_confirm_new') : t('admin_doc.label_confirm')}
               type='password'
               required={!editingDoctor}
               value={form.confirmPassword}
               onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-              placeholder='Повторите пароль'
+              placeholder={t('admin_doc.placeholder_confirm')}
             />
           </div>
 
           <div className='flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200'>
             <div className='w-20 h-20 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center'>
               {photoPreview ? (
-                <img src={photoPreview} alt='Фото врача' className='w-full h-full object-cover' />
+                <img src={photoPreview} alt={t('admin_doc.photo_alt')} className='w-full h-full object-cover' />
               ) : (
                 <Camera className='w-8 h-8 text-slate-500' />
               )}
@@ -555,12 +575,12 @@ function AdminDoctors() {
               <label className='inline-flex'>
                 <input type='file' accept='image/*' className='hidden' onChange={handlePhotoSelect} />
                 <span className='inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer transition-colors'>
-                  Загрузить фото
+                  {t('admin_doc.upload_photo')}
                 </span>
               </label>
               {photoPreview && (
                 <Button type='button' variant='secondary' onClick={handleRemovePhoto} leftIcon={<X className='w-4 h-4' />}>
-                  Удалить фото
+                  {t('admin_doc.remove_photo')}
                 </Button>
               )}
             </div>
@@ -568,31 +588,53 @@ function AdminDoctors() {
 
           <div className='grid md:grid-cols-2 gap-4'>
             <Input
-              label='ФИО'
+              label={t('admin_doc.label_name')}
               required
               value={form.fullName}
               onChange={(e) => setForm((prev) => ({ ...prev, fullName: e.target.value }))}
-              placeholder='Например: Иванов Иван Иванович'
+              placeholder={t('admin_doc.placeholder_name')}
             />
             <Select
-              label='Специализация'
+              label={t('admin_doc.label_spec')}
               value={form.specialization}
               onChange={(e) => setForm((prev) => ({ ...prev, specialization: e.target.value }))}
               options={specializationOptions}
-              placeholder='Выберите специализацию'
+              placeholder={t('admin_doc.placeholder_spec')}
             />
           </div>
 
           <div className='grid md:grid-cols-3 gap-4'>
             <Input
-              label='Стаж (лет)'
+              label={t('admin_doc.label_license')}
+              required
+              value={form.licenseNumber}
+              onChange={(e) => setForm((prev) => ({ ...prev, licenseNumber: e.target.value }))}
+              placeholder={t('admin_doc.placeholder_license')}
+            />
+            <Input
+              label={t('admin_doc.label_position')}
+              value={form.position}
+              onChange={(e) => setForm((prev) => ({ ...prev, position: e.target.value }))}
+              placeholder={t('admin_doc.placeholder_position')}
+            />
+            <Input
+              label={t('admin_doc.label_workplace')}
+              value={form.workplace}
+              onChange={(e) => setForm((prev) => ({ ...prev, workplace: e.target.value }))}
+              placeholder='ННМЦ'
+            />
+          </div>
+
+          <div className='grid md:grid-cols-3 gap-4'>
+            <Input
+              label={t('admin_doc.label_exp')}
               type='number'
               min='0'
               value={form.experience}
               onChange={(e) => setForm((prev) => ({ ...prev, experience: e.target.value }))}
             />
             <Input
-              label='Цена консультации (₸)'
+              label={t('admin_doc.label_price')}
               type='number'
               min='0'
               required
@@ -600,7 +642,7 @@ function AdminDoctors() {
               onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
             />
             <Input
-              label='Длительность слота (мин)'
+              label={t('admin_doc.label_duration')}
               type='number'
               min='10'
               value={form.slotDuration}
@@ -610,13 +652,13 @@ function AdminDoctors() {
 
           <div className='grid md:grid-cols-2 gap-4'>
             <Input
-              label='Рабочее время: начало'
+              label={t('admin_doc.label_start')}
               value={form.workStartTime}
               onChange={(e) => setForm((prev) => ({ ...prev, workStartTime: e.target.value }))}
               placeholder='09:00'
             />
             <Input
-              label='Рабочее время: конец'
+              label={t('admin_doc.label_end')}
               value={form.workEndTime}
               onChange={(e) => setForm((prev) => ({ ...prev, workEndTime: e.target.value }))}
               placeholder='18:00'
@@ -625,13 +667,13 @@ function AdminDoctors() {
 
           <div className='grid md:grid-cols-2 gap-4'>
             <Input
-              label='Перерыв: начало'
+              label={t('admin_doc.label_break_start')}
               value={form.breakStart}
               onChange={(e) => setForm((prev) => ({ ...prev, breakStart: e.target.value }))}
               placeholder='12:00'
             />
             <Input
-              label='Перерыв: конец'
+              label={t('admin_doc.label_break_end')}
               value={form.breakEnd}
               onChange={(e) => setForm((prev) => ({ ...prev, breakEnd: e.target.value }))}
               placeholder='14:00'
@@ -639,27 +681,27 @@ function AdminDoctors() {
           </div>
 
           <Input
-            label='Рабочие дни (номера дней недели через запятую)'
+            label={t('admin_doc.label_working_days')}
             value={form.workingDays}
             onChange={(e) => setForm((prev) => ({ ...prev, workingDays: e.target.value }))}
             placeholder='1,2,3,4,5'
-            hint='1=Пн, 2=Вт, ..., 7=Вс'
+            hint={t('admin_doc.hint_working_days')}
           />
 
           <Textarea
-            label='Образование'
+            label={t('admin_doc.label_education')}
             rows={3}
             value={form.education}
             onChange={(e) => setForm((prev) => ({ ...prev, education: e.target.value }))}
-            placeholder='Краткая информация об образовании врача'
+            placeholder={t('admin_doc.placeholder_education')}
           />
 
           <Textarea
-            label='Био / описание'
+            label={t('admin_doc.label_bio')}
             rows={4}
             value={form.bio}
             onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
-            placeholder='Описание врача для профиля'
+            placeholder={t('admin_doc.placeholder_bio')}
           />
 
           <label className='flex items-center gap-2 text-sm text-slate-700'>
@@ -669,7 +711,7 @@ function AdminDoctors() {
               onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
               className='rounded border-slate-300 text-teal-600 focus:ring-teal-500'
             />
-            Профиль активен
+            {t('admin_doc.label_active')}
           </label>
         </form>
       </Modal>

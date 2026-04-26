@@ -1,8 +1,9 @@
 import { Star, Clock, ThumbsUp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import Button from '../ui/Button'
 import { getMediaUrl } from '../../services/api'
-import { cn, getInitials, isDoctorOnline } from '../../utils/helpers'
+import { cn, getInitials, isDoctorOnline, getSpecName } from '../../utils/helpers'
 
 const colors = [
   'bg-gradient-to-br from-teal-400 to-teal-600',
@@ -17,6 +18,7 @@ const colors = [
 
 function DoctorCard({ doctor, onBookClick, basePath = '' }) {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
 
   const photoUrl = getMediaUrl(doctor.photo)
   const initials = getInitials(doctor.fullName)
@@ -27,17 +29,15 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
   const reviewsCount = doctor.reviewsCount || 0
   const experience = doctor.experience || 0
   const price = doctor.price || 0
-  const specialization = doctor.specialization?.name || 'Специалист'
+  const specialization = getSpecName(doctor.specialization, i18n.language) || t('common.specialist')
   const isOnline = isDoctorOnline(doctor)
 
-  // Calculate recommendation percentage
   const recommendPercent = reviewsCount > 0 ? Math.min(95 + Math.floor(rating), 100) : null
 
-  // Pluralize years
   const getYearWord = (years) => {
-    if (years === 1) return 'год'
-    if (years >= 2 && years <= 4) return 'года'
-    return 'лет'
+    if (years === 1) return t('common.year_1')
+    if (years >= 2 && years <= 4) return t('common.year_2_4')
+    return t('common.year_many')
   }
 
   const handleCardClick = () => {
@@ -102,10 +102,10 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
         <div className="flex items-center justify-between pt-3 border-t border-slate-100">
           <div>
             <p className="text-xl font-bold text-slate-900">{price.toLocaleString('ru-RU')} ₸</p>
-            <p className="text-xs text-slate-500">за консультацию</p>
+            <p className="text-xs text-slate-500">{t('common.price_per_consultation')}</p>
           </div>
           <Button onClick={handleBookClick} size="md">
-            Записаться
+            {t('common.book_appt')}
           </Button>
         </div>
       </div>
@@ -149,11 +149,11 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
             <div className="flex items-center gap-1.5">
               <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
               <span className="font-semibold text-slate-900">{rating.toFixed(1)}</span>
-              <span className="text-slate-500 text-sm">({reviewsCount} отзывов)</span>
+              <span className="text-slate-500 text-sm">({t('doctor_public.reviews_count', { count: reviewsCount })})</span>
             </div>
             <div className="flex items-center gap-1.5 text-slate-600 text-sm">
               <Clock className="w-4 h-4" />
-              <span>Стаж {experience} {getYearWord(experience)}</span>
+              <span>{t('booking.experience')} {experience} {getYearWord(experience)}</span>
             </div>
           </div>
 
@@ -162,7 +162,7 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
             <div className="flex items-center gap-1.5">
               <ThumbsUp className="w-4 h-4 text-emerald-500" />
               <span className="text-sm text-emerald-600 font-medium">
-                {recommendPercent}% рекомендуют
+                {recommendPercent}{t('common.recommend_pct')}
               </span>
             </div>
           )}
@@ -181,11 +181,11 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
             <p className="text-2xl font-bold text-slate-900">
               {price.toLocaleString('ru-RU')} ₸
             </p>
-            <p className="text-xs text-slate-500">за консультацию</p>
+            <p className="text-xs text-slate-500">{t('common.price_per_consultation')}</p>
           </div>
 
           <Button onClick={handleBookClick} size="md">
-            Записаться
+            {t('common.book_appt')}
           </Button>
         </div>
       </div>
@@ -195,12 +195,13 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
 
 // Mini variant for sidebars and suggestions
 export function DoctorCardMini({ doctor, onClick }) {
+  const { t, i18n } = useTranslation()
   const photoUrl = getMediaUrl(doctor.photo)
   const initials = getInitials(doctor.fullName)
   const colorIndex = doctor.fullName ? doctor.fullName.charCodeAt(0) % colors.length : 0
   const bgColor = colors[colorIndex]
   const rating = Math.min(doctor.rating || 0, 5)
-  const specialization = doctor.specialization?.name || 'Специалист'
+  const specialization = getSpecName(doctor.specialization, i18n.language) || t('common.specialist')
 
   return (
     <div
