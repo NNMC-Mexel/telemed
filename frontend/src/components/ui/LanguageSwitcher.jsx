@@ -4,7 +4,7 @@ import { ChevronDown } from 'lucide-react'
 import { LANGUAGES } from '../../i18n'
 import { cn } from '../../utils/helpers'
 
-function LanguageSwitcher({ variant = 'light' }) {
+function LanguageSwitcher({ variant = 'light', dropUp = false }) {
   const { i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -45,7 +45,7 @@ function LanguageSwitcher({ variant = 'light' }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-36 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-slideDown">
+        <div className={`absolute right-0 w-36 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-slideDown ${dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}>
           {LANGUAGES.map((lang) => (
             <button
               key={lang.code}

@@ -41,6 +41,9 @@
     "languages": {
       "type": "json"
     },
+    "i18n": {
+      "type": "json"
+    },
     "consultationDuration": {
       "type": "integer",
       "default": 30

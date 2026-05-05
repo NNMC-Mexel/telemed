@@ -67,6 +67,7 @@ export default factories.createCoreController('api::message.message', ({ strapi 
         })
       : await strapi.documents('api::conversation.conversation').findOne({
           documentId: conversationRef,
+          status: 'published',
           populate: { users_permissions_users: { fields: ['id'] } },
         });
 
@@ -77,15 +78,27 @@ export default factories.createCoreController('api::message.message', ({ strapi 
     const isMember = members.some((m) => m.id === user.id);
     if (!isAdmin && !isMember) return ctx.forbidden('Access denied');
 
-    // Принудительно устанавливаем sender = текущий user
-    ctx.request.body = {
-      ...ctx.request.body as any,
-      data: {
-        ...((ctx.request.body as any)?.data || {}),
-        sender: user.id,
-      },
+    // Принудительно устанавливаем sender = текущий user. Используем document
+    // service, потому что REST validation Strapi v5 отклоняет sender, если он
+    // появляется в клиентском payload.
+    const messageData: Record<string, any> = {
+      content: body.content,
+      conversation: (conversation as any).documentId || conversationRef,
+      sender: user.documentId || user.id,
     };
+    if (body.attachments !== undefined) messageData.attachments = body.attachments;
+    if (body.isRead !== undefined) messageData.isRead = body.isRead;
+    if (body.readAt !== undefined) messageData.readAt = body.readAt;
 
-    return await super.create(ctx);
+    const created = await strapi.documents('api::message.message').create({
+      data: messageData as any,
+      status: 'published',
+      populate: {
+        sender: { fields: ['id', 'fullName', 'email'] },
+        conversation: { fields: ['id', 'documentId'] },
+      },
+    });
+
+    return { data: created };
   },
 }));

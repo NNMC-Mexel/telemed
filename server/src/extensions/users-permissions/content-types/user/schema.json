@@ -137,6 +137,9 @@
     "isVerified": {
       "type": "boolean",
       "default": false
+    },
+    "i18n": {
+      "type": "json"
     }
   }
 }

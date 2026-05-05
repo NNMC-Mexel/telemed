@@ -695,6 +695,7 @@ export interface ApiDoctorDoctor extends Struct.CollectionTypeSchema {
     education: Schema.Attribute.Text;
     experience: Schema.Attribute.Integer;
     fullName: Schema.Attribute.String;
+    i18n: Schema.Attribute.JSON;
     isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     languages: Schema.Attribute.JSON;
     licenseNumber: Schema.Attribute.String;
@@ -748,10 +749,10 @@ export interface ApiDoctorDoctor extends Struct.CollectionTypeSchema {
       'oneToOne',
       'plugin::users-permissions.user'
     >;
-    workplace: Schema.Attribute.String;
     workEndTime: Schema.Attribute.String;
     workingDays: Schema.Attribute.String;
     workingHours: Schema.Attribute.JSON;
+    workplace: Schema.Attribute.String;
     workStartTime: Schema.Attribute.String;
   };
 }
@@ -1526,6 +1527,7 @@ export interface PluginUsersPermissionsUser
       }>;
     fullName: Schema.Attribute.String;
     gender: Schema.Attribute.Enumeration<['male', 'female']>;
+    i18n: Schema.Attribute.JSON;
     iin: Schema.Attribute.String;
     isVerified: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;

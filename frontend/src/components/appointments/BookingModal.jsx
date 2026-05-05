@@ -27,7 +27,7 @@ import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import Avatar from "../ui/Avatar";
 import Badge from "../ui/Badge";
-import { cn, formatPrice, getSpecName } from "../../utils/helpers";
+import { cn, formatPrice, getSpecName, getDoctorField } from "../../utils/helpers";
 import { getMediaUrl, getBookedSlots, getSignalingUrl } from "../../services/api";
 import useAppointmentStore from "../../stores/appointmentStore";
 import useAuthStore from "../../stores/authStore";
@@ -172,6 +172,12 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const [selectedDate, setSelectedDate] = useState(null);
     const [selectedTime, setSelectedTime] = useState(null);
     const [consultationType, setConsultationType] = useState("video");
+    const doctorLangs = doctor?.languages?.filter(Boolean).length
+        ? doctor.languages
+        : ['ru', 'kk', 'en'];
+    const [consultationLanguage, setConsultationLanguage] = useState(() =>
+        doctorLangs.includes(i18n.language) ? i18n.language : doctorLangs[0]
+    );
     const [paymentMethod, setPaymentMethod] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
@@ -223,7 +229,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
         return workingDays.includes(isoDay);
     };
 
-    const doctorName = doctor?.fullName || doctor?.name || t('booking.doctor_fallback');
+    const doctorName = getDoctorField(doctor, 'fullName', i18n.language) || doctor?.fullName || doctor?.name || t('booking.doctor_fallback');
     const doctorSpecialization = getSpecName(doctor?.specialization, i18n.language)
         || t('booking.specialist_fallback');
     const doctorPrice = doctor?.price || 0;
@@ -467,6 +473,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 doctor: doctor.id,
                 dateTime: dateTime.toISOString(),
                 type: consultationType,
+                language: consultationLanguage,
                 status: "pending",
                 price: doctorPrice,
                 paymentStatus: "pending",
@@ -528,6 +535,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     doctorName,
                     dateTime: dateTime.toISOString(),
                     type: consultationType,
+                    language: consultationLanguage,
                     price: doctorPrice,
                     paymentMethod,
                 })
@@ -614,6 +622,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 patientPhone: user.phone || "",
                 dateTime: dateTime.toISOString(),
                 type: consultationType,
+                language: consultationLanguage,
                 price: doctorPrice,
             };
 
@@ -711,6 +720,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 doctor: doctor.id,
                 dateTime: dateTime.toISOString(),
                 type: consultationType,
+                language: consultationLanguage,
                 status: "confirmed",
                 price: doctorPrice,
                 paymentStatus: "paid",
@@ -767,6 +777,9 @@ function BookingModal({ isOpen, onClose, doctor }) {
         setSelectedDate(null);
         setSelectedTime(null);
         setConsultationType("video");
+        setConsultationLanguage(
+            doctorLangs.includes(i18n.language) ? i18n.language : doctorLangs[0]
+        );
         setPaymentMethod(null);
         setIsComplete(false);
         setError(null);
@@ -1271,6 +1284,33 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                     </span>
                                 </div>
                             </div>
+
+                            {/* Language selector */}
+                            <div className='pt-2'>
+                                <label className='block text-sm font-medium text-slate-700 mb-3'>
+                                    {t('booking.select_language')}
+                                </label>
+                                <div className='flex gap-2'>
+                                    {[
+                                        { code: 'ru', label: t('booking.lang_ru') },
+                                        { code: 'kk', label: t('booking.lang_kk') },
+                                        { code: 'en', label: t('booking.lang_en') },
+                                    ].filter(l => doctorLangs.includes(l.code)).map(({ code, label }) => (
+                                        <button
+                                            key={code}
+                                            onClick={() => setConsultationLanguage(code)}
+                                            className={cn(
+                                                'flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all',
+                                                consultationLanguage === code
+                                                    ? 'border-teal-600 bg-teal-50 text-teal-700'
+                                                    : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                                            )}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -1419,6 +1459,12 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                         {consultationType === "video"
                                             ? t('booking.video_title')
                                             : t('booking.chat_title')}
+                                    </span>
+                                </div>
+                                <div className='p-4 flex justify-between'>
+                                    <span className='text-slate-600'>{t('booking.field_language')}</span>
+                                    <span className='font-medium text-slate-900'>
+                                        {t(`booking.lang_${consultationLanguage}`)}
                                     </span>
                                 </div>
                                 <div className='p-4 flex justify-between'>

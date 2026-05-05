@@ -1,18 +1,19 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { User, Mail, Phone, Calendar, CreditCard, Shield, Bell, LogOut } from 'lucide-react'
+import { User, Mail, Phone, Calendar, CreditCard, Shield, Bell, LogOut, Languages } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Avatar from '../../components/ui/Avatar'
 import useAuthStore from '../../stores/authStore'
-import { formatDate } from '../../utils/helpers'
+import { formatDate, cn } from '../../utils/helpers'
 
 function PatientProfile() {
   const { t } = useTranslation()
   const { user, updateProfile, logout } = useAuthStore()
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [transLang, setTransLang] = useState('kk')
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
     email: user?.email || '',
@@ -20,11 +21,19 @@ function PatientProfile() {
     iin: user?.iin || '',
     birthDate: user?.birthDate || '',
     address: user?.address || '',
+    i18n: user?.i18n || {},
   })
 
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleI18nChange = (lang, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      i18n: { ...prev.i18n, [lang]: { ...(prev.i18n?.[lang] || {}), fullName: value } },
+    }))
   }
 
   const handleSave = async () => {
@@ -105,6 +114,50 @@ function PatientProfile() {
               />
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Name translations */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Languages className="w-5 h-5 text-teal-600" />
+            {t('profile.translations_title')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-slate-500">{t('profile.translations_hint')}</p>
+
+          {/* Language tabs */}
+          <div className="flex gap-2">
+            {[
+              { code: 'kk', label: 'Қазақша' },
+              { code: 'en', label: 'English' },
+            ].map(({ code, label }) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setTransLang(code)}
+                className={cn(
+                  'px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
+                  transLang === code
+                    ? 'bg-teal-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <Input
+            label={`${t('profile.full_name')} (${transLang === 'kk' ? 'Қазақша' : 'English'}) — ${t('profile.optional')}`}
+            value={formData.i18n?.[transLang]?.fullName || ''}
+            onChange={(e) => handleI18nChange(transLang, e.target.value)}
+            disabled={!isEditing}
+            placeholder={formData.fullName}
+            leftIcon={<User className="w-4 h-4" />}
+          />
         </CardContent>
       </Card>
 

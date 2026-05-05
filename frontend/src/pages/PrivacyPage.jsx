@@ -49,9 +49,9 @@ export default function PrivacyPage() {
 
                     <Section title="1. Общие положения">
                         <p>
-                            Настоящая Политика конфиденциальности описывает, как МедКоннект
+                            Настоящая Политика конфиденциальности описывает, как ТОО «Biocraft Digital»
                             (далее — «Компания», «мы») собирает, использует и защищает персональные
-                            данные пользователей платформы MedConnect (medconnect.nnmc.kz).
+                            данные пользователей платформы MedConnect.
                         </p>
                         <p>
                             Используя сервис, вы соглашаетесь с условиями данной Политики.
@@ -144,7 +144,7 @@ export default function PrivacyPage() {
                         <ul className="list-none space-y-1.5 mt-2">
                             <li>📧 <strong>Email:</strong> info@medconnect.kz</li>
                             <li>📞 <strong>Телефон:</strong> +7 (7172) 123-456</li>
-                            <li>📍 <strong>Адрес:</strong> г. Астана, просп. Абылай хана, 42</li>
+                            <li>📍 <strong>Адрес:</strong> Республика Казахстан, г. Астана, просп. Абылай хана, 42</li>
                         </ul>
                     </Section>
                 </div>

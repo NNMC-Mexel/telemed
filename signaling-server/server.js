@@ -440,16 +440,20 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
 app.post('/api/slot/verify', async (req, res) => {
   try {
     const { doctorId, date, time, socketId, slotDuration } = req.body
-    if (!doctorId || !date || !time) {
-      return res.status(400).json({ available: false, reason: 'Missing doctorId, date or time' })
+    if (!doctorId || !date || !time || !socketId) {
+      return res.status(400).json({ available: false, reason: 'Missing doctorId, date, time or socketId' })
     }
 
     const key = `${doctorId}|${date}|${time}`
 
     // 1. Check socket reservation — slot must be held by this user's socket
     const reservation = pendingSlotReservations.get(key)
-    if (reservation && reservation.socketId !== socketId && reservation.expiresAt > Date.now()) {
-      return res.json({ available: false, reason: 'Это время выбрано другим пациентом' })
+    if (!reservation || reservation.expiresAt <= Date.now()) {
+      if (reservation) pendingSlotReservations.delete(key)
+      return res.status(409).json({ available: false, reason: 'Слот не был зарезервирован или срок резерва истёк' })
+    }
+    if (reservation.socketId !== socketId) {
+      return res.status(409).json({ available: false, reason: 'Это время выбрано другим пациентом' })
     }
 
     // 2. Check Strapi DB — slot must not be already booked.

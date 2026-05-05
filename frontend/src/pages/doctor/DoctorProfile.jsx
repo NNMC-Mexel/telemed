@@ -40,7 +40,9 @@ function DoctorProfile() {
         price: 0,
         consultationDuration: 30,
         languages: [],
+        i18n: {},
     });
+    const [transLang, setTransLang] = useState('kk');
 
     useEffect(() => {
         fetchDoctorProfile();
@@ -83,7 +85,8 @@ function DoctorProfile() {
                     experience: doctorData.experience || 0,
                     price: doctorData.price || 0,
                     consultationDuration: doctorData.consultationDuration || 30,
-                    languages: doctorData.languages || ["Русский"],
+                    languages: doctorData.languages?.length ? doctorData.languages : ["ru"],
+                    i18n: doctorData.i18n || {},
                 });
             } else {
                 // Если профиль врача не найден, используем данные user
@@ -96,7 +99,8 @@ function DoctorProfile() {
                     experience: 0,
                     price: 8000,
                     consultationDuration: 30,
-                    languages: ["Русский"],
+                    languages: ["ru"],
+                    i18n: {},
                 });
             }
         } catch (error) {
@@ -112,6 +116,29 @@ function DoctorProfile() {
             ...prev,
             [name]: value,
         }));
+    };
+
+    const handleI18nChange = (lang, field, value) => {
+        setFormData((prev) => ({
+            ...prev,
+            i18n: {
+                ...prev.i18n,
+                [lang]: { ...(prev.i18n?.[lang] || {}), [field]: value },
+            },
+        }));
+    };
+
+    const toggleLanguage = (code) => {
+        setFormData((prev) => {
+            const has = prev.languages.includes(code);
+            if (has && prev.languages.length === 1) return prev; // минимум 1
+            return {
+                ...prev,
+                languages: has
+                    ? prev.languages.filter((l) => l !== code)
+                    : [...prev.languages, code],
+            };
+        });
     };
 
     const handleSave = async () => {
@@ -130,6 +157,7 @@ function DoctorProfile() {
                         price: parseInt(formData.price) || 0,
                         consultationDuration: parseInt(formData.consultationDuration) || 30,
                         languages: formData.languages || [],
+                        i18n: formData.i18n || {},
                     },
                 });
             }
@@ -386,6 +414,114 @@ function DoctorProfile() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    <Card>
+                        <CardContent>
+                            <h3 className='font-semibold text-slate-900 mb-1 flex items-center gap-2'>
+                                <Languages className='w-5 h-5 text-teal-600' />
+                                {t('doctor_profile.languages')}
+                            </h3>
+                            <p className='text-sm text-slate-500 mb-4'>
+                                {t('doctor_profile.languages_hint')}
+                            </p>
+                            <div className='flex gap-3'>
+                                {[
+                                    { code: 'ru', label: 'Русский' },
+                                    { code: 'kk', label: 'Қазақша' },
+                                    { code: 'en', label: 'English' },
+                                ].map(({ code, label }) => {
+                                    const active = formData.languages.includes(code);
+                                    return (
+                                        <button
+                                            key={code}
+                                            type='button'
+                                            onClick={() => toggleLanguage(code)}
+                                            className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${
+                                                active
+                                                    ? 'border-teal-600 bg-teal-50 text-teal-700'
+                                                    : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Translations card — only for languages other than Russian */}
+                    {formData.languages.some(l => l !== 'ru') && (
+                        <Card>
+                            <CardContent>
+                                <h3 className='font-semibold text-slate-900 mb-1 flex items-center gap-2'>
+                                    <Languages className='w-5 h-5 text-teal-600' />
+                                    {t('doctor_profile.translations_title')}
+                                </h3>
+                                <p className='text-sm text-slate-500 mb-4'>
+                                    {t('doctor_profile.translations_hint')}
+                                </p>
+
+                                {/* Language tabs */}
+                                <div className='flex gap-2 mb-4'>
+                                    {formData.languages.filter(l => l !== 'ru').map(lang => (
+                                        <button
+                                            key={lang}
+                                            type='button'
+                                            onClick={() => setTransLang(lang)}
+                                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                                transLang === lang
+                                                    ? 'bg-teal-600 text-white'
+                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                            }`}
+                                        >
+                                            {lang === 'kk' ? 'Қазақша' : 'English'}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className='space-y-3'>
+                                    <div>
+                                        <label className='block text-sm font-medium text-slate-700 mb-1'>
+                                            {t('doctor_profile.full_name')}
+                                            <span className='ml-1 text-xs text-slate-400'>({t('doctor_profile.optional')})</span>
+                                        </label>
+                                        <Input
+                                            value={formData.i18n?.[transLang]?.fullName || ''}
+                                            onChange={e => handleI18nChange(transLang, 'fullName', e.target.value)}
+                                            placeholder={formData.fullName}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className='block text-sm font-medium text-slate-700 mb-1'>
+                                            {t('doctor_profile.about')}
+                                            <span className='ml-1 text-xs text-slate-400'>({t('doctor_profile.optional')})</span>
+                                        </label>
+                                        <textarea
+                                            value={formData.i18n?.[transLang]?.bio || ''}
+                                            onChange={e => handleI18nChange(transLang, 'bio', e.target.value)}
+                                            rows={3}
+                                            placeholder={formData.shortBio}
+                                            className='w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none text-sm'
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className='block text-sm font-medium text-slate-700 mb-1'>
+                                            {t('doctor_profile.education')}
+                                            <span className='ml-1 text-xs text-slate-400'>({t('doctor_profile.optional')})</span>
+                                        </label>
+                                        <textarea
+                                            value={formData.i18n?.[transLang]?.education || ''}
+                                            onChange={e => handleI18nChange(transLang, 'education', e.target.value)}
+                                            rows={2}
+                                            placeholder={formData.education}
+                                            className='w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none text-sm'
+                                        />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <div className='flex justify-end'>
                         <Button

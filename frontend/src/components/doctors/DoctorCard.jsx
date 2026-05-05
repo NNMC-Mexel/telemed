@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Button from '../ui/Button'
 import { getMediaUrl } from '../../services/api'
-import { cn, getInitials, isDoctorOnline, getSpecName } from '../../utils/helpers'
+import { cn, getInitials, isDoctorOnline, getSpecName, getDoctorField } from '../../utils/helpers'
 
 const colors = [
   'bg-gradient-to-br from-teal-400 to-teal-600',
@@ -21,8 +21,10 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
   const { t, i18n } = useTranslation()
 
   const photoUrl = getMediaUrl(doctor.photo)
-  const initials = getInitials(doctor.fullName)
-  const colorIndex = doctor.fullName ? doctor.fullName.charCodeAt(0) % colors.length : 0
+  const displayName = getDoctorField(doctor, 'fullName', i18n.language) || doctor.fullName
+  const displayBio = getDoctorField(doctor, 'bio', i18n.language)
+  const initials = getInitials(displayName)
+  const colorIndex = displayName ? displayName.charCodeAt(0) % colors.length : 0
   const bgColor = colors[colorIndex]
 
   const rating = Math.min(doctor.rating || 0, 5)
@@ -64,7 +66,7 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
               {photoUrl ? (
                 <img
                   src={photoUrl}
-                  alt={doctor.fullName}
+                  alt={displayName}
                   className="w-full h-full object-cover object-top"
                 />
               ) : (
@@ -83,7 +85,7 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
           {/* Info */}
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-semibold text-slate-900 group-hover:text-teal-600 transition-colors line-clamp-2 leading-tight">
-              {doctor.fullName}
+              {displayName}
             </h3>
             <p className="text-teal-600 font-medium text-sm mt-0.5">{specialization}</p>
 
@@ -139,7 +141,7 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
           {/* Name and Specialization */}
           <div className="mb-2">
             <h3 className="text-lg font-semibold text-slate-900 group-hover:text-teal-600 transition-colors">
-              {doctor.fullName}
+              {displayName}
             </h3>
             <p className="text-teal-600 font-medium text-sm">{specialization}</p>
           </div>
@@ -168,9 +170,9 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
           )}
 
           {/* Short Bio (only show if exists) */}
-          {doctor.bio && (
+          {displayBio && (
             <p className="text-slate-500 text-sm line-clamp-1 mt-2">
-              {doctor.bio}
+              {displayBio}
             </p>
           )}
         </div>
@@ -197,8 +199,9 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
 export function DoctorCardMini({ doctor, onClick }) {
   const { t, i18n } = useTranslation()
   const photoUrl = getMediaUrl(doctor.photo)
-  const initials = getInitials(doctor.fullName)
-  const colorIndex = doctor.fullName ? doctor.fullName.charCodeAt(0) % colors.length : 0
+  const displayName = getDoctorField(doctor, 'fullName', i18n.language) || doctor.fullName
+  const initials = getInitials(displayName)
+  const colorIndex = displayName ? displayName.charCodeAt(0) % colors.length : 0
   const bgColor = colors[colorIndex]
   const rating = Math.min(doctor.rating || 0, 5)
   const specialization = getSpecName(doctor.specialization, i18n.language) || t('common.specialist')
@@ -218,7 +221,7 @@ export function DoctorCardMini({ doctor, onClick }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-slate-900 text-sm truncate">{doctor.fullName}</p>
+        <p className="font-medium text-slate-900 text-sm truncate">{displayName}</p>
         <p className="text-xs text-slate-500 truncate">{specialization}</p>
       </div>
       <div className="flex items-center gap-1 text-sm">

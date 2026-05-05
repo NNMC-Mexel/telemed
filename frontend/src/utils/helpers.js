@@ -104,6 +104,19 @@ export const getSpecName = (spec, lang) => {
   return name
 }
 
+// Get localized field from any entity (doctor, user/patient) with fallback to Russian.
+// Usage: getLocalizedField(entity, 'fullName', 'en') → English name or Russian fallback
+export const getLocalizedField = (entity, field, lang) => {
+  if (lang && lang !== 'ru') {
+    const val = entity?.i18n?.[lang]?.[field]
+    if (val && val.trim()) return val
+  }
+  return entity?.[field] || ''
+}
+
+// Backward-compatible alias
+export const getDoctorField = getLocalizedField
+
 // ClassNames helper
 export const cn = (...classes) => {
   return classes.filter(Boolean).join(' ')

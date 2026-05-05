@@ -287,7 +287,7 @@
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "description": "Modern telemedicine platform for online consultations with qualified doctors.",
-    "address": "Astana, Abylai Khan Ave., 42"
+    "address": "Republic of Kazakhstan, Astana, Abylai Khan Ave., 42"
   },
   "dashboard": {
     "page_titles": {
@@ -501,7 +501,12 @@
     "field_time": "Time",
     "field_type": "Type",
     "field_payment": "Payment",
-    "field_total": "Total"
+    "field_language": "Consultation language",
+    "field_total": "Total",
+    "select_language": "Consultation language",
+    "lang_ru": "Русский",
+    "lang_kk": "Қазақша",
+    "lang_en": "English"
   },
   "appointment": {
     "status_pending": "Pending",
@@ -575,6 +580,11 @@
     "education_placeholder": "University, graduation year, specialty...",
     "price": "Consultation price (₸)",
     "duration": "Duration (min)",
+    "languages": "Consultation languages",
+    "languages_hint": "Select the languages in which you conduct consultations",
+    "translations_title": "Profile translations",
+    "translations_hint": "Fill in your details in other languages. If left empty, Russian will be shown as fallback.",
+    "optional": "optional",
     "save": "Save changes",
     "doctor_label": "Doctor"
   },
@@ -637,7 +647,10 @@
     "logout": "Sign out",
     "cancel": "Cancel",
     "save": "Save",
-    "edit": "Edit"
+    "edit": "Edit",
+    "translations_title": "My name in other languages",
+    "translations_hint": "If left empty, doctors will see your name in Russian.",
+    "optional": "optional"
   },
   "documents": {
     "title": "My Documents",

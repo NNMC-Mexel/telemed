@@ -108,7 +108,7 @@ function PatientAppointments() {
     const appointmentDate = new Date(appointment.dateTime)
     const consultationDuration = appointment.doctor?.consultationDuration || 30
     const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + 5) * 60 * 1000)
-    return new Date() > consultationEnd || appointment.status === 'completed'
+    return getServerNow() > consultationEnd || appointment.status === 'completed'
   }
 
   const getEffectiveStatus = (appointment) => {
@@ -421,7 +421,7 @@ function PatientAppointments() {
                             </Link>
                           ) : null}
 
-                          {isUpcoming && (
+                          {isUpcoming && !canJoin && (
                             <Button variant="secondary" size="sm" onClick={() => openCancelModal(appointment)}>
                               {t('appointments.cancel_button')}
                             </Button>

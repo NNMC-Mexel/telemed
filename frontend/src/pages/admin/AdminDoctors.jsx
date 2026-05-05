@@ -22,7 +22,7 @@ const defaultForm = {
   price: '8000',
   licenseNumber: '',
   position: '',
-  workplace: 'ННМЦ',
+  workplace: 'ТОО Biocraft Digital',
   bio: '',
   education: '',
   isActive: true,
@@ -621,7 +621,7 @@ function AdminDoctors() {
               label={t('admin_doc.label_workplace')}
               value={form.workplace}
               onChange={(e) => setForm((prev) => ({ ...prev, workplace: e.target.value }))}
-              placeholder='ННМЦ'
+              placeholder='ТОО Biocraft Digital'
             />
           </div>
 

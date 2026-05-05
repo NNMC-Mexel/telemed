@@ -26,6 +26,7 @@ import {
     formatRelativeDate,
     formatPrice,
     formatDate,
+    getLocalizedField,
 } from "../../utils/helpers";
 
 function DoctorDashboard() {
@@ -259,6 +260,7 @@ function DoctorDashboard() {
                             ) : (
                                 todayAppointments.map((appointment) => {
                                     const patientName =
+                                        getLocalizedField(appointment.patient, 'fullName', i18n.language) ||
                                         appointment.patient?.fullName ||
                                         appointment.patient?.username ||
                                         t('doctor.patient_default');
@@ -425,12 +427,12 @@ function DoctorDashboard() {
                                         <div className='flex items-center gap-4'>
                                             <Avatar
                                                 src={getMediaUrl(nextAppointment.patient?.avatar)}
-                                                name={nextAppointment.patient?.fullName || t('doctor.patient_default')}
+                                                name={getLocalizedField(nextAppointment.patient, 'fullName', i18n.language) || nextAppointment.patient?.fullName || t('doctor.patient_default')}
                                                 size='lg'
                                             />
                                             <div>
                                                 <h4 className='font-semibold'>
-                                                    {nextAppointment.patient?.fullName?.split(" ").slice(0, 2).join(" ") || t('doctor.patient_default')}
+                                                    {(getLocalizedField(nextAppointment.patient, 'fullName', i18n.language) || nextAppointment.patient?.fullName)?.split(" ").slice(0, 2).join(" ") || t('doctor.patient_default')}
                                                 </h4>
                                                 <p className='text-white/80 text-sm'>
                                                     {formatRelativeDate(nextAppointment.dateTime)}

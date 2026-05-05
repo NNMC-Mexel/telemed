@@ -116,7 +116,7 @@ function Sidebar({ navItems, onNavClick }) {
             <LogOut className="w-4 h-4" />
             {t('nav.logout')}
           </button>
-          <LanguageSwitcher variant="light" />
+          <LanguageSwitcher variant="light" dropUp />
         </div>
       </div>
     </aside>

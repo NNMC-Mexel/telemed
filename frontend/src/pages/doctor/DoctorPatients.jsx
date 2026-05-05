@@ -20,10 +20,10 @@ import Avatar from '../../components/ui/Avatar'
 import Badge from '../../components/ui/Badge'
 import useAuthStore from '../../stores/authStore'
 import api, { normalizeResponse, getMediaUrl } from '../../services/api'
-import { formatDate } from '../../utils/helpers'
+import { formatDate, getLocalizedField } from '../../utils/helpers'
 
 function DoctorPatients() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const [patients, setPatients] = useState([])
@@ -77,7 +77,7 @@ function DoctorPatients() {
   }
 
   const filteredPatients = patients.filter(patient => {
-    const name = patient.fullName || patient.username || ''
+    const name = getLocalizedField(patient, 'fullName', i18n.language) || patient.fullName || patient.username || ''
     const email = patient.email || ''
     return name.toLowerCase().includes(searchQuery.toLowerCase()) ||
            email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -190,12 +190,12 @@ function DoctorPatients() {
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar
                       src={getMediaUrl(patient.avatar)}
-                      name={patient.fullName || patient.username}
+                      name={getLocalizedField(patient, 'fullName', i18n.language) || patient.fullName || patient.username}
                       size="md"
                     />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-slate-900 truncate">
-                        {patient.fullName || patient.username || t('patients.patient_label')}
+                        {getLocalizedField(patient, 'fullName', i18n.language) || patient.fullName || patient.username || t('patients.patient_label')}
                       </h3>
                       <p className="text-xs text-slate-500 truncate mt-0.5">
                         {patient.email}

@@ -28,7 +28,7 @@ import Badge from "../components/ui/Badge";
 import BookingModal from "../components/appointments/BookingModal";
 import { useTranslation } from "react-i18next";
 import api, { normalizeResponse, getMediaUrl } from "../services/api";
-import { formatPrice, formatDate, isDoctorOnline, getSpecName } from "../utils/helpers";
+import { formatPrice, formatDate, isDoctorOnline, getSpecName, getDoctorField } from "../utils/helpers";
 
 function DoctorProfilePage() {
     const { id } = useParams();
@@ -87,6 +87,9 @@ function DoctorProfilePage() {
 
     const specialization = getSpecName(doctor.specialization, i18n.language)
         || t('doctor_public.specialist');
+    const doctorDisplayName = getDoctorField(doctor, 'fullName', i18n.language) || doctor.fullName
+    const doctorDisplayBio = getDoctorField(doctor, 'bio', i18n.language)
+    const doctorDisplayEducation = getDoctorField(doctor, 'education', i18n.language)
 
     // Рейтинг от 0 до 5 (не 10)
     const averageRating = Math.min(doctor.rating || 0, 5);
@@ -120,12 +123,12 @@ function DoctorProfilePage() {
                                                         src={getMediaUrl(
                                                             doctor.photo,
                                                         )}
-                                                        alt={doctor.fullName}
+                                                        alt={doctorDisplayName}
                                                         className='w-full h-full object-cover object-top'
                                                     />
                                                 ) : (
                                                     <div className='w-full h-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white text-3xl font-bold'>
-                                                        {doctor.fullName
+                                                        {doctorDisplayName
                                                             ?.split(" ")
                                                             .map((n) => n[0])
                                                             .join("")
@@ -144,7 +147,7 @@ function DoctorProfilePage() {
 
                                     {/* Name & Specialization */}
                                     <h1 className='text-2xl font-bold text-slate-900 mb-1'>
-                                        {doctor.fullName}
+                                        {doctorDisplayName}
                                     </h1>
                                     <p className='text-teal-600 font-medium text-lg mb-4'>
                                         {specialization}
@@ -289,9 +292,9 @@ function DoctorProfilePage() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    {doctor.bio ? (
+                                    {doctorDisplayBio ? (
                                         <p className='text-slate-600 leading-relaxed whitespace-pre-line'>
-                                            {doctor.bio}
+                                            {doctorDisplayBio}
                                         </p>
                                     ) : (
                                         <div className='text-center py-6'>
@@ -315,9 +318,9 @@ function DoctorProfilePage() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    {doctor.education ? (
+                                    {doctorDisplayEducation ? (
                                         <div className='space-y-3'>
-                                            {doctor.education
+                                            {doctorDisplayEducation
                                                 .split("\n")
                                                 .filter((item) => item.trim())
                                                 .map((item, i) => (

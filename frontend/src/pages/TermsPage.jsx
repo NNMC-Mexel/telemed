@@ -51,7 +51,7 @@ export default function TermsPage() {
                         <p>
                             Настоящие Условия использования регулируют порядок предоставления
                             доступа к телемедицинской платформе MedConnect (далее — «Платформа»),
-                            используемой медицинской организацией-заказчиком, включая ННМЦ
+                            используемой медицинской организацией-заказчиком, включая ТОО Biocraft Digital
                             (далее — «Медицинская организация»).
                         </p>
                         <p>
@@ -240,7 +240,7 @@ export default function TermsPage() {
                                     epay.homebank.kz
                                 </a>
                             </li>
-                            <li>Обратиться в суд по месту нахождения Компании (г. Астана, РК).</li>
+                            <li>Обратиться в суд по месту нахождения Компании (Республика Казахстан, г. Астана).</li>
                         </ul>
                     </Section>
 
@@ -258,8 +258,8 @@ export default function TermsPage() {
 
                     <Section title="9. Контактная информация">
                         <ul className="list-none space-y-1.5">
-                            <li>🏢 <strong>Компания:</strong> ТОО «ННМЦ Диджитал»</li>
-                            <li>📍 <strong>Адрес:</strong> г. Астана, просп. Абылай хана, 42</li>
+                            <li>🏢 <strong>Компания:</strong> ТОО «Biocraft Digital»</li>
+                            <li>📍 <strong>Адрес:</strong> Республика Казахстан, г. Астана, просп. Абылай хана, 42</li>
                             <li>
                                 📞 <strong>Телефон:</strong>{' '}
                                 <a href="tel:+77172123456" className="text-teal-600 hover:underline">
