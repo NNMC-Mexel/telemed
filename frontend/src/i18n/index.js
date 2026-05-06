@@ -15,6 +15,7 @@ i18n
       kk: { translation: kk },
       en: { translation: en },
     },
+    lng: 'ru',
     fallbackLng: 'ru',
     supportedLngs: ['ru', 'kk', 'en'],
     interpolation: { escapeValue: false },

@@ -51,7 +51,7 @@ export default function TermsPage() {
                         <p>
                             Настоящие Условия использования регулируют порядок предоставления
                             доступа к телемедицинской платформе MedConnect (далее — «Платформа»),
-                            используемой медицинской организацией-заказчиком, включая ТОО Biocraft Digital
+                            используемой медицинской организацией-заказчиком, включая ТОО MEXEL HEALTH
                             (далее — «Медицинская организация»).
                         </p>
                         <p>
@@ -258,7 +258,7 @@ export default function TermsPage() {
 
                     <Section title="9. Контактная информация">
                         <ul className="list-none space-y-1.5">
-                            <li>🏢 <strong>Компания:</strong> ТОО «Biocraft Digital»</li>
+                            <li>🏢 <strong>Компания:</strong> ТОО «MEXEL HEALTH»</li>
                             <li>📍 <strong>Адрес:</strong> Республика Казахстан, г. Астана, просп. Абылай хана, 42</li>
                             <li>
                                 📞 <strong>Телефон:</strong>{' '}
