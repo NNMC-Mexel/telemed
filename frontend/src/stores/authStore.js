@@ -73,6 +73,7 @@ const useAuthStore = create(
             phone: userData.phone,
             iin: userData.iin,
             doctorData: userData.doctorData || null,
+            consents: userData.consents,
           })
 
           const { jwt, user } = response.data

@@ -269,7 +269,7 @@ export const uploadFile = async (file) => {
     }
 
     // Sanitize filename — strip path separators and non-printable characters
-    const safeName = file.name.replace(/[^\w.\-]/g, '_').slice(0, 255)
+    const safeName = file.name.replace(/[^\w.-]/g, '_').slice(0, 255)
     const safeFile = new File([file], safeName, { type: file.type })
 
     const formData = new FormData();
@@ -322,7 +322,9 @@ export const authAPI = {
             password: data.password,
             fullName: data.fullName,
             phone: data.phone,
+            iin: data.iin,
             userRole: "patient",
+            consents: data.consents,
         }),
 
     getMe: () => api.get("/api/users/me?populate=*"),

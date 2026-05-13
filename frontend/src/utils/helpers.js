@@ -62,6 +62,37 @@ export const getFullName = (user) => {
 }
 
 // Phone formatting
+export const formatKazakhstanPhoneInput = (phone, forcePrefix = false) => {
+  const raw = String(phone || '')
+  let digits = raw.replace(/\D/g, '')
+
+  if (!digits) return forcePrefix ? '+7 ' : ''
+
+  if (raw.trim().startsWith('+7')) {
+    digits = digits.slice(1)
+    if (digits[0] === '8') digits = digits.slice(1)
+    if (digits.length > 10 && digits[0] === '7') digits = digits.slice(1)
+  } else if (digits[0] === '8') {
+    digits = digits.slice(1)
+  } else if (digits.length > 10 && digits[0] === '7') {
+    digits = digits.slice(1)
+  }
+
+  const local = digits.slice(0, 10)
+  if (local.length === 0) return forcePrefix ? '+7 ' : '+7'
+  const parts = []
+
+  if (local.length > 0) parts.push(local.slice(0, 3))
+  if (local.length > 3) parts.push(local.slice(3, 6))
+
+  let formatted = '+7'
+  if (parts.length > 0) formatted += ` ${parts.join(' ')}`
+  if (local.length > 6) formatted += `-${local.slice(6, 8)}`
+  if (local.length > 8) formatted += `-${local.slice(8, 10)}`
+
+  return formatted
+}
+
 export const formatPhone = (phone) => {
   if (!phone) return ''
   const cleaned = phone.replace(/\D/g, '')
@@ -142,8 +173,9 @@ export const isValidEmail = (email) => {
 }
 
 export const isValidPhone = (phone) => {
-  const cleaned = phone.replace(/\D/g, '')
-  return cleaned.length === 11
+  const value = String(phone || '')
+  const cleaned = value.replace(/\D/g, '')
+  return value.trim().startsWith('+7') && cleaned.length === 11 && cleaned.startsWith('7')
 }
 
 export const isValidIIN = (iin) => {

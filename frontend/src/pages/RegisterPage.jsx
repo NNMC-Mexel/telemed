@@ -10,11 +10,19 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Card, CardContent } from '../components/ui/Card'
 import useAuthStore from '../stores/authStore'
-import { isValidEmail, isValidPhone, isValidIIN } from '../utils/helpers'
+import { formatKazakhstanPhoneInput, isValidEmail, isValidPhone, isValidIIN } from '../utils/helpers'
 import { specializationsAPI, normalizeResponse } from '../services/api'
 
+const REQUIRED_CONSENTS = [
+  'personalData',
+  'medicalData',
+  'telemedicine',
+  'thirdPartyTransfer',
+  'termsAndPrivacy',
+]
+
 function RegisterPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { register, isLoading, error, clearError } = useAuthStore()
 
@@ -29,7 +37,13 @@ function RegisterPage() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [formErrors, setFormErrors] = useState({})
-  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [consents, setConsents] = useState({
+    personalData: false,
+    medicalData: false,
+    telemedicine: false,
+    thirdPartyTransfer: false,
+    termsAndPrivacy: false,
+  })
 
   useEffect(() => {
     const fetchSpecializations = async () => {
@@ -46,7 +60,8 @@ function RegisterPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    const nextValue = name === 'phone' ? formatKazakhstanPhoneInput(value, true) : value
+    setFormData((prev) => ({ ...prev, [name]: nextValue }))
     if (formErrors[name]) setFormErrors((prev) => ({ ...prev, [name]: null }))
     if (error) clearError()
   }
@@ -71,10 +86,15 @@ function RegisterPage() {
       errors.password = t('auth.register.validation.password')
     if (formData.password !== formData.confirmPassword)
       errors.confirmPassword = t('auth.register.validation.confirm_password')
-    if (!agreedToTerms)
-      errors.terms = t('auth.register.validation.terms')
+    if (REQUIRED_CONSENTS.some((key) => consents[key] !== true))
+      errors.consents = t('auth.register.validation.consents')
     setFormErrors(errors)
     return Object.keys(errors).length === 0
+  }
+
+  const handleConsentChange = (name, checked) => {
+    setConsents((prev) => ({ ...prev, [name]: checked }))
+    if (formErrors.consents) setFormErrors((prev) => ({ ...prev, consents: null }))
   }
 
   const validateDoctorStep = () => {
@@ -107,6 +127,10 @@ function RegisterPage() {
       phone: formData.phone,
       iin: formData.iin,
       userRole: userType,
+      consents: {
+        ...consents,
+        locale: i18n.language || 'ru',
+      },
     }
 
     if (userType === 'doctor') {
@@ -219,9 +243,14 @@ function RegisterPage() {
                       label={t('auth.register.phone')}
                       name="phone"
                       type="tel"
-                      placeholder="+7 (___) ___-__-__"
+                      placeholder="+7 ___ ___-__-__"
                       value={formData.phone}
                       onChange={handleChange}
+                      onFocus={() => {
+                        if (!formData.phone) {
+                          setFormData((prev) => ({ ...prev, phone: '+7 ' }))
+                        }
+                      }}
                       error={formErrors.phone}
                       leftIcon={<Phone className="w-5 h-5" />}
                       required
@@ -356,25 +385,74 @@ function RegisterPage() {
                       leftIcon={<Lock className="w-5 h-5" />}
                       required
                     />
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={agreedToTerms}
-                        onChange={(e) => setAgreedToTerms(e.target.checked)}
-                        className={`w-4 h-4 mt-1 rounded border-slate-300 text-${accentColor}-600 focus:ring-${accentColor}-500`}
-                      />
-                      <span className="text-sm text-slate-600">
-                        {t('auth.register.agree_with')}{' '}
-                        <Link to="/terms" className={`text-${accentColor}-600 hover:underline`}>
-                          {t('auth.register.terms')}
-                        </Link>{' '}
-                        {t('common.and')}{' '}
-                        <Link to="/privacy" className={`text-${accentColor}-600 hover:underline`}>
-                          {t('auth.register.privacy')}
-                        </Link>
-                      </span>
-                    </label>
-                    {formErrors.terms && <p className="text-sm text-rose-600">{formErrors.terms}</p>}
+                    <div className="space-y-3">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={consents.personalData}
+                          onChange={(e) => handleConsentChange('personalData', e.target.checked)}
+                          className={`w-4 h-4 mt-1 rounded border-slate-300 text-${accentColor}-600 focus:ring-${accentColor}-500`}
+                        />
+                        <span className="text-sm text-slate-600">
+                          {t('auth.register.consent_personal_data')}{' '}
+                          <Link to="/privacy" className={`text-${accentColor}-600 hover:underline`}>
+                            {t('auth.register.privacy')}
+                          </Link>
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={consents.medicalData}
+                          onChange={(e) => handleConsentChange('medicalData', e.target.checked)}
+                          className={`w-4 h-4 mt-1 rounded border-slate-300 text-${accentColor}-600 focus:ring-${accentColor}-500`}
+                        />
+                        <span className="text-sm text-slate-600">
+                          {t('auth.register.consent_medical_data')}
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={consents.telemedicine}
+                          onChange={(e) => handleConsentChange('telemedicine', e.target.checked)}
+                          className={`w-4 h-4 mt-1 rounded border-slate-300 text-${accentColor}-600 focus:ring-${accentColor}-500`}
+                        />
+                        <span className="text-sm text-slate-600">
+                          {t('auth.register.consent_telemedicine')}
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={consents.thirdPartyTransfer}
+                          onChange={(e) => handleConsentChange('thirdPartyTransfer', e.target.checked)}
+                          className={`w-4 h-4 mt-1 rounded border-slate-300 text-${accentColor}-600 focus:ring-${accentColor}-500`}
+                        />
+                        <span className="text-sm text-slate-600">
+                          {t('auth.register.consent_third_party')}
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={consents.termsAndPrivacy}
+                          onChange={(e) => handleConsentChange('termsAndPrivacy', e.target.checked)}
+                          className={`w-4 h-4 mt-1 rounded border-slate-300 text-${accentColor}-600 focus:ring-${accentColor}-500`}
+                        />
+                        <span className="text-sm text-slate-600">
+                          {t('auth.register.agree_with')}{' '}
+                          <Link to="/terms" className={`text-${accentColor}-600 hover:underline`}>
+                            {t('auth.register.terms')}
+                          </Link>{' '}
+                          {t('common.and')}{' '}
+                          <Link to="/privacy" className={`text-${accentColor}-600 hover:underline`}>
+                            {t('auth.register.privacy')}
+                          </Link>
+                        </span>
+                      </label>
+                    </div>
+                    {formErrors.consents && <p className="text-sm text-rose-600">{formErrors.consents}</p>}
 
                     {error && (
                       <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-600">
