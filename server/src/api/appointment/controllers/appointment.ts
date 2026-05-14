@@ -379,10 +379,15 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
   async update(ctx) {
     const user = ctx.state.user;
-    if (!user) return ctx.forbidden('Not authenticated');
+    const authState = (ctx.state as any)?.auth;
+    const isApiToken =
+      authState?.strategy?.name === 'api-token' ||
+      authState?.credentials?.type === 'api-token' ||
+      (!user && Boolean(authState?.credentials) && String(ctx.request?.headers?.authorization || '').startsWith('Bearer '));
+    if (!user && !isApiToken) return ctx.forbidden('Not authenticated');
 
-    const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
-    const isDoctor = user.role?.type === 'doctor' || user.userRole === 'doctor';
+    const isAdmin = isApiToken || user?.role?.type === 'admin' || user?.userRole === 'admin';
+    const isDoctor = user?.role?.type === 'doctor' || user?.userRole === 'doctor';
 
     const { id: documentId } = ctx.params;
     const body = (ctx.request.body as any)?.data || ctx.request.body || {};

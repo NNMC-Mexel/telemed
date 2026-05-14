@@ -48,7 +48,7 @@ npm install
 npm run dev
 ```
 
-Откроется: http://localhost:5173
+Откроется: http://localhost:1342
 
 ### 3. Signaling Server (для видеозвонков)
 
@@ -258,7 +258,7 @@ JWT_SECRET=ваш-jwt-secret
 ### Signaling Server (.env)
 ```env
 PORT=3001
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:1342
 ```
 
 ---
@@ -315,7 +315,7 @@ module.exports = [
   {
     name: 'strapi::cors',
     config: {
-      origin: ['http://localhost:5173'],
+      origin: ['http://localhost:1342'],
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
       headers: ['Content-Type', 'Authorization'],
     },

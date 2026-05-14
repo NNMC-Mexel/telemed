@@ -15,6 +15,7 @@ export default async (policyContext, config, { strapi }) => {
 
   const conversation = await strapi.documents('api::conversation.conversation').findOne({
     documentId,
+    status: 'published',
     populate: { users_permissions_users: { fields: ['id'] } },
   });
 

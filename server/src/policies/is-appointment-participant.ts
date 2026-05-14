@@ -5,7 +5,15 @@
  */
 export default async (policyContext, config, { strapi }) => {
   const user = policyContext.state?.user;
-  if (!user) return false;
+  const authState = policyContext.state?.auth;
+  const isApiToken =
+    authState?.strategy?.name === 'api-token' ||
+    authState?.credentials?.type === 'api-token' ||
+    (!user && Boolean(authState?.credentials) && String(policyContext.request?.headers?.authorization || '').startsWith('Bearer '));
+  if (!user && !isApiToken) return false;
+
+  // Trusted server-to-server calls, e.g. signaling server appointment status updates.
+  if (isApiToken) return true;
 
   // Admin bypass
   if (user.role?.type === 'admin' || user.userRole === 'admin') return true;

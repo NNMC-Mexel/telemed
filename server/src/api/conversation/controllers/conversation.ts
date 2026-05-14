@@ -10,18 +10,37 @@ export default factories.createCoreController('api::conversation.conversation', 
     if (!user) return ctx.forbidden('Not authenticated');
 
     const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
-
-    if (!isAdmin) {
-      ctx.query = {
-        ...ctx.query,
-        filters: {
-          ...(ctx.query.filters as any || {}),
+    const query = ctx.query as any;
+    const requestedSort = query.sort || 'updatedAt:desc';
+    const requestedFilters = query.filters || {};
+    const filters = isAdmin
+      ? requestedFilters
+      : {
+          ...requestedFilters,
           users_permissions_users: { id: user.id },
-        },
-      };
-    }
+        };
 
-    return await super.find(ctx);
+    const conversations = await strapi.documents('api::conversation.conversation').findMany({
+      filters,
+      sort: requestedSort,
+      status: 'published',
+      populate: {
+        users_permissions_users: { fields: ['id', 'documentId', 'fullName', 'email', 'userRole'] },
+        appointment: { fields: ['id', 'documentId', 'dateTime', 'type'] },
+      },
+    });
+
+    return {
+      data: conversations,
+      meta: {
+        pagination: {
+          page: 1,
+          pageSize: conversations.length,
+          pageCount: 1,
+          total: conversations.length,
+        },
+      },
+    };
   },
 
   async findOne(ctx) {
@@ -33,6 +52,7 @@ export default factories.createCoreController('api::conversation.conversation', 
 
     const conversation = await strapi.documents('api::conversation.conversation').findOne({
       documentId: id,
+      status: 'published',
       populate: {
         users_permissions_users: { fields: ['id'] },
         messages: { populate: ['sender'] },
