@@ -16,7 +16,162 @@
  *
  * В B2B-модели врачи создаются только администратором клиники через админ-панель.
  */
+import crypto from 'crypto';
+
+const sendConfirmationEmail = async (strapi: any, email: string, token: string) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:1342';
+  const confirmUrl = `${frontendUrl}/email-confirmation?confirmation=${token}`;
+  await strapi.plugin('email').service('email').send({
+    to: email,
+    subject: 'Подтверждение email — MedConnect',
+    text: `Перейдите по ссылке для подтверждения вашего аккаунта: ${confirmUrl}\n\nСсылка действительна 24 часа.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+        <div style="background:#0d9488;padding:24px;text-align:center;border-radius:8px 8px 0 0;">
+          <h1 style="color:white;margin:0;font-size:24px;">MedConnect</h1>
+        </div>
+        <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
+          <h2 style="color:#1e293b;margin-top:0;">Подтверждение email</h2>
+          <p style="color:#475569;">Здравствуйте! Нажмите на кнопку ниже, чтобы подтвердить ваш адрес электронной почты и активировать аккаунт:</p>
+          <div style="text-align:center;margin:32px 0;">
+            <a href="${confirmUrl}"
+               style="background:#0d9488;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
+              Подтвердить email
+            </a>
+          </div>
+          <p style="color:#94a3b8;font-size:13px;margin-bottom:0;">
+            Если вы не регистрировались на платформе — просто проигнорируйте это письмо.<br/>
+            Ссылка действительна в течение 24 часов.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+};
+
 export default (plugin) => {
+  const LEGAL_DOCUMENT_VERSIONS = {
+    terms: '2026-03-01',
+    privacy: '2026-03-01',
+    consent: '2026-05-06',
+  };
+
+  const REQUIRED_CONSENTS = [
+    'personalData',
+    'medicalData',
+    'telemedicine',
+    'thirdPartyTransfer',
+    'termsAndPrivacy',
+  ];
+
+  const truncate = (value: unknown, maxLength: number) => {
+    if (!value) return null;
+    return String(value).slice(0, maxLength);
+  };
+
+  const getClientIp = (ctx: any) => {
+    const forwardedFor = ctx.request?.headers?.['x-forwarded-for'];
+    if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+      return forwardedFor.split(',')[0].trim();
+    }
+    return ctx.ip || ctx.request?.ip || ctx.request?.socket?.remoteAddress || null;
+  };
+
+  const hasRequiredConsents = (consents: any) =>
+    consents && REQUIRED_CONSENTS.every((name) => consents[name] === true);
+
+  const normalizeKazakhstanPhone = (value: unknown) => {
+    const raw = String(value || '');
+    let digitsOnly = raw.replace(/\D/g, '');
+    if (!digitsOnly) return null;
+
+    if (raw.trim().startsWith('+7')) {
+      digitsOnly = digitsOnly.slice(1);
+      if (digitsOnly[0] === '8') digitsOnly = digitsOnly.slice(1);
+      if (digitsOnly.length > 10 && digitsOnly[0] === '7') digitsOnly = digitsOnly.slice(1);
+    } else if (digitsOnly[0] === '8') {
+      digitsOnly = digitsOnly.slice(1);
+    } else if (digitsOnly.length > 10 && digitsOnly[0] === '7') {
+      digitsOnly = digitsOnly.slice(1);
+    }
+
+    const localDigits = digitsOnly.slice(0, 10);
+
+    if (localDigits.length !== 10) return null;
+
+    return `+7 ${localDigits.slice(0, 3)} ${localDigits.slice(3, 6)}-${localDigits.slice(6, 8)}-${localDigits.slice(8, 10)}`;
+  };
+
+  const sanitizeUser = (strapi: any, user: any, ctx: any) => {
+    const userSchema = strapi.getModel('plugin::users-permissions.user');
+    return strapi.contentAPI.sanitize.output(user, userSchema, { auth: ctx.state?.auth });
+  };
+
+  const issueUserJwt = (strapi: any, userId: number | string) =>
+    strapi.plugin('users-permissions').service('jwt').issue({ id: userId });
+
+  const resolveLoginIdentifier = async (strapi: any, sourceBody: any) => {
+    const identifier = String(sourceBody?.identifier || '').trim();
+    if (!identifier) return identifier;
+
+    const digitsOnly = identifier.replace(/\D/g, '');
+    const isPhone = digitsOnly.length >= 7 && /^[\d\s\+\-\(\)]+$/.test(identifier);
+    if (!isPhone) return identifier;
+
+    const localDigits = digitsOnly.slice(-10);
+    const phoneCandidates: string[] = [identifier];
+    const normalizedPhone = normalizeKazakhstanPhone(identifier);
+    if (normalizedPhone && !phoneCandidates.includes(normalizedPhone)) {
+      phoneCandidates.push(normalizedPhone);
+    }
+    if (localDigits.length === 10) {
+      [
+        `+7${localDigits}`,
+        `7${localDigits}`,
+        `8${localDigits}`,
+        localDigits,
+      ].forEach((phoneVariant) => {
+        if (!phoneCandidates.includes(phoneVariant)) phoneCandidates.push(phoneVariant);
+      });
+    }
+
+    for (const phoneVariant of phoneCandidates) {
+      const foundUser = await strapi.query('plugin::users-permissions.user').findOne({
+        where: { phone: phoneVariant },
+        select: ['id', 'email', 'phone'],
+      });
+      if (foundUser?.email) {
+        console.log('[auth.callback] Phone login: found user by phone, using email');
+        return foundUser.email;
+      }
+    }
+
+    return identifier;
+  };
+
+  const blockUnconfirmedUser = async (strapi: any, ctx: any, identifier: string) => {
+    if (!identifier) return false;
+
+    const userToCheck = await strapi.query('plugin::users-permissions.user').findOne({
+      where: { email: identifier.toLowerCase() },
+      select: ['id', 'confirmed'],
+    });
+
+    if (userToCheck && userToCheck.confirmed === false) {
+      ctx.status = 400;
+      ctx.body = {
+        error: {
+          status: 400,
+          name: 'ValidationError',
+          message: 'email_not_confirmed',
+        },
+      };
+      return true;
+    }
+
+    return false;
+  };
+
   // Сохраняем оригинальную factory-функцию контроллера auth
   const originalAuthFactory = plugin.controllers.auth;
 
@@ -25,68 +180,133 @@ export default (plugin) => {
     // Вызываем оригинальную factory, чтобы получить все методы контроллера
     const originalController = originalAuthFactory(factoryContext);
     const originalRegister = originalController.register;
-    const originalLogin = originalController.login;
+    const originalCallback = originalController.callback;
 
     return {
       ...originalController,
 
-      // Логин по телефону: если identifier выглядит как номер телефона —
-      // ищем пользователя по полю phone и подставляем его email
-      async login(ctx) {
+      // Strapi routes POST /auth/local to auth.callback, not auth.login.
+      // Resolve phone identifiers and block unconfirmed users before issuing JWT.
+      async callback(ctx) {
         const requestBody = ctx.request?.body || {};
         const sourceBody =
           requestBody?.data && typeof requestBody.data === 'object'
             ? requestBody.data
             : requestBody;
 
-        const { identifier } = sourceBody;
-
-        if (identifier) {
-          const trimmed = String(identifier).trim();
-          const digitsOnly = trimmed.replace(/\D/g, '');
-          const isPhone = digitsOnly.length >= 7 && /^[\d\s\+\-\(\)]+$/.test(trimmed);
-
-          if (isPhone) {
-            // Build exact-match candidates from the same digit string to avoid
-            // loading ALL users into memory (collision + performance risk).
-            // We try up to 4 known formats used in Kazakhstan:
-            //   +7XXXXXXXXXX  (international)
-            //    7XXXXXXXXXX  (without +)
-            //    8XXXXXXXXXX  (Russian-style)
-            //     XXXXXXXXXX  (local 10-digit)
-            const localDigits = digitsOnly.slice(-10); // last 10 digits
-            const phoneCandidates: string[] = [trimmed];
-
-            if (localDigits.length === 10) {
-              const variants = [
-                `+7${localDigits}`,
-                `7${localDigits}`,
-                `8${localDigits}`,
-                localDigits,
-              ];
-              // Add variants not already in the list
-              variants.forEach((v) => {
-                if (!phoneCandidates.includes(v)) phoneCandidates.push(v);
-              });
-            }
-
-            let foundUser: any = null;
-            for (const phoneVariant of phoneCandidates) {
-              foundUser = await strapi.query('plugin::users-permissions.user').findOne({
-                where: { phone: phoneVariant },
-                select: ['id', 'email', 'phone'],
-              });
-              if (foundUser) break;
-            }
-
-            if (foundUser?.email) {
-              console.log(`[auth.login] Phone login: found user by phone, using email`);
-              ctx.request.body = { ...sourceBody, identifier: foundUser.email };
-            }
-          }
+        if ((ctx.params?.provider || 'local') !== 'local') {
+          return originalCallback(ctx);
         }
 
-        return originalLogin(ctx);
+        const resolvedIdentifier = await resolveLoginIdentifier(strapi, sourceBody);
+        if (resolvedIdentifier && resolvedIdentifier !== sourceBody?.identifier) {
+          ctx.request.body = { ...sourceBody, identifier: resolvedIdentifier };
+        }
+        if (await blockUnconfirmedUser(strapi, ctx, resolvedIdentifier)) {
+          return;
+        }
+
+        return originalCallback(ctx);
+      },
+
+      async emailConfirmation(ctx) {
+        const confirmationToken = String(ctx.query?.confirmation || '').trim();
+        if (!confirmationToken) {
+          ctx.status = 400;
+          ctx.body = {
+            error: {
+              status: 400,
+              name: 'ValidationError',
+              message: 'confirmation is a required field',
+            },
+          };
+          return;
+        }
+
+        const user = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { confirmationToken },
+        });
+
+        if (!user) {
+          ctx.status = 400;
+          ctx.body = {
+            error: {
+              status: 400,
+              name: 'ValidationError',
+              message: 'Invalid token',
+            },
+          };
+          return;
+        }
+
+        const updatedUser = await strapi.query('plugin::users-permissions.user').update({
+          where: { id: user.id },
+          data: { confirmed: true, confirmationToken: null },
+        });
+
+        ctx.body = {
+          jwt: issueUserJwt(strapi, user.id),
+          user: await sanitizeUser(strapi, updatedUser, ctx),
+        };
+      },
+
+      async sendEmailConfirmation(ctx) {
+        const email = String(ctx.request?.body?.email || '').trim().toLowerCase();
+        if (!email) {
+          ctx.status = 400;
+          ctx.body = {
+            error: {
+              status: 400,
+              name: 'ValidationError',
+              message: 'email is a required field',
+            },
+          };
+          return;
+        }
+
+        const user = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { email },
+          select: ['id', 'email', 'confirmed', 'blocked'],
+        });
+
+        if (!user) {
+          ctx.body = { email, sent: true };
+          return;
+        }
+        if (user.confirmed) {
+          ctx.status = 400;
+          ctx.body = {
+            error: {
+              status: 400,
+              name: 'ApplicationError',
+              message: 'Already confirmed',
+            },
+          };
+          return;
+        }
+        if (user.blocked) {
+          ctx.status = 400;
+          ctx.body = {
+            error: {
+              status: 400,
+              name: 'ApplicationError',
+              message: 'User blocked',
+            },
+          };
+          return;
+        }
+
+        const confirmationToken = crypto.randomBytes(32).toString('hex');
+        await strapi.query('plugin::users-permissions.user').update({
+          where: { id: user.id },
+          data: { confirmationToken },
+        });
+        await sendConfirmationEmail(strapi, user.email, confirmationToken);
+
+        ctx.body = {
+          email: user.email,
+          sent: true,
+        };
       },
 
       async register(ctx) {
@@ -100,7 +320,7 @@ export default (plugin) => {
             ? requestBody.data
             : requestBody;
 
-        const { userRole: rawRole, fullName, phone, iin, doctorData, ...cleanBody } = sourceBody;
+        const { userRole: rawRole, fullName, phone, iin, doctorData, consents, ...cleanBody } = sourceBody;
 
         // B2B security: public registration is only for patients.
         // Doctors are clinic employees and must be created/verified by an admin.
@@ -108,12 +328,28 @@ export default (plugin) => {
         if (normalizedRole === 'doctor' || normalizedRole === 'admin' || doctorData) {
           return ctx.forbidden('Doctor registration is disabled. Doctors are created by clinic administrators.');
         }
+        if (!hasRequiredConsents(consents)) {
+          return ctx.badRequest('All required medical and personal data consents must be accepted.');
+        }
+        const normalizedPhone = normalizeKazakhstanPhone(phone);
+        if (!normalizedPhone) {
+          return ctx.badRequest('Phone must be a valid Kazakhstan number in +7 format.');
+        }
         const userRole = 'patient';
 
         console.log(`[auth.register] userRole=${userRole}, fullName=${fullName}`);
 
-        // Подменяем body — оставляем только username, email, password
-        ctx.request.body = cleanBody;
+        // Strip non-standard fields from the body so Strapi's allowedFields
+        // validation doesn't reject them. We mutate the EXISTING object (not
+        // just replace the reference) because originalRegister may hold a
+        // closure over the same object reference in Strapi v5 / Koa.
+        const EXTRA_KEYS = ['userRole', 'fullName', 'phone', 'iin', 'doctorData', 'consents'];
+        const bodyRef = ctx.request.body as Record<string, unknown>;
+        for (const key of EXTRA_KEYS) {
+          delete bodyRef[key];
+        }
+        // Also reassign as a fallback for environments where the setter matters.
+        ctx.request.body = { ...cleanBody };
 
         // Вызываем оригинальную регистрацию Strapi (создаёт user + JWT)
         await originalRegister(ctx);
@@ -154,28 +390,80 @@ export default (plugin) => {
           const roleId = targetRole.id;
 
           // 2. Обновляем user: userRole + fullName + phone + iin + правильная Strapi-роль
+          const confirmationToken = crypto.randomBytes(32).toString('hex');
+
           await strapi.query('plugin::users-permissions.user').update({
             where: { id: userId },
             data: {
               userRole,
               fullName: fullName || null,
-              phone: phone || null,
+              phone: normalizedPhone,
               iin: iin || null,
               role: roleId,
+              confirmed: false,
+              confirmationToken,
             },
           });
 
           console.log(`[auth.register] User ${userId} updated: userRole=${userRole}, roleId=${roleId}`);
 
-          // 3. Обновляем response body, чтобы фронтенд получил актуальные данные
-          responseBody.user.userRole = userRole;
-          responseBody.user.fullName = fullName || null;
-          responseBody.user.phone = phone || null;
+          const updatedUser = await strapi.query('plugin::users-permissions.user').findOne({
+            where: { id: userId },
+            select: ['id', 'documentId'],
+          });
+
+          await strapi.documents('api::consent-record.consent-record').create({
+            data: {
+              user: updatedUser?.documentId,
+              source: 'registration',
+              personalDataConsent: true,
+              medicalDataConsent: true,
+              telemedicineConsent: true,
+              thirdPartyTransferConsent: true,
+              termsAndPrivacyConsent: true,
+              consentVersion: LEGAL_DOCUMENT_VERSIONS.consent,
+              termsVersion: LEGAL_DOCUMENT_VERSIONS.terms,
+              privacyVersion: LEGAL_DOCUMENT_VERSIONS.privacy,
+              locale: truncate(consents.locale, 16),
+              ipAddress: truncate(getClientIp(ctx), 64),
+              userAgent: truncate(ctx.request?.headers?.['user-agent'], 1024),
+              acceptedAt: new Date().toISOString(),
+            },
+          });
+
+          strapi.log.info(JSON.stringify({
+            audit: 'USER_CONSENTS_ACCEPTED',
+            userId,
+            source: 'registration',
+            versions: LEGAL_DOCUMENT_VERSIONS,
+            ts: new Date().toISOString(),
+          }));
+
+          // 3. Отправляем письмо с подтверждением
+          try {
+            await sendConfirmationEmail(strapi, responseBody.user.email, confirmationToken);
+            console.log(`[auth.register] Confirmation email sent to ${responseBody.user.email}`);
+          } catch (emailErr) {
+            const emailMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+            console.error('[auth.register] Failed to send confirmation email:', emailMsg);
+            // Не блокируем регистрацию — пользователь сможет запросить повторную отправку
+          }
+
+          // 4. Убираем JWT — пользователь должен сначала подтвердить email
+          const pendingResponse = {
+            pendingConfirmation: true,
+            user: {
+              id: userId,
+              email: responseBody.user.email,
+              userRole,
+              fullName: fullName || null,
+            },
+          };
 
           if (ctx.response?.body) {
-            ctx.response.body = responseBody;
+            ctx.response.body = pendingResponse;
           } else {
-            ctx.body = responseBody;
+            ctx.body = pendingResponse;
           }
 
           // Audit log — registration
