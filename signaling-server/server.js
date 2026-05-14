@@ -57,8 +57,8 @@ if (missingPayment.length > 0) {
 }
 const PAYMENTS_LIVE = process.env.PAYMENTS_LIVE === 'true'
 if (process.env.NODE_ENV === 'production' && !PAYMENTS_LIVE) {
-  console.error('[STARTUP] PAYMENTS_LIVE=true is required in production')
-  process.exit(1)
+  // Warn but don't crash — server runs in test-payment mode, live payment endpoints return 503
+  console.warn('[STARTUP] PAYMENTS_LIVE is not set to true. Running in test-payment mode (live payment endpoints disabled).')
 }
 if (PAYMENTS_LIVE && missingPayment.length > 0) {
   console.error(`[STARTUP] Missing ePay variables while PAYMENTS_LIVE=true: ${missingPayment.join(', ')}`)
