@@ -152,7 +152,10 @@
         "specialization": "Выберите специализацию",
         "license": "Введите номер лицензии",
         "experience": "Укажите стаж работы",
-        "education": "Укажите образование"
+        "education": "Укажите образование",
+        "phone_taken": "Этот номер телефона уже зарегистрирован",
+        "iin_taken": "Этот ИИН уже зарегистрирован",
+        "email_taken": "Этот email уже зарегистрирован"
       }
     },
     "forgot_password": {
@@ -1077,6 +1080,7 @@
     "forgot_resend_cooldown": "Повторить через {{seconds}} сек",
     "forgot_resend": "Отправить повторно",
     "forgot_email_required": "Введите email",
+    "forgot_email_not_found": "Пользователь с таким email не найден.",
     "forgot_send_error": "Ошибка отправки. Попробуйте позже.",
     "forgot_send_link": "Отправить ссылку",
     "forgot_remember": "Вспомнили пароль?",

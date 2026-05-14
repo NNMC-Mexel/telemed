@@ -152,7 +152,10 @@
         "specialization": "Choose a specialization",
         "license": "Enter license number",
         "experience": "Enter work experience",
-        "education": "Enter education"
+        "education": "Enter education",
+        "phone_taken": "This phone number is already registered",
+        "iin_taken": "This IIN is already registered",
+        "email_taken": "This email is already registered"
       }
     },
     "forgot_password": {
@@ -1077,6 +1080,7 @@
     "forgot_resend_cooldown": "Resend in {{seconds}} sec",
     "forgot_resend": "Resend",
     "forgot_email_required": "Enter your email",
+    "forgot_email_not_found": "No account found with this email address.",
     "forgot_send_error": "Failed to send. Please try again later.",
     "forgot_send_link": "Send reset link",
     "forgot_remember": "Remember your password?",

@@ -530,7 +530,13 @@ function RegisterPage() {
 
                     {error && (
                       <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-600">
-                        {error}
+                        {error === 'phone_already_registered'
+                          ? t('auth.register.validation.phone_taken')
+                          : error === 'iin_already_registered'
+                          ? t('auth.register.validation.iin_taken')
+                          : (error === 'Email or Username are already taken' || error === 'email_already_taken')
+                          ? t('auth.register.validation.email_taken')
+                          : error}
                       </div>
                     )}
 

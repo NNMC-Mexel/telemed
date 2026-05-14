@@ -45,7 +45,10 @@ function ForgotPasswordPage() {
       setIsSent(true)
       startCooldown()
     } catch (err) {
-      const message = err.response?.data?.error?.message || t('auth_flow.forgot_send_error')
+      const errCode = err.response?.data?.error?.message || ''
+      const message = errCode === 'email_not_found'
+        ? t('auth_flow.forgot_email_not_found')
+        : t('auth_flow.forgot_send_error')
       setError(message)
     } finally {
       setIsLoading(false)

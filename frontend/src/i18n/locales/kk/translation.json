@@ -152,7 +152,10 @@
         "specialization": "Мамандықты таңдаңыз",
         "license": "Лицензия нөмірін енгізіңіз",
         "experience": "Жұмыс өтілін көрсетіңіз",
-        "education": "Білімді көрсетіңіз"
+        "education": "Білімді көрсетіңіз",
+        "phone_taken": "Бұл телефон нөмірі бұрыннан тіркелген",
+        "iin_taken": "Бұл ЖСН бұрыннан тіркелген",
+        "email_taken": "Бұл email бұрыннан тіркелген"
       }
     },
     "forgot_password": {
@@ -1077,6 +1080,7 @@
     "forgot_resend_cooldown": "{{seconds}} сек-тан кейін қайталау",
     "forgot_resend": "Қайта жіберу",
     "forgot_email_required": "Email енгізіңіз",
+    "forgot_email_not_found": "Бұл email-мен аккаунт табылмады.",
     "forgot_send_error": "Жіберу қатесі. Кейінірек қайталаңыз.",
     "forgot_send_link": "Сілтеме жіберу",
     "forgot_remember": "Құпия сөзіңізді есіңізге түсірдіңіз бе?",

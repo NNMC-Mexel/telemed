@@ -181,6 +181,7 @@ export default (plugin) => {
     const originalController = originalAuthFactory(factoryContext);
     const originalRegister = originalController.register;
     const originalCallback = originalController.callback;
+    const originalForgotPassword = originalController.forgotPassword;
 
     return {
       ...originalController,
@@ -309,6 +310,34 @@ export default (plugin) => {
         };
       },
 
+      async forgotPassword(ctx) {
+        const email = String(ctx.request?.body?.email || '').trim().toLowerCase();
+        if (!email) {
+          ctx.status = 400;
+          ctx.body = { error: { status: 400, name: 'ValidationError', message: 'email is a required field' } };
+          return;
+        }
+
+        const user = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { email },
+          select: ['id', 'email', 'blocked'],
+        });
+
+        if (!user) {
+          ctx.status = 400;
+          ctx.body = { error: { status: 400, name: 'ValidationError', message: 'email_not_found' } };
+          return;
+        }
+
+        if (user.blocked) {
+          ctx.status = 400;
+          ctx.body = { error: { status: 400, name: 'ApplicationError', message: 'User blocked' } };
+          return;
+        }
+
+        return originalForgotPassword(ctx);
+      },
+
       async register(ctx) {
         console.log('[auth.register] Custom registration handler started');
 
@@ -335,6 +364,26 @@ export default (plugin) => {
         if (!normalizedPhone) {
           return ctx.badRequest('Phone must be a valid Kazakhstan number in +7 format.');
         }
+
+        // Uniqueness checks — phone and IIN must be unique across all users
+        const existingByPhone = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { phone: normalizedPhone },
+          select: ['id'],
+        });
+        if (existingByPhone) {
+          return ctx.badRequest('phone_already_registered');
+        }
+
+        if (iin) {
+          const existingByIin = await strapi.query('plugin::users-permissions.user').findOne({
+            where: { iin: String(iin).trim() },
+            select: ['id'],
+          });
+          if (existingByIin) {
+            return ctx.badRequest('iin_already_registered');
+          }
+        }
+
         const userRole = 'patient';
 
         console.log(`[auth.register] userRole=${userRole}, fullName=${fullName}`);
