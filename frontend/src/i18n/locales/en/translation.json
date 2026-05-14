@@ -658,7 +658,17 @@
     "edit": "Edit",
     "translations_title": "My name in other languages",
     "translations_hint": "If left empty, doctors will see your name in Russian.",
-    "optional": "optional"
+    "optional": "optional",
+    "save_success": "Changes saved successfully",
+    "save_error": "Failed to save. Please try again.",
+    "current_password": "Current password",
+    "new_password": "New password",
+    "confirm_new_password": "Confirm new password",
+    "password_changed": "Password changed",
+    "password_changed_desc": "Your password has been updated successfully.",
+    "password_change_error": "Failed to change password. Please try again.",
+    "current_password_wrong": "Current password is incorrect.",
+    "coming_soon": "Soon"
   },
   "documents": {
     "title": "My Documents",

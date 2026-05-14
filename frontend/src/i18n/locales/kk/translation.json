@@ -658,7 +658,17 @@
     "edit": "Өңдеу",
     "translations_title": "Менің атым басқа тілдерде",
     "translations_hint": "Толтырылмаса — дәрігерлер атыңызды орысшасында көреді.",
-    "optional": "міндетті емес"
+    "optional": "міндетті емес",
+    "save_success": "Деректер сәтті сақталды",
+    "save_error": "Сақтау қатесі. Қайталап көріңіз.",
+    "current_password": "Ағымдағы құпиясөз",
+    "new_password": "Жаңа құпиясөз",
+    "confirm_new_password": "Жаңа құпиясөзді растаңыз",
+    "password_changed": "Құпиясөз өзгертілді",
+    "password_changed_desc": "Құпиясөзіңіз сәтті жаңартылды.",
+    "password_change_error": "Құпиясөзді өзгерту қатесі. Қайталап көріңіз.",
+    "current_password_wrong": "Ағымдағы құпиясөз дұрыс емес.",
+    "coming_soon": "Жақында"
   },
   "documents": {
     "title": "Менің құжаттарым",

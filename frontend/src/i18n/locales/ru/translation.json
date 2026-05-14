@@ -658,7 +658,17 @@
     "edit": "Редактировать",
     "translations_title": "Моё имя на других языках",
     "translations_hint": "Если не заполнено — врачи увидят имя на русском языке.",
-    "optional": "необязательно"
+    "optional": "необязательно",
+    "save_success": "Данные успешно сохранены",
+    "save_error": "Ошибка при сохранении. Попробуйте ещё раз.",
+    "current_password": "Текущий пароль",
+    "new_password": "Новый пароль",
+    "confirm_new_password": "Подтвердите новый пароль",
+    "password_changed": "Пароль изменён",
+    "password_changed_desc": "Ваш пароль успешно обновлён.",
+    "password_change_error": "Ошибка при смене пароля. Попробуйте ещё раз.",
+    "current_password_wrong": "Неверный текущий пароль.",
+    "coming_soon": "Скоро"
   },
   "documents": {
     "title": "Мои документы",
