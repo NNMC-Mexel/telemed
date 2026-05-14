@@ -75,15 +75,6 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Логируем для отладки (только в браузере)
-if (typeof window !== 'undefined') {
-  console.log('[API] API_URL:', API_URL);
-  console.log('[API] Mode:', import.meta.env.MODE);
-  console.log('[API] PROD:', import.meta.env.PROD);
-  console.log('[API] Hostname:', window.location.hostname);
-  console.log('[API] Final API URL:', API_URL);
-}
-
 const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -91,45 +82,9 @@ const api = axios.create({
     },
 });
 
-// Дополнительная проверка: убеждаемся, что baseURL правильный
-if (typeof window !== 'undefined') {
-  const hostname = window.location.hostname;
-  if ((hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') && 
-      api.defaults.baseURL !== PRODUCTION_API_URL) {
-    console.warn('[API] WARNING: baseURL is incorrect! Fixing...');
-    api.defaults.baseURL = PRODUCTION_API_URL;
-  }
-}
-
-// Request interceptor - добавляем токен и проверяем URL
+// Request interceptor — добавляем токен авторизации
 api.interceptors.request.use(
     (config) => {
-        // ВАЖНО: В продакшне принудительно устанавливаем правильный baseURL
-        if (typeof window !== 'undefined') {
-            const hostname = window.location.hostname;
-            if (hostname === 'medconnect.nnmc.kz' || hostname === 'www.medconnect.nnmc.kz') {
-                // Принудительно устанавливаем правильный baseURL
-                config.baseURL = PRODUCTION_API_URL;
-                api.defaults.baseURL = PRODUCTION_API_URL;
-            }
-        }
-        
-        // Если baseURL не установлен, используем текущий API_URL
-        if (!config.baseURL) {
-            config.baseURL = api.defaults.baseURL || API_URL;
-        }
-        
-        // Логируем для отладки в продакшне
-        if (typeof window !== 'undefined' && window.location.hostname === 'medconnect.nnmc.kz') {
-            if (config.url && config.url.startsWith('/api')) {
-                console.log('[API Request]', {
-                    baseURL: config.baseURL,
-                    url: config.url,
-                    finalURL: config.baseURL + config.url
-                });
-            }
-        }
-        
         const authStorage = localStorage.getItem("auth-storage");
         if (authStorage) {
             try {
@@ -330,6 +285,12 @@ export const authAPI = {
     getMe: () => api.get("/api/users/me?populate=*"),
 
     updateProfile: (userId, data) => api.put(`/api/users/${userId}`, data),
+
+    confirmEmail: (confirmation) =>
+        api.get(`/api/auth/email-confirmation?confirmation=${confirmation}`),
+
+    resendConfirmation: (email) =>
+        api.post('/api/auth/send-email-confirmation', { email }),
 };
 
 // ===========================================
@@ -547,14 +508,10 @@ export const getBookedSlots = async (doctorId, date) => {
 // ===========================================
 
 export const conversationsAPI = {
-    getAll: (userId) => {
+    getAll: () => {
         const query = new URLSearchParams();
         query.append("populate[users_permissions_users][populate]", "*");
         query.append("sort", "updatedAt:desc");
-
-        if (userId) {
-            query.append("filters[users_permissions_users][id][$eq]", userId);
-        }
 
         return api.get(`/api/conversations?${query}`);
     },

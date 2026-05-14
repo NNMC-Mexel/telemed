@@ -706,11 +706,6 @@ function VideoConsultation() {
     }
   }
 
-  const skipRating = () => {
-    setShowRatingModal(false)
-    navigate('/patient/appointments')
-  }
-
   const sendMessage = (e) => {
     e.preventDefault()
     if (!newMessage.trim() || !socketRef.current) return

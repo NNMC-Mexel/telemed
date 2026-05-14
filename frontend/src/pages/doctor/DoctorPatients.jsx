@@ -29,7 +29,6 @@ function DoctorPatients() {
   const [patients, setPatients] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [doctor, setDoctor] = useState(null)
 
   useEffect(() => {
     fetchDoctorAndPatients()
@@ -42,8 +41,6 @@ function DoctorPatients() {
       // Получаем профиль врача по userId
       const doctorResponse = await api.get(`/api/doctors?filters[userId][$eq]=${user.id}&populate=*`)
       const doctorData = doctorResponse.data?.data?.[0]
-      setDoctor(doctorData)
-      
       if (doctorData?.id) {
         // Получаем все appointments этого врача с информацией о пациентах
         const appointmentsResponse = await api.get(

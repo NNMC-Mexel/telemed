@@ -6,6 +6,13 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
   globalIgnores(['dist']),
+  // Node.js config files (vite.config.js, etc.)
+  {
+    files: ['vite.config.js', 'vite.config.ts'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -23,7 +30,18 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': [
+        'error',
+        {
+          varsIgnorePattern: '^[A-Z_]',
+          argsIgnorePattern: '^_|^[A-Z]',
+          caughtErrors: 'none',
+          destructuredArrayIgnorePattern: '^[A-Z_]',
+        },
+      ],
+      // setState called synchronously in useEffect body is intentional in some patterns
+      // (e.g. early return after checking a condition). Downgrade to warning.
+      'react-hooks/set-state-in-effect': 'warn',
     },
   },
 ])

@@ -36,7 +36,6 @@ export default ({ env }) => {
     {
       name: 'strapi::cors',
       config: {
-        enabled: true,
         // Explicit allowed headers — never use '*'
         headers: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

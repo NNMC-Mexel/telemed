@@ -56,6 +56,27 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    build: {
+      chunkSizeWarningLimit: 950,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Core React runtime
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            // UI utilities
+            'vendor-ui': ['lucide-react', 'clsx', 'tailwindcss'],
+            // Date utilities
+            'vendor-date': ['date-fns'],
+            // State management
+            'vendor-state': ['zustand', 'axios'],
+            // i18n
+            'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+            // WebRTC / sockets
+            'vendor-rtc': ['socket.io-client', 'simple-peer'],
+          },
+        },
+      },
+    },
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(API_URL),
       'import.meta.env.VITE_SIGNALING_SERVER': JSON.stringify(SIGNALING_SERVER),

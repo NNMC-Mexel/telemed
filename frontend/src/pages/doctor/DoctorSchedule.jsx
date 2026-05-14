@@ -198,7 +198,6 @@ function DoctorSchedule() {
 
     const isWorkingDay = (date) => workingDays.includes(date.getDay());
 
-    const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
     const selectedAppointments = getAppointmentsForDate(selectedDate);
 
     // Генерируем слоты для отображения на основе текущих настроек

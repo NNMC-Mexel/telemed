@@ -35,9 +35,7 @@ function AdminUsers() {
   const [roleFilter, setRoleFilter] = useState('all')
   const [selectedUser, setSelectedUser] = useState(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
 
   const roleLabels = {
     patient: t('admin_users.role_patient'),
@@ -105,11 +103,6 @@ function AdminUsers() {
   const openDeleteModal = (user) => {
     setSelectedUser(user)
     setShowDeleteModal(true)
-  }
-
-  const openEditModal = (user) => {
-    setSelectedUser(user)
-    setShowEditModal(true)
   }
 
   if (isLoading) {

@@ -7,7 +7,7 @@ import {
     normalizeResponse,
 } from "../services/api";
 
-const useAppointmentStore = create((set, get) => ({
+const useAppointmentStore = create((set, _get) => ({
     appointments: [],
     currentAppointment: null,
     doctors: [],

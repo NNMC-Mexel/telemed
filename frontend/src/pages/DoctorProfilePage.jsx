@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import SEOHead from "../components/seo/SEOHead";
 import {
     Star,
     Clock,
@@ -96,8 +97,38 @@ function DoctorProfilePage() {
     const reviewsCount = reviews.length || 0;
     const totalPatients = doctor.appointmentsCount || reviewsCount || 0;
 
+    const doctorStructuredData = {
+        "@context": "https://schema.org",
+        "@type": "Physician",
+        "name": doctorDisplayName,
+        "medicalSpecialty": specialization,
+        "description": doctorDisplayBio?.replace(/<[^>]*>/g, ' ').trim() || `${specialization} — онлайн-консультации на MedConnect ННМЦ`,
+        "url": `https://medconnect.nnmc.kz/doctors/${doctor.documentId || doctor.id}`,
+        "worksFor": {
+            "@type": "MedicalOrganization",
+            "name": "ННМЦ MedConnect",
+            "url": "https://medconnect.nnmc.kz"
+        },
+        ...(averageRating > 0 && {
+            "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": averageRating.toFixed(1),
+                "bestRating": "5",
+                "worstRating": "1",
+                "ratingCount": reviewsCount || 1
+            }
+        })
+    };
+
     return (
         <div className='pt-28 pb-16 bg-slate-50 min-h-screen'>
+            <SEOHead
+                title={`${doctorDisplayName} — ${specialization}`}
+                description={`Онлайн-консультация у ${doctorDisplayName}, ${specialization}. Опыт работы: ${doctor.experience || 0} лет. Запись на видеоконсультацию или чат на MedConnect ННМЦ.`}
+                url={`/doctors/${doctor.documentId || doctor.id}`}
+                type="profile"
+                structuredData={doctorStructuredData}
+            />
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                 <div className='space-y-6 animate-fadeIn'>
                     {/* Back Button */}

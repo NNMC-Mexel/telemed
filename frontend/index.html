@@ -1,10 +1,121 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/medconnect-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>MedConnect</title>
+
+    <!-- Primary SEO -->
+    <title>MedConnect — Телемедицина ННМЦ | Онлайн-консультации врачей</title>
+    <meta name="description" content="MedConnect — платформа телемедицины Национального научного медицинского центра (ННМЦ). Онлайн-консультации с врачами: терапевт, кардиолог, невролог, педиатр и другие специалисты. Видеоконсультации, чат, запись на приём." />
+    <meta name="keywords" content="телемедицина, онлайн врач, консультация врача онлайн, ННМЦ, MedConnect, видеоконсультация, запись к врачу, Казахстан, Астана" />
+    <meta name="author" content="NNMC MedConnect" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://medconnect.nnmc.kz/" />
+
+    <!-- Language alternates -->
+    <link rel="alternate" hreflang="ru" href="https://medconnect.nnmc.kz/?lang=ru" />
+    <link rel="alternate" hreflang="kk" href="https://medconnect.nnmc.kz/?lang=kk" />
+    <link rel="alternate" hreflang="en" href="https://medconnect.nnmc.kz/?lang=en" />
+    <link rel="alternate" hreflang="x-default" href="https://medconnect.nnmc.kz/" />
+
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://medconnect.nnmc.kz/" />
+    <meta property="og:site_name" content="MedConnect ННМЦ" />
+    <meta property="og:title" content="MedConnect — Телемедицина ННМЦ | Онлайн-консультации врачей" />
+    <meta property="og:description" content="Онлайн-консультации с лучшими врачами ННМЦ. Видеоконсультации, чат, запись на приём — из любой точки Казахстана." />
+    <meta property="og:image" content="https://medconnect.nnmc.kz/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="MedConnect — Телемедицина ННМЦ" />
+    <meta property="og:locale" content="ru_KZ" />
+    <meta property="og:locale:alternate" content="kk_KZ" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MedConnect — Телемедицина ННМЦ" />
+    <meta name="twitter:description" content="Онлайн-консультации с врачами ННМЦ. Видеозвонки, чат, запись на приём." />
+    <meta name="twitter:image" content="https://medconnect.nnmc.kz/og-image.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/medconnect-icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0d9488" />
+
+    <!-- Structured Data — MedicalOrganization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "MedicalOrganization",
+      "name": "MedConnect — ННМЦ Телемедицина",
+      "alternateName": "NNMC MedConnect",
+      "url": "https://medconnect.nnmc.kz",
+      "logo": "https://medconnect.nnmc.kz/medconnect-icon.svg",
+      "image": "https://medconnect.nnmc.kz/og-image.png",
+      "description": "Платформа телемедицины Национального научного медицинского центра. Онлайн-консультации с врачами-специалистами.",
+      "telephone": "+7-7172-70-77-77",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "ул. Сыганак, 2",
+        "addressLocality": "Астана",
+        "addressRegion": "Акмолинская область",
+        "postalCode": "010000",
+        "addressCountry": "KZ"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 51.1289,
+        "longitude": 71.4306
+      },
+      "areaServed": {
+        "@type": "Country",
+        "name": "Kazakhstan"
+      },
+      "availableService": [
+        {
+          "@type": "MedicalTherapy",
+          "name": "Видеоконсультация врача онлайн"
+        },
+        {
+          "@type": "MedicalTherapy",
+          "name": "Чат-консультация с врачом"
+        }
+      ],
+      "medicalSpecialty": [
+        "Cardiology",
+        "Neurology",
+        "Pediatrics",
+        "Dermatology",
+        "Endocrinology"
+      ],
+      "sameAs": [
+        "https://nnmc.kz"
+      ]
+    }
+    </script>
+
+    <!-- Structured Data — WebSite (enables sitelinks search box) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "MedConnect ННМЦ",
+      "url": "https://medconnect.nnmc.kz",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://medconnect.nnmc.kz/doctors?search={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://medconnectserver.nnmc.kz" />
+    <link rel="dns-prefetch" href="https://medconnectserver.nnmc.kz" />
   </head>
   <body>
     <div id="root"></div>

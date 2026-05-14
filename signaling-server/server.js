@@ -801,6 +801,7 @@ io.use(async (socket, next) => {
   if (!user?.id) {
     return next(new Error('Authentication required'))
   }
+  socket.verifiedToken = token
   socket.verifiedUser = user
   socket.verifiedUserId = user.id
   next()
@@ -840,6 +841,23 @@ io.on('connection', (socket) => {
     else {
       console.warn(`[SECURITY] User ${verifiedId} tried to join room ${roomId} without membership`)
       socket.emit('join-room-error', { reason: 'Access denied' })
+      return
+    }
+
+    // Enforce the same server-time join window used by the frontend.
+    // Membership alone is not enough: future, expired, cancelled, or completed
+    // appointments must not open a signaling room.
+    const canJoinRes = await fetch(
+      `${STRAPI_API_URL}/api/appointments/can-join/${encodeURIComponent(roomId)}`,
+      { headers: { Authorization: `Bearer ${socket.verifiedToken || ''}` } },
+    ).catch(() => null)
+    if (!canJoinRes?.ok) {
+      socket.emit('join-room-error', { reason: 'Join check unavailable' })
+      return
+    }
+    const canJoinData = await canJoinRes.json().catch(() => null)
+    if (!canJoinData?.data?.allowed) {
+      socket.emit('join-room-error', { reason: canJoinData?.data?.reason || 'Join not allowed' })
       return
     }
 
@@ -1184,6 +1202,61 @@ io.on('connection', (socket) => {
 // Health check endpoint — minimal response, no internal state exposed
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
+})
+
+// Dynamic sitemap — includes all active doctors from Strapi
+// Cached for 1 hour to avoid hammering the DB on every bot crawl
+let sitemapCache = null
+let sitemapCachedAt = 0
+const SITEMAP_TTL_MS = 60 * 60 * 1000
+
+app.get('/sitemap-dynamic.xml', async (req, res) => {
+  const now = Date.now()
+  if (sitemapCache && now - sitemapCachedAt < SITEMAP_TTL_MS) {
+    res.set('Content-Type', 'application/xml')
+    return res.send(sitemapCache)
+  }
+
+  try {
+    const doctorsRes = await fetch(
+      `${STRAPI_API_URL}/api/doctors?filters[isActive][$eq]=true&fields[0]=documentId&fields[1]=updatedAt&pagination[limit]=500`,
+      { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}` } }
+    )
+    const doctorsData = await doctorsRes.json()
+    const doctors = doctorsData?.data || []
+    const today = new Date().toISOString().slice(0, 10)
+
+    const doctorUrls = doctors.map((d) => `
+  <url>
+    <loc>https://medconnect.nnmc.kz/doctors/${d.documentId}</loc>
+    <lastmod>${d.updatedAt ? d.updatedAt.slice(0, 10) : today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`).join('')
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://medconnect.nnmc.kz/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://medconnect.nnmc.kz/doctors</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>${doctorUrls}
+</urlset>`
+
+    sitemapCache = xml
+    sitemapCachedAt = now
+    res.set('Content-Type', 'application/xml')
+    res.send(xml)
+  } catch (err) {
+    res.status(500).send('<!-- sitemap generation error -->')
+  }
 })
 
 // Локально signaling-сервер работает на 1341

@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Allow: /doctors
+Allow: /doctors/
+Allow: /about
+Allow: /privacy
+Allow: /terms
+
+# Не индексируем личные кабинеты и служебные страницы
+Disallow: /patient/
+Disallow: /doctor/
+Disallow: /admin/
+Disallow: /consultation/
+Disallow: /payment/
+Disallow: /reset-password
+Disallow: /forgot-password
+Disallow: /email-confirmation
+
+Sitemap: https://medconnect.nnmc.kz/sitemap.xml

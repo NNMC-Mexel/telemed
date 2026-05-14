@@ -1,18 +1,32 @@
 import { useState } from 'react'
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Eye, EyeOff, Mail, Lock, Activity, ArrowLeft, Stethoscope, UserCircle } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, Activity, ArrowLeft, Stethoscope, UserCircle, Send, CheckCircle } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Card, CardContent } from '../components/ui/Card'
 import useAuthStore from '../stores/authStore'
+import { authAPI } from '../services/api'
 
 function LoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { login, isLoading, error, clearError } = useAuthStore()
+  const [resendStatus, setResendStatus] = useState(null) // null | 'sending' | 'sent' | 'error'
+
+  const isUnconfirmedError = error === 'email_not_confirmed' || error?.includes('email_not_confirmed')
+
+  const handleResend = async () => {
+    if (resendStatus === 'sending') return
+    setResendStatus('sending')
+    try {
+      await authAPI.resendConfirmation(formData.identifier)
+      setResendStatus('sent')
+    } catch {
+      setResendStatus('error')
+    }
+  }
 
   const initialUserType = searchParams.get('type') || 'patient'
   const [userType, setUserType] = useState(initialUserType)
@@ -20,8 +34,6 @@ function LoginPage() {
   const [formData, setFormData] = useState({ identifier: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [formErrors, setFormErrors] = useState({})
-
-  const from = location.state?.from?.pathname || (userType === 'doctor' ? '/doctor' : '/patient')
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -151,9 +163,36 @@ function LoginPage() {
                   </Link>
                 </div>
 
-                {error && (
+                {error && !isUnconfirmedError && (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-600">
                     {error}
+                  </div>
+                )}
+
+                {isUnconfirmedError && (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <p className="text-sm text-amber-800 font-medium mb-1">
+                      {t('auth_flow.login_unconfirmed_title')}
+                    </p>
+                    <p className="text-xs text-amber-700 mb-3">
+                      {t('auth_flow.login_unconfirmed_desc')}
+                    </p>
+                    {resendStatus === 'sent' ? (
+                      <div className="flex items-center gap-2 text-emerald-700 text-xs font-medium">
+                        <CheckCircle className="w-4 h-4" />
+                        {t('auth_flow.resend_success')}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={resendStatus === 'sending'}
+                        className="flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900 underline underline-offset-2"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        {resendStatus === 'sending' ? t('auth_flow.resend_sending') : t('auth_flow.resend_btn')}
+                      </button>
+                    )}
                   </div>
                 )}
 

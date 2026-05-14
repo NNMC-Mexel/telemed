@@ -4,7 +4,11 @@
  *
  * Limits: 10 requests per IP per 15-minute window.
  * Resets on server restart (acceptable for test; use Redis for production).
+ *
+ * Set RATE_LIMIT_ENABLED=false in .env to disable in dev/QA environments.
  */
+
+const ENABLED = process.env.RATE_LIMIT_ENABLED !== 'false'
 
 const LIMITS: Record<string, { max: number; windowMs: number }> = {
   '/api/auth/local':            { max: 10, windowMs: 15 * 60 * 1000 },
@@ -24,6 +28,8 @@ setInterval(() => {
 
 export default (config, { strapi }) => {
   return async (ctx, next) => {
+    if (!ENABLED) return next()
+
     const path = ctx.request.path
     const limit = LIMITS[path]
 

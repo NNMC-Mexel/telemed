@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { documentsAPI, normalizeResponse, uploadFile } from '../services/api'
 
-const useDocumentStore = create((set, get) => ({
+const useDocumentStore = create((set, _get) => ({
   documents: [],
   currentDocument: null,
   myDoctors: [],

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
@@ -34,7 +34,6 @@ import api, { normalizeResponse, getMediaUrl, documentsAPI } from '../../service
 function PatientHistory() {
   const { t, i18n } = useTranslation()
   const { patientId } = useParams()
-  const navigate = useNavigate()
   const { user } = useAuthStore()
 
   const [patient, setPatient] = useState(null)
@@ -221,11 +220,6 @@ function PatientHistory() {
           <div className="space-y-4">
             {appointments.map((apt) => {
               const aptDate = new Date(apt.dateTime)
-              const formattedDate = aptDate.toLocaleDateString(dateLocale, {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })
               const formattedTime = aptDate.toLocaleTimeString(dateLocale, {
                 hour: '2-digit',
                 minute: '2-digit',

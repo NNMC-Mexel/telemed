@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
+import SEOHead from "../components/seo/SEOHead";
 import { useTranslation } from "react-i18next";
 import {
     Video,
@@ -68,11 +69,7 @@ const specializationIcons = {
     default: Stethoscope,
 };
 
-const stripHtml = (value = "") =>
-    value
-        .replace(/<[^>]*>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+
 
 // Doctors Carousel Component
 function DoctorsCarousel({ doctors }) {
@@ -333,14 +330,19 @@ function DoctorsCarousel({ doctors }) {
 
 function LandingPage() {
     const { t, i18n } = useTranslation();
+
+    const seoStructuredData = {
+      "@context": "https://schema.org",
+      "@type": "MedicalOrganization",
+      "name": "MedConnect ННМЦ",
+      "url": "https://medconnect.nnmc.kz",
+      "description": "Платформа телемедицины Национального научного медицинского центра. Онлайн-консультации с врачами-специалистами.",
+      "medicalSpecialty": ["Cardiology","Neurology","Pediatrics","Dermatology","Endocrinology"],
+      "areaServed": { "@type": "Country", "name": "Kazakhstan" },
+    };
+
     const [doctors, setDoctors] = useState([]);
     const [specializations, setSpecializations] = useState([]);
-    const [stats, setStats] = useState({
-        consultations: 0,
-        doctors: 0,
-        avgRating: 0,
-        satisfaction: 0,
-    });
     const [isLoading, setIsLoading] = useState(true);
     const [landingContent, setLandingContent] = useState(null);
 
@@ -477,21 +479,6 @@ function LandingPage() {
                 const { data: doctorsData } = normalizeResponse(doctorsRes);
                 const { data: specsData } = normalizeResponse(specsRes);
 
-                const totalDoctors = doctorsData?.length || 0;
-                const avgRating = doctorsData?.length
-                    ? (
-                          doctorsData.reduce((sum, d) => sum + (d.rating || 0), 0) /
-                          doctorsData.length
-                      ).toFixed(1)
-                    : 0;
-
-                setStats({
-                    consultations: totalDoctors * 100 + 500,
-                    doctors: totalDoctors,
-                    avgRating,
-                    satisfaction: 98,
-                });
-
                 setDoctors(doctorsData?.slice(0, 8) || []);
                 setSpecializations(specsData?.slice(0, 6) || []);
 
@@ -570,6 +557,12 @@ function LandingPage() {
 
     return (
         <div className='overflow-hidden'>
+            <SEOHead
+                title="Телемедицина ННМЦ — Онлайн-консультации врачей"
+                description="MedConnect — платформа телемедицины ННМЦ. Запишитесь на онлайн-консультацию к кардиологу, неврологу, педиатру, терапевту и другим специалистам. Видеозвонки и чат с врачом."
+                url="/"
+                structuredData={seoStructuredData}
+            />
             {/* Hero Section */}
             <section className='relative min-h-screen flex items-center'>
                 <div className='absolute inset-0'>

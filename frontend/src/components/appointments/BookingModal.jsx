@@ -7,8 +7,6 @@ import {
     addDays,
     isSameDay,
     isToday,
-    isBefore,
-    startOfDay,
 } from "date-fns";
 import { ru, kk, enUS } from "date-fns/locale";
 import {
@@ -317,7 +315,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
         })
 
         // When our own reservation is rejected by the server
-        socket.on("reserve-slot-result", ({ success, time, reason }) => {
+        socket.on("reserve-slot-result", ({ success, reason }) => {
             if (!success) {
                 toast.error(reason || t('booking.slot_taken_default'))
                 setSelectedTime(null)

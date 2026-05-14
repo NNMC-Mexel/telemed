@@ -1,0 +1,73 @@
+{
+  "kind": "collectionType",
+  "collectionName": "consent_records",
+  "info": {
+    "singularName": "consent-record",
+    "pluralName": "consent-records",
+    "displayName": "ConsentRecord",
+    "description": "Immutable audit records for user legal and medical consents"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "required": true
+    },
+    "source": {
+      "type": "enumeration",
+      "enum": ["registration", "profile", "admin"],
+      "default": "registration",
+      "required": true
+    },
+    "personalDataConsent": {
+      "type": "boolean",
+      "required": true
+    },
+    "medicalDataConsent": {
+      "type": "boolean",
+      "required": true
+    },
+    "telemedicineConsent": {
+      "type": "boolean",
+      "required": true
+    },
+    "thirdPartyTransferConsent": {
+      "type": "boolean",
+      "required": true
+    },
+    "termsAndPrivacyConsent": {
+      "type": "boolean",
+      "required": true
+    },
+    "consentVersion": {
+      "type": "string",
+      "required": true
+    },
+    "termsVersion": {
+      "type": "string",
+      "required": true
+    },
+    "privacyVersion": {
+      "type": "string",
+      "required": true
+    },
+    "locale": {
+      "type": "string"
+    },
+    "ipAddress": {
+      "type": "string"
+    },
+    "userAgent": {
+      "type": "text"
+    },
+    "acceptedAt": {
+      "type": "datetime",
+      "required": true
+    }
+  }
+}

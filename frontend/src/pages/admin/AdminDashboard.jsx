@@ -17,7 +17,7 @@ import Avatar from '../../components/ui/Avatar'
 import Badge from '../../components/ui/Badge'
 import { useTranslation } from 'react-i18next'
 import api, { normalizeResponse, getMediaUrl } from '../../services/api'
-import { formatDate, formatPrice } from '../../utils/helpers'
+import { formatPrice } from '../../utils/helpers'
 
 function AdminDashboard() {
   const { t } = useTranslation()

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useSearchParams, useLocation } from 'react-router-dom'
+import SEOHead from '../components/seo/SEOHead'
 import { useTranslation } from 'react-i18next'
 import {
   Search,
@@ -26,7 +27,7 @@ function DoctorsPage() {
     { value: 'price_desc', label: t('doctors_page.sort_price_desc') },
     { value: 'experience', label: t('doctors_page.sort_experience') },
   ]
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '')
   const [selectedSpec, setSelectedSpec] = useState(searchParams.get('specialization') || '')
   const [sortBy, setSortBy] = useState('rating')
@@ -44,7 +45,6 @@ function DoctorsPage() {
   } = useAppointmentStore()
   
   const { isAuthenticated } = useAuthStore()
-  const navigate = useNavigate()
   const location = useLocation()
   
   // Определяем базовый путь (для пациентов и публичных страниц)
@@ -98,6 +98,12 @@ function DoctorsPage() {
 
   return (
     <div className={isInDashboard ? 'animate-fadeIn' : 'pt-28 pb-16 bg-slate-50 min-h-screen'}>
+      <SEOHead
+        title="Каталог врачей — Онлайн-консультации"
+        description="Найдите врача и запишитесь на онлайн-консультацию. Терапевт, кардиолог, невролог, педиатр, дерматолог и другие специалисты ННМЦ. Видеоконсультации из любой точки Казахстана."
+        url="/doctors"
+        noindex={isInDashboard}
+      />
       <div className={isInDashboard ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'}>
         {/* Header */}
         <div className="mb-8">
