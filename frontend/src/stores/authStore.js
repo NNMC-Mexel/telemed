@@ -76,7 +76,12 @@ const useAuthStore = create(
             consents: userData.consents,
           })
 
-          const { jwt, user } = response.data
+          const { jwt, user, pendingConfirmation } = response.data
+
+          if (pendingConfirmation) {
+            set({ isLoading: false })
+            return { success: true, pendingConfirmation: true, email: user?.email }
+          }
 
           set({
             user,

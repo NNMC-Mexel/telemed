@@ -14,6 +14,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import EmailConfirmationPage from './pages/EmailConfirmationPage'
 
 // Patient Pages
 import PatientDashboard from './pages/patient/PatientDashboard'
@@ -155,6 +156,7 @@ function App() {
         />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
 
         {/* Patient Routes */}
         <Route

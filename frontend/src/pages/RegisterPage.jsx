@@ -4,14 +4,15 @@ import { useTranslation } from 'react-i18next'
 import {
   Eye, EyeOff, Mail, Lock, User, Phone, CreditCard, Activity,
   ArrowLeft, CheckCircle, Stethoscope, UserCircle, GraduationCap,
-  Building2, FileText
+  Building2, FileText, Send
 } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
+import LanguageSwitcher from '../components/ui/LanguageSwitcher'
 import { Card, CardContent } from '../components/ui/Card'
 import useAuthStore from '../stores/authStore'
 import { formatKazakhstanPhoneInput, isValidEmail, isValidPhone, isValidIIN } from '../utils/helpers'
-import { specializationsAPI, normalizeResponse } from '../services/api'
+import { specializationsAPI, normalizeResponse, authAPI } from '../services/api'
 
 const REQUIRED_CONSENTS = [
   'personalData',
@@ -28,6 +29,8 @@ function RegisterPage() {
 
   const [userType] = useState('patient')
   const [step, setStep] = useState(1)
+  const [pendingEmail, setPendingEmail] = useState(null)
+  const [resendStatus, setResendStatus] = useState(null) // null | 'sending' | 'sent' | 'error'
   const [specializations, setSpecializations] = useState([])
   const [formData, setFormData] = useState({
     fullName: '', email: '', phone: '', iin: '',
@@ -144,7 +147,24 @@ function RegisterPage() {
     }
 
     const result = await register(userData)
-    if (result.success) navigate('/patient')
+    if (result.success) {
+      if (result.pendingConfirmation) {
+        setPendingEmail(result.email || formData.email)
+      } else {
+        navigate('/patient')
+      }
+    }
+  }
+
+  const handleResend = async () => {
+    if (!pendingEmail || resendStatus === 'sending') return
+    setResendStatus('sending')
+    try {
+      await authAPI.resendConfirmation(pendingEmail)
+      setResendStatus('sent')
+    } catch {
+      setResendStatus('error')
+    }
   }
 
   const patientBenefits = [
@@ -164,6 +184,60 @@ function RegisterPage() {
   const totalSteps = userType === 'doctor' ? 3 : 2
   const benefits = userType === 'doctor' ? doctorBenefits : patientBenefits
   const accentColor = userType === 'doctor' ? 'sky' : 'teal'
+
+  // Экран "проверьте почту"
+  if (pendingEmail) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/30 to-sky-50/30 flex items-center justify-center p-4">
+        <div className="absolute right-4 top-4">
+          <LanguageSwitcher variant="light" />
+        </div>
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 max-w-md w-full text-center">
+          <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-sky-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <span className="text-white font-bold text-xl">M</span>
+          </div>
+          <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Mail className="w-8 h-8 text-teal-600" />
+          </div>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">
+            {t('auth_flow.check_email_title')}
+          </h1>
+          <p className="text-slate-500 text-sm mb-2">
+            {t('auth_flow.check_email_desc')}
+          </p>
+          <p className="font-medium text-slate-800 mb-6">{pendingEmail}</p>
+          <p className="text-slate-400 text-xs mb-6">
+            {t('auth_flow.check_email_hint')}
+          </p>
+
+          {resendStatus === 'sent' ? (
+            <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm font-medium mb-4">
+              <CheckCircle className="w-4 h-4" />
+              {t('auth_flow.resend_success')}
+            </div>
+          ) : (
+            <Button
+              variant="secondary"
+              className="w-full mb-4"
+              onClick={handleResend}
+              isLoading={resendStatus === 'sending'}
+              leftIcon={<Send className="w-4 h-4" />}
+            >
+              {t('auth_flow.resend_btn')}
+            </Button>
+          )}
+
+          {resendStatus === 'error' && (
+            <p className="text-rose-500 text-sm mb-4">{t('auth_flow.resend_error')}</p>
+          )}
+
+          <Link to="/login" className="text-sm text-teal-600 hover:text-teal-700">
+            {t('auth_flow.go_to_login')}
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex">
