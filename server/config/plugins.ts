@@ -2,10 +2,10 @@ export default ({ env }) => ({
   'users-permissions': {
     config: {
       register: {
-        allowedFields: ['userRole', 'fullName', 'phone', 'iin', 'doctorData'],
+        allowedFields: ['userRole', 'fullName', 'phone', 'iin', 'doctorData', 'consents'],
       },
       // URL фронтенда для сброса пароля (Strapi подставит ?code=XXX)
-      resetPasswordURL: env('FRONTEND_URL', 'http://localhost:5173') + '/reset-password',
+      resetPasswordURL: env('FRONTEND_URL', 'http://localhost:1342') + '/reset-password',
     },
   },
 
