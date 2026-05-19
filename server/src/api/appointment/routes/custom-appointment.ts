@@ -19,5 +19,15 @@ export default {
       info: { apiName: 'appointment', type: 'content-api' },
       config: { policies: [] },
     },
+    {
+      method: 'GET',
+      path: '/appointments/slot-conflicts',
+      handler: 'appointment.findSlotConflicts',
+      info: { apiName: 'appointment', type: 'content-api' },
+      config: {
+        auth: false,
+        policies: [],
+      },
+    },
   ],
 };

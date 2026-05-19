@@ -259,7 +259,23 @@ export const getMediaUrl = (media) => {
     const url = media.url;
     if (!url) return null;
 
-    return url.startsWith("http") ? url : `${API_URL}${url}`;
+    const resolvedUrl = url.startsWith("http") ? url : `${API_URL}${url}`;
+
+    if (resolvedUrl.includes("/api/file-proxy/")) {
+        try {
+            const authStorage = localStorage.getItem("auth-storage");
+            const { state } = authStorage ? JSON.parse(authStorage) : {};
+            if (state?.token) {
+                const withToken = new URL(resolvedUrl);
+                withToken.searchParams.set("token", state.token);
+                return withToken.toString();
+            }
+        } catch {
+            return resolvedUrl;
+        }
+    }
+
+    return resolvedUrl;
 };
 
 // ===========================================

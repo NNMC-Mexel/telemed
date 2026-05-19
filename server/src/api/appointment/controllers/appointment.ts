@@ -6,6 +6,52 @@
  */
 import { factories } from '@strapi/strapi';
 
+const ACTIVE_SLOT_STATUSES = ['pending', 'confirmed', 'in_progress'];
+
+const getActiveSlotKey = (doctorDocId: string | undefined, dateTime: string | undefined, status: string) => {
+  if (!doctorDocId || !dateTime || !ACTIVE_SLOT_STATUSES.includes(status)) return null;
+  return `${doctorDocId}:${new Date(dateTime).toISOString()}`;
+};
+
+const isApiTokenRequest = (ctx: any) => {
+  const authState = ctx.state?.auth;
+  return (
+    authState?.strategy?.name === 'api-token' ||
+    authState?.credentials?.type === 'api-token' ||
+    (!ctx.state?.user && Boolean(authState?.credentials) && String(ctx.request?.headers?.authorization || '').startsWith('Bearer '))
+  );
+};
+
+const normalizeFilterList = (value: any) => {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (value && typeof value === 'object') return Object.values(value).filter(Boolean);
+  return value ? [value] : [];
+};
+
+const getBearerToken = (ctx: any) => {
+  const header = String(ctx.request?.headers?.authorization || '');
+  return header.startsWith('Bearer ') ? header.slice(7) : null;
+};
+
+const getUserFromJwt = async (ctx: any) => {
+  const token = getBearerToken(ctx);
+  if (!token) return null;
+
+  try {
+    const payload = await strapi.plugin('users-permissions').service('jwt').verify(token);
+    if (!payload?.id) return null;
+    return strapi.query('plugin::users-permissions.user').findOne({ where: { id: payload.id } });
+  } catch {
+    return null;
+  }
+};
+
+const isInternalSlotRequest = (ctx: any) => {
+  const configuredSecret = process.env.SIGNALING_INTERNAL_SECRET;
+  if (!configuredSecret) return false;
+  return String(ctx.request?.headers?.['x-internal-secret'] || '') === configuredSecret;
+};
+
 // ── Slot mutex: prevents two concurrent creates for the same doctor+time ──
 const slotLocks = new Map<string, Promise<void>>();
 
@@ -30,8 +76,7 @@ function withSlotLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
 export default factories.createCoreController('api::appointment.appointment', () => ({
   async find(ctx) {
     const user = ctx.state.user;
-    // API Token requests (from signaling server) have ctx.state.auth.strategy === 'api-token'
-    const isApiToken = ctx.state.auth?.strategy?.name === 'api-token';
+    const isApiToken = isApiTokenRequest(ctx);
     if (!user && !isApiToken) return ctx.forbidden('Not authenticated');
 
     const isAdmin = isApiToken || user?.role?.type === 'admin' || user?.userRole === 'admin';
@@ -53,23 +98,35 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
     // Apply dateTime range filter (used by getBookedSlots to check slot availability)
     const dateTimeGte = queryFilters?.dateTime?.$gte;
+    const dateTimeLt = queryFilters?.dateTime?.$lt;
     const dateTimeLte = queryFilters?.dateTime?.$lte;
-    if (dateTimeGte || dateTimeLte) {
+    if (dateTimeGte || dateTimeLt || dateTimeLte) {
       additionalFilters.dateTime = {};
       if (dateTimeGte) additionalFilters.dateTime.$gte = dateTimeGte;
+      if (dateTimeLt) additionalFilters.dateTime.$lt = dateTimeLt;
       if (dateTimeLte) additionalFilters.dateTime.$lte = dateTimeLte;
     }
 
-    // Apply statuse (ne) filter
+    // Apply statuse filters
     const statuseNe = queryFilters?.statuse?.$ne;
+    const statuseIn = normalizeFilterList(queryFilters?.statuse?.$in);
     if (statuseNe) {
       additionalFilters.statuse = { $ne: statuseNe };
+    } else if (statuseIn.length > 0) {
+      additionalFilters.statuse = { $in: statuseIn };
     }
 
     // Apply doctor filter (so patients only see bookings for the requested doctor)
     const doctorIdFilter = queryFilters?.doctor?.id?.$eq;
+    const doctorDocumentIdFilter = queryFilters?.doctor?.documentId?.$eq;
     if (doctorIdFilter) {
-      additionalFilters.doctor = { id: doctorIdFilter };
+      const doctorRecord = await strapi.query('api::doctor.doctor').findOne({ where: { id: Number(doctorIdFilter) } });
+      if (!doctorRecord?.documentId) {
+        return { data: [], meta: { pagination: { page: 1, pageSize: 0, pageCount: 0, total: 0 } } };
+      }
+      additionalFilters.doctor = { documentId: doctorRecord.documentId };
+    } else if (doctorDocumentIdFilter) {
+      additionalFilters.doctor = { documentId: doctorDocumentIdFilter };
     }
 
     if (!isAdmin) {
@@ -241,6 +298,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
         patientDocId = body.patient;
       }
     }
+    if (!patientDocId) return ctx.badRequest('patient is required');
 
     // --- Resolve doctor documentId ---
     let doctorDocId: string | undefined;
@@ -276,6 +334,9 @@ export default factories.createCoreController('api::appointment.appointment', ()
     }
     if (!ALLOWED_PAYMENT_STATUSES.includes(requestedPaymentStatus)) {
       return ctx.badRequest('Invalid paymentStatus value');
+    }
+    if (body.paymentId !== undefined && typeof body.paymentId !== 'string') {
+      return ctx.badRequest('paymentId must be a string');
     }
     // In live-payment mode, only the signaling server (api-token) or an admin
     // may create an appointment with paymentStatus='paid'. A regular patient
@@ -335,6 +396,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
       }
 
       // Create appointment inside the lock — no one else can create for same slot
+      const activeSlotKey = getActiveSlotKey(doctorDocId, body.dateTime, requestedStatus);
       const appointment = await strapi.documents('api::appointment.appointment').create({
         data: {
           dateTime: body.dateTime,
@@ -343,6 +405,8 @@ export default factories.createCoreController('api::appointment.appointment', ()
           price: actualPrice,
           roomId: body.roomId,
           paymentStatus: requestedPaymentStatus,
+          ...(body.paymentId ? { paymentId: body.paymentId } : {}),
+          ...(activeSlotKey ? { activeSlotKey } : {}),
           patient: patientDocId,
           doctor: doctorDocId,
         },
@@ -394,9 +458,25 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
     // Admins bypass field restrictions
     if (isAdmin) {
+      const current = await strapi.documents('api::appointment.appointment').findOne({
+        documentId,
+        populate: { doctor: { fields: ['documentId'] } },
+      });
+      const nextStatus = body.statuse || body.status || (current as any)?.statuse;
+      const nextDateTime = body.dateTime || (current as any)?.dateTime;
+      const doctorDocId = body.doctor || (current as any)?.doctor?.documentId;
+      const activeSlotKey = getActiveSlotKey(
+        typeof doctorDocId === 'string' ? doctorDocId : undefined,
+        nextDateTime,
+        nextStatus,
+      );
+      const data = {
+        ...body,
+        activeSlotKey,
+      };
       const updated = await strapi.documents('api::appointment.appointment').update({
         documentId,
-        data: body,
+        data,
         status: 'published',
       });
       return { data: updated };
@@ -467,7 +547,18 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
     const updated = await strapi.documents('api::appointment.appointment').update({
       documentId,
-      data: allowed,
+      data: {
+        ...allowed,
+        ...(allowed.statuse
+          ? {
+              activeSlotKey: getActiveSlotKey(
+                (appointment as any).doctor?.documentId,
+                (appointment as any).dateTime,
+                allowed.statuse,
+              ),
+            }
+          : {}),
+      } as any,
       status: 'published',
     });
 
@@ -553,6 +644,61 @@ export default factories.createCoreController('api::appointment.appointment', ()
     }
 
     return { data: { slots: Array.from(slots).sort() } };
+  },
+
+  /**
+   * GET /appointments/slot-conflicts?doctorId=...&start=ISO&end=ISO
+   * Внутренняя проверка для signaling-server перед оплатой. Route auth
+   * отключён намеренно, чтобы не зависеть от Strapi API-token permissions;
+   * доступ вручную ограничен JWT пользователя или SIGNALING_INTERNAL_SECRET.
+   */
+  async findSlotConflicts(ctx) {
+    const isInternal = isInternalSlotRequest(ctx);
+    const user = isInternal ? null : await getUserFromJwt(ctx);
+    if (!isInternal && !user) return ctx.unauthorized('Not authenticated');
+
+    const doctorId = String(ctx.query?.doctorId || '');
+    const start = String(ctx.query?.start || '');
+    const end = String(ctx.query?.end || '');
+
+    if (!doctorId) return ctx.badRequest('doctorId required');
+
+    const slotStart = new Date(start);
+    const slotEnd = new Date(end);
+    if (
+      Number.isNaN(slotStart.getTime()) ||
+      Number.isNaN(slotEnd.getTime()) ||
+      slotEnd <= slotStart
+    ) {
+      return ctx.badRequest('start and end must be valid ISO dates');
+    }
+
+    let doctorDocId: string | undefined;
+    if (/^\d+$/.test(doctorId)) {
+      const doctor = await strapi.query('api::doctor.doctor').findOne({ where: { id: Number(doctorId) } });
+      doctorDocId = doctor?.documentId;
+    } else {
+      doctorDocId = doctorId;
+    }
+
+    if (!doctorDocId) {
+      return { data: { available: true, conflicts: 0 } };
+    }
+
+    const rows = await strapi.documents('api::appointment.appointment').findMany({
+      filters: {
+        doctor: { documentId: doctorDocId },
+        dateTime: {
+          $gte: slotStart.toISOString(),
+          $lt: slotEnd.toISOString(),
+        },
+        statuse: { $in: ACTIVE_SLOT_STATUSES as any },
+      },
+      fields: ['id'],
+      limit: 1,
+    });
+
+    return { data: { available: rows.length === 0, conflicts: rows.length } };
   },
 
   /**

@@ -51,7 +51,8 @@
       "required": true
     },
     "roomId": {
-      "type": "string"
+      "type": "string",
+      "unique": true
     },
     "rating": {
       "type": "integer",
@@ -62,7 +63,13 @@
       "type": "text"
     },
     "paymentId": {
-      "type": "string"
+      "type": "string",
+      "unique": true
+    },
+    "activeSlotKey": {
+      "type": "string",
+      "unique": true,
+      "private": true
     },
     "paymentStatus": {
       "type": "enumeration",

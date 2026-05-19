@@ -2,7 +2,7 @@ export default {
   routes: [
     {
       method: 'GET',
-      path: '/file-proxy/:key',
+      path: '/file-proxy/:key(.*)',
       handler: 'file-proxy.proxy',
       config: {
         auth: false,

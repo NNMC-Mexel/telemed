@@ -416,7 +416,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 `${SIGNALING_URL}/api/slot/verify`,
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
                     body: JSON.stringify({
                         doctorId: doctor.id,
                         date: dateStr,
@@ -544,12 +547,17 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 `${SIGNALING_URL}/api/payment/epay-token`,
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
                     body: JSON.stringify({
                         invoiceId,
                         amount: doctorPrice,
                         doctorId: doctor.id,
                         dateTime: dateTime.toISOString(),
+                        roomId,
+                        type: consultationType,
                     }),
                 }
             );
@@ -629,7 +637,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 `${SIGNALING_URL}/api/payment/create-halyk-qr`,
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
                     body: JSON.stringify({ bookingData, userToken: token }),
                 }
             );
@@ -649,7 +660,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
             const pollInterval = setInterval(async () => {
                 try {
                     const statusRes = await fetch(
-                        `${SIGNALING_URL}/api/payment/halyk-qr-status/${billNumber}`
+                        `${SIGNALING_URL}/api/payment/halyk-qr-status/${billNumber}`,
+                        { headers: { Authorization: `Bearer ${token}` } }
                     );
                     if (!statusRes.ok) {
                         consecutivePollErrors++;

@@ -6,6 +6,7 @@ const cors = require('cors')
 
 const app = express()
 const server = http.createServer(app)
+app.set('trust proxy', 1)
 
 // CORS настройки
 // Production: medconnect.nnmc.kz (frontend)
@@ -34,7 +35,7 @@ const corsOptions = {
 }
 
 app.use(cors(corsOptions))
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
 
 // =====================================================
 // Startup validation — fail fast if required env vars are missing
@@ -101,6 +102,115 @@ const EPAY_TRANSACTION_STATUS_URL = IS_EPAY_TEST
   : 'https://epay-api.homebank.kz/payment/transactions'
 
 const STRAPI_API_URL = process.env.STRAPI_API_URL
+
+function getBearerToken(req) {
+  const header = req.headers.authorization || ''
+  if (header.startsWith('Bearer ')) return header.slice(7)
+  if (typeof req.body?.userToken === 'string' && req.body.userToken.trim()) {
+    return req.body.userToken.trim()
+  }
+  return null
+}
+
+async function verifyHttpUserToken(token) {
+  if (!token) return null
+  const res = await fetch(`${STRAPI_API_URL}/api/users/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => null)
+  if (!res?.ok) return null
+  const user = await res.json().catch(() => null)
+  return user?.id ? user : null
+}
+
+async function fetchExistingAppointmentByPaymentId(paymentId) {
+  if (!paymentId) return null
+  const res = await fetch(
+    `${STRAPI_API_URL}/api/appointments?filters[paymentId][$eq]=${encodeURIComponent(paymentId)}&fields[0]=id&fields[1]=documentId&pagination[pageSize]=1`,
+    { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` } }
+  ).catch(() => null)
+  if (!res?.ok) return null
+  const json = await res.json().catch(() => null)
+  return json?.data?.[0] || null
+}
+
+const strapiServerHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}`,
+})
+
+async function createPaymentIntent(data) {
+  const res = await fetch(`${STRAPI_API_URL}/api/payment-intents`, {
+    method: 'POST',
+    headers: strapiServerHeaders(),
+    body: JSON.stringify({ data }),
+  })
+  if (res.ok) return (await res.json()).data
+  if (res.status !== 400 && res.status !== 409) {
+    throw new Error(`PaymentIntent create HTTP ${res.status}: ${await res.text().catch(() => '')}`)
+  }
+  return null
+}
+
+async function findPaymentIntent(filterName, value) {
+  if (!value) return null
+  const query =
+    `${STRAPI_API_URL}/api/payment-intents?filters[${filterName}][$eq]=${encodeURIComponent(value)}` +
+    '&populate[patient][fields][0]=id' +
+    '&populate[doctor][fields][0]=id' +
+    '&populate[doctor][fields][1]=documentId' +
+    '&populate[appointment][fields][0]=documentId' +
+    '&pagination[pageSize]=1'
+  const res = await fetch(query, { headers: strapiServerHeaders() }).catch(() => null)
+  if (!res?.ok) return null
+  const json = await res.json().catch(() => null)
+  return json?.data?.[0] || null
+}
+
+async function updatePaymentIntent(documentId, data) {
+  if (!documentId) return null
+  const res = await fetch(`${STRAPI_API_URL}/api/payment-intents/${documentId}`, {
+    method: 'PUT',
+    headers: strapiServerHeaders(),
+    body: JSON.stringify({ data }),
+  }).catch(() => null)
+  if (!res?.ok) return null
+  return (await res.json().catch(() => null))?.data || null
+}
+
+function normalizePersistedIntent(intent) {
+  if (!intent) return null
+  return {
+    documentId: intent.documentId,
+    provider: intent.provider,
+    invoiceId: intent.invoiceId,
+    billNumber: intent.billNumber,
+    paymentId: intent.paymentId,
+    patientId: intent.patient?.id,
+    doctorId: intent.doctor?.id,
+    dateTime: intent.dateTime,
+    roomId: intent.roomId,
+    type: intent.consultationType || 'video',
+    language: intent.language,
+    price: Number(intent.amount),
+    amount: Number(intent.amount),
+    appointmentId: intent.appointment?.documentId,
+  }
+}
+
+function validateBookingPayload(booking) {
+  if (!booking?.doctorId || !booking?.dateTime || !booking?.type || !booking?.roomId) {
+    return 'Missing booking fields'
+  }
+  if (!['video', 'chat'].includes(booking.type)) return 'Invalid consultation type'
+  const dateTime = new Date(booking.dateTime)
+  if (!Number.isFinite(dateTime.getTime()) || dateTime <= new Date()) {
+    return 'Invalid appointment dateTime'
+  }
+  if (typeof booking.roomId !== 'string' || booking.roomId.length > 128) {
+    return 'Invalid roomId'
+  }
+  return null
+}
 
 // =====================================================
 // Simple in-memory rate limiter for payment endpoints
@@ -270,13 +380,16 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
       return res.status(503).json({ error: 'Live payments are disabled' })
     }
 
-    const { bookingData, userToken } = req.body
-    if (!bookingData || !userToken) {
-      return res.status(400).json({ error: 'bookingData and userToken required' })
+    const { bookingData } = req.body
+    const userToken = getBearerToken(req)
+    const patient = await verifyHttpUserToken(userToken)
+    if (!bookingData || !patient?.id) {
+      return res.status(401).json({ error: 'Authenticated bookingData required' })
     }
 
-    if (!bookingData.doctorId) {
-      return res.status(400).json({ error: 'bookingData.doctorId is required' })
+    const bookingError = validateBookingPayload(bookingData)
+    if (bookingError) {
+      return res.status(400).json({ error: bookingError })
     }
 
     // Validate price against the canonical doctor price in Strapi
@@ -310,14 +423,14 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
         failurePostLink: 'https://medconnectrtc.nnmc.kz/api/payment/epay-failure-callback',
         description: `Консультация у ${bookingData.doctorName}`,
         language: 'ru',
-        ...(bookingData.patientId && { accountId: String(bookingData.patientId) }),
-        ...(bookingData.patientEmail && { payerEmail: bookingData.patientEmail }),
-        ...(bookingData.patientPhone && { payerPhone: bookingData.patientPhone }),
+        accountId: String(patient.id),
+        ...(patient.email && { payerEmail: patient.email }),
+        ...(patient.phone && { payerPhone: patient.phone }),
       }),
     })
 
     const rawText = await qrRes.text()
-    console.log(`[QR Generate] HTTP ${qrRes.status}: ${rawText}`)
+    console.log(`[QR Generate] HTTP ${qrRes.status}`)
 
     if (!qrRes.ok) {
       throw new Error(`ePay QR HTTP ${qrRes.status}: ${rawText}`)
@@ -330,12 +443,36 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
     }
 
     const billNumber = qrData.billNumber
+    const paymentId = `qr:${billNumber}`
+
+    const persistedIntent = await createPaymentIntent({
+      provider: 'halyk_qr',
+      invoiceId,
+      billNumber: String(billNumber),
+      paymentId,
+      status: 'pending',
+      amount: actualPrice,
+      currency: 'KZT',
+      dateTime: bookingData.dateTime,
+      roomId: bookingData.roomId,
+      consultationType: bookingData.type,
+      language: bookingData.language || null,
+      patient: patient.id,
+      doctor: bookingData.doctorId,
+      metadata: { source: 'create-halyk-qr' },
+    })
 
     // Store pending payment for status polling — always use server-verified price
     pendingQRPayments.set(String(billNumber), {
       ...bookingData,
+      documentId: persistedIntent?.documentId,
+      patientId: patient.id,
+      patientName: patient.fullName || patient.username || '',
+      patientEmail: patient.email || '',
+      patientPhone: patient.phone || '',
       price: actualPrice,
       invoiceId,
+      paymentId,
       accessToken: auth.access_token,
       tokenType: auth.token_type || 'Bearer',
       tokenExpiresAt: Date.now() + (auth.expires_in - 30) * 1000,
@@ -362,13 +499,34 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
 // On PAID: creates appointment in Strapi (once) and returns { status: 'PAID' }
 app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
   const { billNumber } = req.params
-  const pending = pendingQRPayments.get(billNumber)
+  let pending = pendingQRPayments.get(billNumber)
 
   if (!pending) {
-    return res.status(404).json({ error: 'Payment session not found or expired' })
+    const persisted = normalizePersistedIntent(await findPaymentIntent('billNumber', billNumber))
+    if (!persisted) {
+      return res.status(404).json({ error: 'Payment session not found or expired' })
+    }
+    pending = {
+      ...persisted,
+      accessToken: null,
+      tokenType: 'Bearer',
+      tokenExpiresAt: 0,
+      userToken: null,
+      createdAt: Date.now(),
+      appointmentCreated: Boolean(persisted.appointmentId),
+    }
+    pendingQRPayments.set(String(billNumber), pending)
   }
 
   try {
+    const requester = await verifyHttpUserToken(getBearerToken(req))
+    if (!requester?.id) {
+      return res.status(401).json({ error: 'Authentication required' })
+    }
+    if (String(requester.id) !== String(pending.patientId)) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
     // Get a fresh token if current one is close to expiry
     let accessToken = pending.accessToken
     let tokenType = pending.tokenType
@@ -386,7 +544,7 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
       headers: { Authorization: `${tokenType} ${accessToken}` },
     })
     const statusRaw = await statusRes.text()
-    console.log(`[QR Status] billNumber=${billNumber} HTTP=${statusRes.status}: ${statusRaw}`)
+    console.log(`[QR Status] billNumber=${billNumber} HTTP=${statusRes.status}`)
 
     const statusData = JSON.parse(statusRaw)
     const status = statusData.status || 'UNKNOWN'
@@ -395,6 +553,17 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
     // Flag is set AFTER successful creation to ensure idempotency on server crash/retry.
     if (status === 'PAID' && !pending.appointmentCreated) {
       try {
+        const existing = await fetchExistingAppointmentByPaymentId(pending.paymentId)
+        if (existing) {
+          pending.appointmentCreated = true
+          await updatePaymentIntent(pending.documentId, {
+            status: 'appointment_created',
+            appointment: existing.documentId,
+          })
+          setTimeout(() => pendingQRPayments.delete(billNumber), 60 * 1000)
+          return res.json({ status, billNumber, appointmentId: existing.documentId || existing.id })
+        }
+
         const apptRes = await fetch(`${STRAPI_API_URL}/api/appointments`, {
           method: 'POST',
           headers: {
@@ -410,6 +579,7 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
               statuse: 'confirmed',
               price: pending.price,
               paymentStatus: 'paid',
+              paymentId: pending.paymentId,
               roomId: pending.roomId,
             },
           }),
@@ -420,6 +590,11 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
         }
         // Only mark as created after confirmed success — allows safe retry on failure
         pending.appointmentCreated = true
+        const apptJson = await apptRes.json().catch(() => null)
+        await updatePaymentIntent(pending.documentId, {
+          status: 'appointment_created',
+          appointment: apptJson?.data?.documentId,
+        })
         console.log(`[QR] Appointment created for billNumber: ${billNumber}`)
         setTimeout(() => pendingQRPayments.delete(billNumber), 60 * 1000)
       } catch (err) {
@@ -458,7 +633,12 @@ app.post('/api/slot/verify', async (req, res) => {
 
     // 2. Check Strapi DB — slot must not be already booked.
     // Fail CLOSED: if DB is unreachable we cannot confirm availability, so we reject.
-    const dateTime = new Date(`${date}T${time}:00`)
+    // Booking UI dates/times are Kazakhstan local time. Make that explicit so
+    // slot checks are stable on UTC production hosts too.
+    const dateTime = new Date(`${date}T${time}:00+05:00`)
+    if (Number.isNaN(dateTime.getTime())) {
+      return res.status(400).json({ available: false, reason: 'Invalid date or time' })
+    }
     // Use the actual slot duration so we don't produce false conflicts.
     // Example with 30-min slots: booking 14:30 must NOT block 14:00 (ends at
     // 14:30, no overlap). A fixed 1h window would extend to 15:00 and
@@ -467,26 +647,32 @@ app.post('/api/slot/verify', async (req, res) => {
     const slotEnd = new Date(dateTime.getTime() + durationMs)
     let strapiCheck
     try {
-      strapiCheck = await fetch(
-        `${STRAPI_API_URL}/api/appointments?filters[doctor][id][$eq]=${doctorId}` +
-        `&filters[dateTime][$gte]=${dateTime.toISOString()}` +
-        `&filters[dateTime][$lt]=${slotEnd.toISOString()}` +
-        `&filters[statuse][$in][0]=pending&filters[statuse][$in][1]=confirmed&filters[statuse][$in][2]=in_progress`,
-        { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` } }
-      )
+      const query = new URLSearchParams({
+        doctorId: String(doctorId),
+        start: dateTime.toISOString(),
+        end: slotEnd.toISOString(),
+      })
+      const headers = {}
+      const userToken = getBearerToken(req)
+      if (userToken) headers.Authorization = `Bearer ${userToken}`
+      if (process.env.SIGNALING_INTERNAL_SECRET) {
+        headers['X-Internal-Secret'] = process.env.SIGNALING_INTERNAL_SECRET
+      }
+      strapiCheck = await fetch(`${STRAPI_API_URL}/api/appointments/slot-conflicts?${query}`, { headers })
     } catch (fetchErr) {
       console.error('[Slot verify] Strapi unreachable:', fetchErr.message)
       return res.status(503).json({ available: false, reason: 'Сервис временно недоступен. Попробуйте снова.' })
     }
 
     if (!strapiCheck.ok) {
-      console.error('[Slot verify] Strapi responded HTTP', strapiCheck.status)
+      const errorBody = await strapiCheck.text().catch(() => '')
+      console.error('[Slot verify] Strapi responded HTTP', strapiCheck.status, errorBody.slice(0, 300))
       return res.status(503).json({ available: false, reason: 'Сервис временно недоступен. Попробуйте снова.' })
     }
 
     const strapiData = await strapiCheck.json()
-    const existing = strapiData?.data || []
-    if (existing.length > 0) {
+    const conflicts = Number(strapiData?.data?.conflicts || 0)
+    if (conflicts > 0 || strapiData?.data?.available === false) {
       // Slot is already booked in DB — also update socket reservations
       if (!pendingSlotReservations.has(key)) {
         io.to(`slots:${doctorId}:${date}`).emit('slot-booked', { time })
@@ -555,6 +741,8 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
       return res.status(401).json({ error: 'Could not resolve patient' })
     }
 
+    let verifiedPaymentIntent = null
+
     // --- Live mode: verify payment status, amount, and owner with ePay ---
     if (process.env.PAYMENTS_LIVE === 'true') {
       if (!invoiceId) {
@@ -565,7 +753,16 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
         return res.status(503).json({ error: 'Payment verification unavailable' })
       }
       try {
-        const auth = await getEPayAuthToken(invoiceId, booking.price || 0)
+        const persistedIntent = normalizePersistedIntent(await findPaymentIntent('invoiceId', invoiceId))
+        const intent = pendingCardPayments.get(invoiceId) || persistedIntent
+        if (!intent) {
+          console.warn(`[epay-confirm] missing payment intent for invoiceId=${invoiceId}`)
+          return res.status(402).json({ error: 'Payment intent expired. Contact support with your payment receipt.' })
+        }
+        verifiedPaymentIntent = intent
+
+        const expectedAmount = Math.round(Number(intent.amount || intent.price))
+        const auth = await getEPayAuthToken(invoiceId, expectedAmount)
         const statusRes = await fetch(
           `${EPAY_TRANSACTION_STATUS_URL}?invoiceId=${encodeURIComponent(invoiceId)}`,
           { headers: { Authorization: `${auth.token_type} ${auth.access_token}` } }
@@ -588,7 +785,6 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
 
         // Verify amount: prevents using a cheaper payment to confirm a pricier booking
         const txAmount = Math.round(Number(paidTx.amount))
-        const expectedAmount = Math.round(Number(booking.price))
         if (!expectedAmount || txAmount !== expectedAmount) {
           console.warn(`[epay-confirm] Amount mismatch: tx=${txAmount} expected=${expectedAmount} invoiceId=${invoiceId}`)
           return res.status(402).json({ error: 'Payment amount does not match booking price' })
@@ -604,16 +800,17 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
 
         // Verify booking intent: doctor and dateTime must match what was stored at epay-token time.
         // Prevents reusing a valid invoiceId for a different slot (same price, different doctor/time).
-        const intent = pendingCardPayments.get(invoiceId)
-        if (intent) {
-          if (String(intent.doctorId) !== String(booking.doctorId)) {
-            console.warn(`[epay-confirm] doctor mismatch: intent=${intent.doctorId} booking=${booking.doctorId} invoiceId=${invoiceId}`)
-            return res.status(402).json({ error: 'Payment was made for a different doctor' })
-          }
-          if (intent.dateTime && intent.dateTime !== booking.dateTime) {
-            console.warn(`[epay-confirm] dateTime mismatch: intent=${intent.dateTime} booking=${booking.dateTime} invoiceId=${invoiceId}`)
-            return res.status(402).json({ error: 'Payment was made for a different time slot' })
-          }
+        if (String(intent.patientId) !== String(patientId)) {
+          console.warn(`[epay-confirm] patient mismatch: intent=${intent.patientId} patient=${patientId} invoiceId=${invoiceId}`)
+          return res.status(402).json({ error: 'Payment was made by a different patient' })
+        }
+        if (String(intent.doctorId) !== String(booking.doctorId)) {
+          console.warn(`[epay-confirm] doctor mismatch: intent=${intent.doctorId} booking=${booking.doctorId} invoiceId=${invoiceId}`)
+          return res.status(402).json({ error: 'Payment was made for a different doctor' })
+        }
+        if (intent.dateTime && intent.dateTime !== booking.dateTime) {
+          console.warn(`[epay-confirm] dateTime mismatch: intent=${intent.dateTime} booking=${booking.dateTime} invoiceId=${invoiceId}`)
+          return res.status(402).json({ error: 'Payment was made for a different time slot' })
         }
       } catch (err) {
         console.error('[epay-confirm] ePay verification error:', err.message)
@@ -634,7 +831,7 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
           dateTime: booking.dateTime,
           type: booking.type,
           statuse: 'confirmed',
-          price: booking.price,
+          price: verifiedPaymentIntent?.amount || verifiedPaymentIntent?.price || booking.price,
           paymentStatus: 'paid',
           roomId: booking.roomId,
           ...(invoiceId ? { paymentId: invoiceId } : {}),
@@ -655,6 +852,13 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
     }
 
     const apptData = await apptRes.json()
+    const persistedIntent = invoiceId ? await findPaymentIntent('invoiceId', invoiceId) : null
+    if (persistedIntent?.documentId) {
+      await updatePaymentIntent(persistedIntent.documentId, {
+        status: 'appointment_created',
+        appointment: apptData?.data?.documentId,
+      })
+    }
     console.log('[epay-confirm] Appointment created for patient', patientId)
     res.json({ success: true, data: apptData.data })
   } catch (err) {
@@ -668,13 +872,12 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
 // These callbacks serve as a secondary confirmation channel.
 // ePay requires a valid postLink URL — we acknowledge receipt but rely on polling.
 app.post('/api/payment/epay-callback', (req, res) => {
-  strapi?.log?.info(JSON.stringify({ audit: 'EPAY_CALLBACK', body: req.body, ts: new Date().toISOString() }))
-    ?? console.log('[ePay callback]', JSON.stringify(req.body))
+  console.log('[ePay callback received]')
   res.sendStatus(200)
 })
 
 app.post('/api/payment/epay-failure-callback', (req, res) => {
-  console.warn('[ePay failure callback]', JSON.stringify(req.body))
+  console.warn('[ePay failure callback received]')
   res.sendStatus(200)
 })
 
@@ -688,6 +891,11 @@ app.post('/api/payment/epay-token', async (req, res) => {
   try {
     if (!PAYMENTS_LIVE) {
       return res.status(503).json({ error: 'Live payments are disabled' })
+    }
+
+    const patient = await verifyHttpUserToken(getBearerToken(req))
+    if (!patient?.id) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
     const { invoiceId, amount, doctorId, dateTime, currency = 'KZT' } = req.body
@@ -709,9 +917,25 @@ app.post('/api/payment/epay-token', async (req, res) => {
     // Bind invoiceId to this specific doctor/slot so epay-confirm can detect swaps
     pendingCardPayments.set(String(invoiceId), {
       doctorId: String(doctorId),
+      patientId: String(patient.id),
       dateTime: dateTime || null,
       amount: actualPrice,
       createdAt: Date.now(),
+    })
+
+    await createPaymentIntent({
+      provider: 'epay_card',
+      invoiceId: String(invoiceId),
+      paymentId: String(invoiceId),
+      status: 'pending',
+      amount: actualPrice,
+      currency,
+      dateTime,
+      roomId: req.body.roomId || `pending-${invoiceId}`,
+      consultationType: req.body.type || 'video',
+      patient: patient.id,
+      doctor: doctorId,
+      metadata: { source: 'epay-token' },
     })
 
     const auth = await getEPayAuthToken(invoiceId, actualPrice, currency)
@@ -1265,4 +1489,5 @@ const PORT = process.env.PORT || 1341
 
 server.listen(PORT, () => {
   console.log(`Signaling server running on port ${PORT}`)
+  console.log('[Startup] slot verify uses /api/appointments/slot-conflicts and KZ timezone +05:00')
 })

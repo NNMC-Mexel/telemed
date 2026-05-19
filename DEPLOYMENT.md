@@ -39,15 +39,14 @@ HOST=0.0.0.0
 PORT=1340
 SERVER_URL=https://medconnectserver.nnmc.kz
 
-# Database (настройте под вашу БД)
-DATABASE_CLIENT=sqlite
-# или для PostgreSQL:
-# DATABASE_CLIENT=postgres
-# DATABASE_HOST=localhost
-# DATABASE_PORT=5432
-# DATABASE_NAME=strapi
-# DATABASE_USERNAME=strapi
-# DATABASE_PASSWORD=your_password
+# Database: production uses PostgreSQL only
+DATABASE_CLIENT=postgres
+DATABASE_HOST=postgres
+DATABASE_PORT=5432
+DATABASE_NAME=medconnect
+DATABASE_USERNAME=medconnect
+DATABASE_PASSWORD=your_strong_password
+DATABASE_SSL=true
 
 # Strapi Security Keys (сгенерируйте уникальные значения)
 APP_KEYS=your-app-keys-here
@@ -72,9 +71,10 @@ VITE_API_URL=https://medconnectserver.nnmc.kz
 VITE_SIGNALING_SERVER=https://medconnectrtc.nnmc.kz
 VITE_TURN_URL=turn:medconnect.nnmc.kz:3478
 VITE_TURN_USERNAME=medconnect
-VITE_TURN_CREDENTIAL=medconnect2026
+VITE_TURN_CREDENTIAL=replace-with-rotated-or-ephemeral-credential
 VITE_APP_NAME=MedConnect
 VITE_APP_VERSION=1.0.0
+VITE_PAYMENTS_LIVE=true
 ```
 
 ## Установка coturn (TURN relay)
@@ -221,7 +221,9 @@ server {
 3. ✅ Strapi Admin: `https://medconnectserver.nnmc.kz/admin`
 4. ✅ Signaling health: `https://medconnectrtc.nnmc.kz/health`
 5. ✅ Нет CORS ошибок в консоли браузера
-6. ✅ Видеозвонки работают (WebRTC через signaling)
+6. ✅ `node scripts/production-readiness-check.mjs` проходит
+7. ✅ Видеозвонки работают (WebRTC через signaling)
+8. ✅ Restore test из PostgreSQL backup пройден на staging
 
 ## Частые проблемы
 

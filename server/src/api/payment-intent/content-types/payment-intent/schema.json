@@ -1,0 +1,79 @@
+{
+  "kind": "collectionType",
+  "collectionName": "payment_intents",
+  "info": {
+    "singularName": "payment-intent",
+    "pluralName": "payment-intents",
+    "displayName": "PaymentIntent"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "provider": {
+      "type": "enumeration",
+      "required": true,
+      "enum": ["epay_card", "halyk_qr"]
+    },
+    "invoiceId": {
+      "type": "string",
+      "unique": true
+    },
+    "billNumber": {
+      "type": "string",
+      "unique": true
+    },
+    "paymentId": {
+      "type": "string",
+      "unique": true
+    },
+    "status": {
+      "type": "enumeration",
+      "default": "pending",
+      "enum": ["pending", "paid", "appointment_created", "failed", "expired"]
+    },
+    "amount": {
+      "type": "integer",
+      "required": true
+    },
+    "currency": {
+      "type": "string",
+      "default": "KZT"
+    },
+    "dateTime": {
+      "type": "datetime",
+      "required": true
+    },
+    "roomId": {
+      "type": "string",
+      "required": true
+    },
+    "consultationType": {
+      "type": "enumeration",
+      "default": "video",
+      "enum": ["video", "chat"]
+    },
+    "language": {
+      "type": "string"
+    },
+    "patient": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "doctor": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::doctor.doctor"
+    },
+    "appointment": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::appointment.appointment"
+    },
+    "metadata": {
+      "type": "json"
+    }
+  }
+}

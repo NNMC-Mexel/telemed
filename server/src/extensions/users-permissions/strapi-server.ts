@@ -63,6 +63,7 @@ export default (plugin) => {
     'thirdPartyTransfer',
     'termsAndPrivacy',
   ];
+  const EMAIL_CONFIRMATION_TTL_HOURS = 24;
 
   const truncate = (value: unknown, maxLength: number) => {
     if (!value) return null;
@@ -240,9 +241,21 @@ export default (plugin) => {
           return;
         }
 
+        if (user.confirmationTokenExpiresAt && new Date(user.confirmationTokenExpiresAt) <= new Date()) {
+          ctx.status = 400;
+          ctx.body = {
+            error: {
+              status: 400,
+              name: 'ValidationError',
+              message: 'Confirmation token expired',
+            },
+          };
+          return;
+        }
+
         const updatedUser = await strapi.query('plugin::users-permissions.user').update({
           where: { id: user.id },
-          data: { confirmed: true, confirmationToken: null },
+          data: { confirmed: true, confirmationToken: null, confirmationTokenExpiresAt: null },
         });
 
         ctx.body = {
@@ -298,9 +311,12 @@ export default (plugin) => {
         }
 
         const confirmationToken = crypto.randomBytes(32).toString('hex');
+        const confirmationTokenExpiresAt = new Date(
+          Date.now() + EMAIL_CONFIRMATION_TTL_HOURS * 60 * 60 * 1000,
+        ).toISOString();
         await strapi.query('plugin::users-permissions.user').update({
           where: { id: user.id },
-          data: { confirmationToken },
+          data: { confirmationToken, confirmationTokenExpiresAt },
         });
         await sendConfirmationEmail(strapi, user.email, confirmationToken);
 
@@ -324,14 +340,12 @@ export default (plugin) => {
         });
 
         if (!user) {
-          ctx.status = 400;
-          ctx.body = { error: { status: 400, name: 'ValidationError', message: 'email_not_found' } };
+          ctx.body = { ok: true };
           return;
         }
 
         if (user.blocked) {
-          ctx.status = 400;
-          ctx.body = { error: { status: 400, name: 'ApplicationError', message: 'User blocked' } };
+          ctx.body = { ok: true };
           return;
         }
 
@@ -440,6 +454,9 @@ export default (plugin) => {
 
           // 2. Обновляем user: userRole + fullName + phone + iin + правильная Strapi-роль
           const confirmationToken = crypto.randomBytes(32).toString('hex');
+          const confirmationTokenExpiresAt = new Date(
+            Date.now() + EMAIL_CONFIRMATION_TTL_HOURS * 60 * 60 * 1000,
+          ).toISOString();
 
           await strapi.query('plugin::users-permissions.user').update({
             where: { id: userId },
@@ -451,6 +468,7 @@ export default (plugin) => {
               role: roleId,
               confirmed: false,
               confirmationToken,
+              confirmationTokenExpiresAt,
             },
           });
 
