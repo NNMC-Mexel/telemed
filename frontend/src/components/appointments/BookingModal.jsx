@@ -588,8 +588,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 phone: user.phone || "",
                 backLink: successUrl,
                 failureBackLink: failureUrl,
-                postLink: "",
-                failurePostLink: "",
+                postLink: `${SIGNALING_URL}/api/payment/epay-callback`,
+                failurePostLink: `${SIGNALING_URL}/api/payment/epay-failure-callback`,
             });
             // ePay now controls the page — no setIsProcessing(false) needed
         } catch (err) {

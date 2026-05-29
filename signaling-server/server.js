@@ -3,6 +3,7 @@ const express = require('express')
 const http = require('http')
 const { Server } = require('socket.io')
 const cors = require('cors')
+const crypto = require('crypto')
 
 const app = express()
 const server = http.createServer(app)
@@ -35,7 +36,11 @@ const corsOptions = {
 }
 
 app.use(cors(corsOptions))
-app.use(express.json({ limit: '1mb' }))
+app.use(express.json({
+  limit: '1mb',
+  // Save raw body buffer so HMAC webhook signatures can be verified
+  verify: (req, _res, buf) => { req.rawBody = buf },
+}))
 
 // =====================================================
 // Startup validation — fail fast if required env vars are missing
@@ -46,6 +51,7 @@ const REQUIRED_ENV_VARS = [
 const PAYMENT_ENV_VARS = [
   'EPAY_CLIENT_ID', 'EPAY_CLIENT_SECRET', 'EPAY_TERMINAL_ID',
   'EPAY_QR_CLIENT_ID', 'EPAY_QR_CLIENT_SECRET', 'EPAY_QR_TERMINAL_ID',
+  'EPAY_TILDA_SECRET',
 ]
 const missingRequired = REQUIRED_ENV_VARS.filter((v) => !process.env[v])
 if (missingRequired.length > 0) {
@@ -78,6 +84,9 @@ const IS_EPAY_TEST = process.env.EPAY_TEST !== 'false'
 const EPAY_QR_CLIENT_ID = process.env.EPAY_QR_CLIENT_ID
 const EPAY_QR_CLIENT_SECRET = process.env.EPAY_QR_CLIENT_SECRET
 const EPAY_QR_TERMINAL_ID = process.env.EPAY_QR_TERMINAL_ID
+
+// TildaSecret — used to verify HMAC-SHA512 signatures on ePay postLink callbacks
+const EPAY_TILDA_SECRET = process.env.EPAY_TILDA_SECRET
 
 const EPAY_OAUTH_URL = IS_EPAY_TEST
   ? 'https://test-epay-oauth.epayment.kz/oauth2/token'
@@ -867,17 +876,116 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
   }
 })
 
-// POST /api/payment/epay-callback  (ePay postLink — works in production)
-// NOTE: Payment confirmation is handled by client-side polling (/api/payment/halyk-qr-status).
-// These callbacks serve as a secondary confirmation channel.
-// ePay requires a valid postLink URL — we acknowledge receipt but rely on polling.
-app.post('/api/payment/epay-callback', (req, res) => {
-  console.log('[ePay callback received]')
-  res.sendStatus(200)
+// =====================================================
+// POST /api/payment/epay-callback  (ePay postLink — server-to-server)
+// ePay calls this after card payment completes. We verify HMAC-SHA512
+// using TildaSecret, then create the appointment directly in Strapi.
+// Handles the case where the user closes the browser before the redirect.
+// =====================================================
+function verifyEPayWebhookSignature(rawBody, signatureHex, secret) {
+  if (!secret || !signatureHex) return false
+  try {
+    const expected = crypto.createHmac('sha512', secret).update(rawBody).digest('hex')
+    const expBuf = Buffer.from(expected, 'hex')
+    const gotBuf = Buffer.from(signatureHex, 'hex')
+    if (expBuf.length !== gotBuf.length) return false
+    return crypto.timingSafeEqual(expBuf, gotBuf)
+  } catch {
+    return false
+  }
+}
+
+app.post('/api/payment/epay-callback', async (req, res) => {
+  res.sendStatus(200) // ACK immediately — ePay retries on non-200
+
+  const rawBody = req.rawBody
+  const signature = req.headers['x-back-sign'] || ''
+
+  if (EPAY_TILDA_SECRET && rawBody) {
+    if (!verifyEPayWebhookSignature(rawBody, signature, EPAY_TILDA_SECRET)) {
+      console.warn('[ePay webhook] invalid HMAC-SHA512 signature — dropping')
+      return
+    }
+  } else if (!EPAY_TILDA_SECRET) {
+    console.warn('[ePay webhook] EPAY_TILDA_SECRET not set — skipping sig check')
+  }
+
+  const payload = req.body
+  console.log('[ePay webhook] payload:', JSON.stringify(payload))
+
+  const invoiceId = payload?.invoiceId ? String(payload.invoiceId) : null
+  const status = String(payload?.status || payload?.payment_status || '').toUpperCase()
+  const txAmount = Math.round(Number(payload?.amount || 0))
+
+  if (!invoiceId || status !== 'PAID') {
+    console.log(`[ePay webhook] skip: invoiceId=${invoiceId} status=${status}`)
+    return
+  }
+  if (confirmedInvoices.has(invoiceId)) return
+
+  const existing = await fetchExistingAppointmentByPaymentId(invoiceId).catch(() => null)
+  if (existing) {
+    confirmedInvoices.set(invoiceId, { createdAt: Date.now() })
+    return
+  }
+
+  const persistedIntent = normalizePersistedIntent(
+    await findPaymentIntent('invoiceId', invoiceId).catch(() => null)
+  )
+  const intent = pendingCardPayments.get(invoiceId) || persistedIntent
+  if (!intent) {
+    console.warn(`[ePay webhook] no intent for invoiceId=${invoiceId}`)
+    return
+  }
+
+  const expectedAmount = Math.round(Number(intent.amount || intent.price || 0))
+  if (!expectedAmount || txAmount !== expectedAmount) {
+    console.warn(`[ePay webhook] amount mismatch: tx=${txAmount} expected=${expectedAmount}`)
+    return
+  }
+
+  try {
+    const apptRes = await fetch(`${STRAPI_API_URL}/api/appointments`, {
+      method: 'POST',
+      headers: strapiServerHeaders(),
+      body: JSON.stringify({
+        data: {
+          patient: intent.patientId,
+          doctor: intent.doctorId,
+          dateTime: intent.dateTime,
+          type: intent.consultationType || 'video',
+          statuse: 'confirmed',
+          price: expectedAmount,
+          paymentStatus: 'paid',
+          roomId: intent.roomId || `room-webhook-${invoiceId}`,
+          paymentId: invoiceId,
+        },
+      }),
+    })
+    if (apptRes.ok) {
+      confirmedInvoices.set(invoiceId, { createdAt: Date.now() })
+      pendingCardPayments.delete(invoiceId)
+      const apptData = await apptRes.json().catch(() => null)
+      const stored = await findPaymentIntent('invoiceId', invoiceId).catch(() => null)
+      if (stored?.documentId) {
+        await updatePaymentIntent(stored.documentId, {
+          status: 'appointment_created',
+          appointment: apptData?.data?.documentId,
+        }).catch(() => {})
+      }
+      console.log(`[ePay webhook] appointment created for invoiceId=${invoiceId}`)
+    } else {
+      const errText = await apptRes.text().catch(() => '')
+      console.error(`[ePay webhook] appt create HTTP ${apptRes.status}: ${errText}`)
+    }
+  } catch (err) {
+    console.error('[ePay webhook] error:', err.message)
+  }
 })
 
 app.post('/api/payment/epay-failure-callback', (req, res) => {
-  console.warn('[ePay failure callback received]')
+  const payload = req.body
+  console.warn('[ePay failure callback]', JSON.stringify(payload))
   res.sendStatus(200)
 })
 
