@@ -661,12 +661,13 @@ app.post('/api/slot/verify', async (req, res) => {
         start: dateTime.toISOString(),
         end: slotEnd.toISOString(),
       })
-      // Use the Strapi API token — it bypasses users-permissions policy entirely.
-      // API tokens are recognised by Strapi's api-token auth strategy and never
-      // hit the users-permissions PolicyError that blocks user-JWT and anon calls.
-      const headers = {
-        Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}`,
-      }
+      // Forward the patient's JWT so Strapi authenticates the request under
+      // their role (Patient/Doctor). findSlotConflicts is granted to both roles
+      // in the bootstrap seed. X-Internal-Secret is kept as a fallback for
+      // server-to-server calls without a user token.
+      const headers = {}
+      const userToken = getBearerToken(req)
+      if (userToken) headers.Authorization = `Bearer ${userToken}`
       if (process.env.SIGNALING_INTERNAL_SECRET) {
         headers['X-Internal-Secret'] = process.env.SIGNALING_INTERNAL_SECRET
       }

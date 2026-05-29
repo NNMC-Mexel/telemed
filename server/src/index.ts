@@ -37,6 +37,7 @@ const roleDefinitions = {
       'api::appointment.appointment.update',
       'api::appointment.appointment.canJoin',
       'api::appointment.appointment.findBookedSlots',
+      'api::appointment.appointment.findSlotConflicts',
       // Reviews — чтение + создание
       'api::review.review.find',
       'api::review.review.findOne',
@@ -87,6 +88,7 @@ const roleDefinitions = {
       'api::appointment.appointment.update',
       'api::appointment.appointment.canJoin',
       'api::appointment.appointment.findBookedSlots',
+      'api::appointment.appointment.findSlotConflicts',
       // Reviews — только чтение
       'api::review.review.find',
       'api::review.review.findOne',
