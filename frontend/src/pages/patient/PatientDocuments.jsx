@@ -29,7 +29,7 @@ import Modal from '../../components/ui/Modal'
 import { formatDate, cn } from '../../utils/helpers'
 import useDocumentStore from '../../stores/documentStore'
 import useAuthStore from '../../stores/authStore'
-import api, { getMediaUrl } from '../../services/api'
+import api, { downloadMedia, getMediaUrl } from '../../services/api'
 
 function PatientDocuments() {
   const { t, i18n } = useTranslation()
@@ -96,12 +96,13 @@ function PatientDocuments() {
     const file = selectedDocument?.file
     const mime = file?.mime || ''
     const isPdf = mime.includes('pdf')
+    const isImage = mime.startsWith('image/')
 
     setPreviewUrl(null)
     setPreviewError(null)
     setIsPreviewLoading(false)
 
-    if (!selectedDocument || !file?.url || !isPdf) return undefined
+    if (!selectedDocument || !file?.url || (!isPdf && !isImage)) return undefined
 
     const fileUrl = getMediaUrl(file)
     if (!fileUrl) {
@@ -114,7 +115,8 @@ function PatientDocuments() {
       .get(fileUrl, { responseType: 'blob' })
       .then((response) => {
         if (!isActive) return
-        objectUrl = URL.createObjectURL(response.data)
+        const typedBlob = new Blob([response.data], { type: mime || response.data?.type || 'application/octet-stream' })
+        objectUrl = URL.createObjectURL(typedBlob)
         setPreviewUrl(objectUrl)
       })
       .catch(() => {
@@ -253,9 +255,8 @@ function PatientDocuments() {
     if (result.success) setShowDeleteConfirm(null)
   }
 
-  const handleDownload = (doc) => {
-    const url = getMediaUrl(doc.file)
-    if (url) window.open(url, '_blank')
+  const handleDownload = async (doc) => {
+    if (doc?.file) await downloadMedia(doc.file, doc.title || 'document')
   }
 
   const openShareModal = (doc) => {
@@ -686,7 +687,13 @@ function PatientDocuments() {
             </div>
 
             {selectedDocument.file && (isImagePreview ? (
-              <img src={getMediaUrl(selectedDocument.file)} alt={selectedDocument.title} className="w-full rounded-xl" />
+              previewUrl ? (
+                <img src={previewUrl} alt={selectedDocument.title} className="w-full rounded-xl" />
+              ) : (
+                <div className="bg-slate-100 rounded-xl p-8 text-center text-slate-500">
+                  {isPreviewLoading ? t('documents.preview_loading') : previewError || t('documents.preview_unavailable')}
+                </div>
+              )
             ) : isPdfPreview ? (
               <div className="bg-slate-100 rounded-xl aspect-[3/4] overflow-hidden">
                 {isPreviewLoading ? (

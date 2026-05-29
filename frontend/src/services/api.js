@@ -261,21 +261,24 @@ export const getMediaUrl = (media) => {
 
     const resolvedUrl = url.startsWith("http") ? url : `${API_URL}${url}`;
 
-    if (resolvedUrl.includes("/api/file-proxy/")) {
-        try {
-            const authStorage = localStorage.getItem("auth-storage");
-            const { state } = authStorage ? JSON.parse(authStorage) : {};
-            if (state?.token) {
-                const withToken = new URL(resolvedUrl);
-                withToken.searchParams.set("token", state.token);
-                return withToken.toString();
-            }
-        } catch {
-            return resolvedUrl;
-        }
-    }
-
     return resolvedUrl;
+};
+
+export const downloadMedia = async (media, fallbackFilename = "download") => {
+    const url = getMediaUrl(media);
+    if (!url) return;
+
+    const response = await api.get(url, { responseType: "blob" });
+    const contentType = media?.mime || response.headers?.["content-type"] || "application/octet-stream";
+    const blob = new Blob([response.data], { type: contentType });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = media?.name || fallbackFilename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 };
 
 // ===========================================

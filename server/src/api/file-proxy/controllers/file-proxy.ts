@@ -1,10 +1,21 @@
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
+const SAFE_PUBLIC_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
 const getBearerToken = (ctx: any) => {
   const header = String(ctx.request?.headers?.authorization || '');
   if (header.startsWith('Bearer ')) return header.slice(7);
-  const queryToken = ctx.query?.token;
-  return typeof queryToken === 'string' && queryToken.trim() ? queryToken.trim() : null;
+  return null;
+};
+
+const getDownloadFileName = (file: any, key: string) => {
+  const fallback = key.split('/').pop() || 'download';
+  const name = String(file?.name || fallback)
+    .replace(/[\r\n"]/g, '')
+    .replace(/[\\/]/g, '_')
+    .trim();
+
+  return name || 'download';
 };
 
 const getUserFromRequest = async (ctx: any) => {
@@ -97,6 +108,9 @@ const isPublicDoctorPhoto = async (file: any) => {
   return doctors.length > 0;
 };
 
+const isSafePublicImage = (file: any) =>
+  SAFE_PUBLIC_IMAGE_MIMES.has(String(file?.mime || '').toLowerCase());
+
 const canAccessUserAvatar = async (user: any, file: any) => {
   if (!file?.id || !user?.id) return false;
   if (user?.role?.type === 'admin' || user?.userRole === 'admin') return true;
@@ -128,7 +142,8 @@ export default {
       }
 
       const publicDoctorPhoto = await isPublicDoctorPhoto(file);
-      if (!publicDoctorPhoto) {
+      const safePublicDoctorPhoto = publicDoctorPhoto && isSafePublicImage(file);
+      if (!safePublicDoctorPhoto) {
         const user = await getUserFromRequest(ctx);
         if (!user) {
           ctx.status = 401;
@@ -154,13 +169,20 @@ export default {
 
       const response = await s3.send(command);
 
-      ctx.set('Content-Type', response.ContentType || 'application/octet-stream');
+      ctx.set('X-Content-Type-Options', 'nosniff');
+
+      if (safePublicDoctorPhoto) {
+        ctx.set('Content-Type', response.ContentType || 'application/octet-stream');
+      } else {
+        ctx.set('Content-Type', 'application/octet-stream');
+        ctx.set('Content-Disposition', `attachment; filename="${getDownloadFileName(file, key)}"`);
+      }
       if (response.ContentLength) {
         ctx.set('Content-Length', String(response.ContentLength));
       }
       ctx.set(
         'Cache-Control',
-        publicDoctorPhoto ? 'public, max-age=86400' : 'private, no-store',
+        safePublicDoctorPhoto ? 'public, max-age=86400' : 'private, no-store',
       );
 
       ctx.body = response.Body as any;

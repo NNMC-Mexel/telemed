@@ -26,7 +26,7 @@ import Avatar from '../components/ui/Avatar'
 import Badge from '../components/ui/Badge'
 import useAuthStore from '../stores/authStore'
 import { useTranslation } from 'react-i18next'
-import { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl } from '../services/api'
+import { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl, downloadMedia } from '../services/api'
 import { getSpecName } from '../utils/helpers'
 
 // 48-hour window for post-consultation notes
@@ -487,14 +487,13 @@ function AppointmentDetail() {
                         <Paperclip className="w-4 h-4 text-slate-400" />
                         <span>{diagnosisFile.name || t('appointment_detail.file_attached')}</span>
                         {diagnosisFile.url && (
-                          <a
-                            href={getMediaUrl(diagnosisFile)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => downloadMedia(diagnosisFile, diagnosisFile.name || 'diagnosis')}
                             className="text-teal-600 hover:underline"
                           >
                             {t('appointment_detail.open')}
-                          </a>
+                          </button>
                         )}
                       </div>
                     )}
@@ -542,7 +541,7 @@ function AppointmentDetail() {
                         <Paperclip className="w-4 h-4 text-slate-400" />
                         <span>{planFile.name || t('appointment_detail.file_attached')}</span>
                         {planFile.url && (
-                          <a href={getMediaUrl(planFile)} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline">{t('appointment_detail.open')}</a>
+                          <button type="button" onClick={() => downloadMedia(planFile, planFile.name || 'plan')} className="text-teal-600 hover:underline">{t('appointment_detail.open')}</button>
                         )}
                       </div>
                     )}
@@ -590,7 +589,7 @@ function AppointmentDetail() {
                         <Paperclip className="w-4 h-4 text-slate-400" />
                         <span>{prescriptionsFile.name || t('appointment_detail.file_attached')}</span>
                         {prescriptionsFile.url && (
-                          <a href={getMediaUrl(prescriptionsFile)} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline">{t('appointment_detail.open')}</a>
+                          <button type="button" onClick={() => downloadMedia(prescriptionsFile, prescriptionsFile.name || 'prescriptions')} className="text-teal-600 hover:underline">{t('appointment_detail.open')}</button>
                         )}
                       </div>
                     )}
@@ -696,14 +695,13 @@ function AppointmentDetail() {
                           )}
                         </div>
                         {fileUrl && (
-                          <a
-                            href={fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => downloadMedia(doc.file, doc.title || 'document')}
                             className="p-2 rounded-lg text-teal-600 hover:bg-teal-50 transition-colors shrink-0"
                           >
                             <ExternalLink className="w-4 h-4" />
-                          </a>
+                          </button>
                         )}
                       </div>
                     )

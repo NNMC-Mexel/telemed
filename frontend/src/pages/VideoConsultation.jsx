@@ -43,7 +43,7 @@ import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import { cn, getSpecName } from '../utils/helpers'
 import useAuthStore from '../stores/authStore'
-import api, { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl, getSignalingUrl } from '../services/api'
+import api, { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl, getSignalingUrl, downloadMedia } from '../services/api'
 
 const _TURN_USER = import.meta.env.VITE_TURN_USERNAME || '';
 const _TURN_CRED = import.meta.env.VITE_TURN_CREDENTIAL || '';
@@ -1645,14 +1645,13 @@ function VideoConsultation() {
                                         )}
                                       </div>
                                       {fileUrl && (
-                                        <a
-                                          href={fileUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
+                                        <button
+                                          type="button"
+                                          onClick={() => downloadMedia(doc.file, doc.title || 'document')}
                                           className="p-1.5 rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
                                         >
                                           <ExternalLink className="w-4 h-4" />
-                                        </a>
+                                        </button>
                                       )}
                                     </div>
                                   )

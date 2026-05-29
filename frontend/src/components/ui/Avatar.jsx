@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { cn, getInitials } from '../../utils/helpers'
 
 const sizes = {
@@ -28,15 +29,56 @@ function Avatar({
   className,
   ...props
 }) {
+  const [resolvedSrc, setResolvedSrc] = useState(src)
   const initials = getInitials(name)
   const colorIndex = name ? name.charCodeAt(0) % colors.length : 0
   const bgColor = colors[colorIndex]
 
+  useEffect(() => {
+    let isActive = true
+    let objectUrl = null
+
+    if (!src || !src.includes('/api/file-proxy/')) {
+      setResolvedSrc(src)
+      return undefined
+    }
+
+    try {
+      const authStorage = localStorage.getItem('auth-storage')
+      const { state } = authStorage ? JSON.parse(authStorage) : {}
+      if (!state?.token) {
+        setResolvedSrc(src)
+        return undefined
+      }
+
+      fetch(src, { headers: { Authorization: `Bearer ${state.token}` } })
+        .then((response) => {
+          if (!response.ok) throw new Error('Avatar fetch failed')
+          return response.blob()
+        })
+        .then((blob) => {
+          if (!isActive) return
+          objectUrl = URL.createObjectURL(blob)
+          setResolvedSrc(objectUrl)
+        })
+        .catch(() => {
+          if (isActive) setResolvedSrc(src)
+        })
+    } catch {
+      setResolvedSrc(src)
+    }
+
+    return () => {
+      isActive = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [src])
+
   return (
     <div className={cn('relative inline-flex', className)} {...props}>
-      {src ? (
+      {resolvedSrc ? (
         <img
-          src={src}
+          src={resolvedSrc}
           alt={name}
           className={cn(
             'rounded-full object-cover ring-2 ring-white',

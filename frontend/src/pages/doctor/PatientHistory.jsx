@@ -29,7 +29,7 @@ import Button from '../../components/ui/Button'
 import Avatar from '../../components/ui/Avatar'
 import Badge from '../../components/ui/Badge'
 import useAuthStore from '../../stores/authStore'
-import api, { normalizeResponse, getMediaUrl, documentsAPI } from '../../services/api'
+import api, { normalizeResponse, getMediaUrl, documentsAPI, downloadMedia } from '../../services/api'
 
 function PatientHistory() {
   const { t, i18n } = useTranslation()
@@ -332,14 +332,13 @@ function PatientHistory() {
                                       {doc.title || docTypeLabels[doc.type] || t('patients.doc_fallback')}
                                     </h4>
                                     {fileUrl && (
-                                      <a
-                                        href={fileUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                      <button
+                                        type="button"
+                                        onClick={() => downloadMedia(doc.file, doc.title || 'document')}
                                         className="p-1.5 rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
                                       >
                                         <ExternalLink className="w-4 h-4" />
-                                      </a>
+                                      </button>
                                     )}
                                   </div>
                                   <p className="text-xs text-slate-400 mt-0.5">
@@ -417,14 +416,13 @@ function PatientHistory() {
                               {doc.title || docTypeLabels[doc.type] || t('patients.doc_fallback')}
                             </h4>
                             {fileUrl && (
-                              <a
-                                href={fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => downloadMedia(doc.file, doc.title || 'document')}
                                 className="p-1.5 rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
                               >
                                 <Download className="w-4 h-4" />
-                              </a>
+                              </button>
                             )}
                           </div>
                           <p className="text-xs text-slate-400 mt-0.5">
