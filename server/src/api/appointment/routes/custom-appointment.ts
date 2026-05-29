@@ -24,10 +24,9 @@ export default {
       path: '/appointments/slot-conflicts',
       handler: 'appointment.findSlotConflicts',
       info: { apiName: 'appointment', type: 'content-api' },
-      config: {
-        auth: false,
-        policies: [],
-      },
+      // auth: false removed — API-token bearer sent by signaling-server bypasses
+      // users-permissions policy entirely. User JWT also accepted for direct calls.
+      config: { policies: [] },
     },
   ],
 };

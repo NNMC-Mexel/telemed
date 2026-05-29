@@ -648,12 +648,15 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
   /**
    * GET /appointments/slot-conflicts?doctorId=...&start=ISO&end=ISO
-   * Внутренняя проверка для signaling-server перед оплатой. Route auth
-   * отключён намеренно, чтобы не зависеть от Strapi API-token permissions;
-   * доступ вручную ограничен JWT пользователя или SIGNALING_INTERNAL_SECRET.
+   * Called by signaling-server with a Strapi API token (bypasses users-permissions
+   * policy). Also accepts a user JWT for direct patient calls.
    */
   async findSlotConflicts(ctx) {
-    const isInternal = isInternalSlotRequest(ctx);
+    const authState = (ctx.state as any)?.auth;
+    const isApiToken =
+      authState?.strategy?.name === 'api-token' ||
+      authState?.credentials?.type === 'api-token';
+    const isInternal = isApiToken || isInternalSlotRequest(ctx);
     const user = isInternal ? null : await getUserFromJwt(ctx);
     if (!isInternal && !user) return ctx.unauthorized('Not authenticated');
 
