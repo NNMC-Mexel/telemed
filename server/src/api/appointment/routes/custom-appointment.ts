@@ -21,11 +21,12 @@ export default {
     },
     {
       method: 'GET',
-      path: '/appointments/slot-conflicts',
+      path: '/appointments/slot-conflicts/check',
       handler: 'appointment.findSlotConflicts',
       info: { apiName: 'appointment', type: 'content-api' },
-      // auth: false removed — API-token bearer sent by signaling-server bypasses
-      // users-permissions policy entirely. User JWT also accepted for direct calls.
+      // Keep this route at two path segments after /appointments. A single
+      // segment such as /appointments/slot-conflicts is swallowed by the core
+      // /appointments/:id route before this custom handler can run.
       config: { policies: [] },
     },
   ],

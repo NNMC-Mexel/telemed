@@ -671,7 +671,7 @@ app.post('/api/slot/verify', async (req, res) => {
       if (process.env.SIGNALING_INTERNAL_SECRET) {
         headers['X-Internal-Secret'] = process.env.SIGNALING_INTERNAL_SECRET
       }
-      strapiCheck = await fetch(`${STRAPI_API_URL}/api/appointments/slot-conflicts?${query}`, { headers })
+      strapiCheck = await fetch(`${STRAPI_API_URL}/api/appointments/slot-conflicts/check?${query}`, { headers })
     } catch (fetchErr) {
       console.error('[Slot verify] Strapi unreachable:', fetchErr.message)
       return res.status(503).json({ available: false, reason: 'Сервис временно недоступен. Попробуйте снова.' })
@@ -1601,5 +1601,5 @@ const PORT = process.env.PORT || 1341
 
 server.listen(PORT, () => {
   console.log(`Signaling server running on port ${PORT}`)
-  console.log('[Startup] slot verify uses /api/appointments/slot-conflicts and KZ timezone +05:00')
+  console.log('[Startup] slot verify uses /api/appointments/slot-conflicts/check and KZ timezone +05:00')
 })

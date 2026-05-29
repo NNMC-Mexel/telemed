@@ -647,7 +647,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
   },
 
   /**
-   * GET /appointments/slot-conflicts?doctorId=...&start=ISO&end=ISO
+   * GET /appointments/slot-conflicts/check?doctorId=...&start=ISO&end=ISO
    * Called by signaling-server with a Strapi API token (bypasses users-permissions
    * policy). Also accepts a user JWT for direct patient calls.
    */
