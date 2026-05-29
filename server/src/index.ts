@@ -149,6 +149,7 @@ const roleDefinitions = {
       'api::appointment.appointment.delete',
       'api::appointment.appointment.canJoin',
       'api::appointment.appointment.findBookedSlots',
+      'api::appointment.appointment.findSlotConflicts',
       // Reviews — полный CRUD
       'api::review.review.find',
       'api::review.review.findOne',

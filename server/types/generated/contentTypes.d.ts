@@ -480,6 +480,9 @@ export interface ApiAppointmentAppointment extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
+    activeSlotKey: Schema.Attribute.String &
+      Schema.Attribute.Private &
+      Schema.Attribute.Unique;
     chatLog: Schema.Attribute.JSON;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -500,7 +503,7 @@ export interface ApiAppointmentAppointment extends Struct.CollectionTypeSchema {
       'manyToOne',
       'plugin::users-permissions.user'
     >;
-    paymentId: Schema.Attribute.String;
+    paymentId: Schema.Attribute.String & Schema.Attribute.Unique;
     paymentStatus: Schema.Attribute.Enumeration<
       ['pending', 'paid', 'refunded', 'failed']
     > &
@@ -516,7 +519,7 @@ export interface ApiAppointmentAppointment extends Struct.CollectionTypeSchema {
         number
       >;
     review: Schema.Attribute.Text;
-    roomId: Schema.Attribute.String;
+    roomId: Schema.Attribute.String & Schema.Attribute.Unique;
     statuse: Schema.Attribute.Enumeration<
       [
         'pending',
@@ -985,6 +988,60 @@ export interface ApiNotificationNotification
       'manyToOne',
       'plugin::users-permissions.user'
     >;
+  };
+}
+
+export interface ApiPaymentIntentPaymentIntent
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'payment_intents';
+  info: {
+    displayName: 'PaymentIntent';
+    pluralName: 'payment-intents';
+    singularName: 'payment-intent';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    amount: Schema.Attribute.Integer & Schema.Attribute.Required;
+    appointment: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::appointment.appointment'
+    >;
+    billNumber: Schema.Attribute.String & Schema.Attribute.Unique;
+    consultationType: Schema.Attribute.Enumeration<['video', 'chat']> &
+      Schema.Attribute.DefaultTo<'video'>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    currency: Schema.Attribute.String & Schema.Attribute.DefaultTo<'KZT'>;
+    dateTime: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    doctor: Schema.Attribute.Relation<'manyToOne', 'api::doctor.doctor'>;
+    invoiceId: Schema.Attribute.String & Schema.Attribute.Unique;
+    language: Schema.Attribute.String;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::payment-intent.payment-intent'
+    > &
+      Schema.Attribute.Private;
+    metadata: Schema.Attribute.JSON;
+    patient: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+    paymentId: Schema.Attribute.String & Schema.Attribute.Unique;
+    provider: Schema.Attribute.Enumeration<['epay_card', 'halyk_qr']> &
+      Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    roomId: Schema.Attribute.String & Schema.Attribute.Required;
+    status: Schema.Attribute.Enumeration<
+      ['pending', 'paid', 'appointment_created', 'failed', 'expired']
+    > &
+      Schema.Attribute.DefaultTo<'pending'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
   };
 }
 
@@ -1573,6 +1630,8 @@ export interface PluginUsersPermissionsUser
     birthDate: Schema.Attribute.Date;
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     confirmationToken: Schema.Attribute.String & Schema.Attribute.Private;
+    confirmationTokenExpiresAt: Schema.Attribute.DateTime &
+      Schema.Attribute.Private;
     confirmed: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     conversations: Schema.Attribute.Relation<
       'manyToMany',
@@ -1653,6 +1712,7 @@ declare module '@strapi/strapi' {
       'api::medical-document.medical-document': ApiMedicalDocumentMedicalDocument;
       'api::message.message': ApiMessageMessage;
       'api::notification.notification': ApiNotificationNotification;
+      'api::payment-intent.payment-intent': ApiPaymentIntentPaymentIntent;
       'api::review.review': ApiReviewReview;
       'api::specialization.specialization': ApiSpecializationSpecialization;
       'api::time-slot.time-slot': ApiTimeSlotTimeSlot;
