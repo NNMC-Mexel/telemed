@@ -355,11 +355,7 @@ function validatePaymentRefundConfig(strapi: Core.Strapi) {
 
   if (missing.length === 0) return;
 
-  const message = `PAYMENTS_LIVE=true but automatic refund config is missing: ${missing.join(', ')}`;
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(message);
-  }
-  strapi.log.warn(message);
+  strapi.log.warn(`PAYMENTS_LIVE=true but automatic refund config is missing: ${missing.join(', ')}`);
 }
 
 export default {
