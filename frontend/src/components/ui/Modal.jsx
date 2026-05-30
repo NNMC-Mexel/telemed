@@ -42,7 +42,7 @@ function Modal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fadeIn"
@@ -53,14 +53,14 @@ function Modal({
       <div
         className={cn(
           'relative w-full bg-white rounded-2xl shadow-2xl animate-scaleIn flex flex-col',
-          'max-h-[90vh] sm:max-h-[85vh]',
+          'max-h-[94dvh] sm:max-h-[85vh]',
           sizes[size],
           className
         )}
       >
         {/* Header */}
         {(title || showClose) && (
-          <div className="flex items-start justify-between p-6 border-b border-slate-100 shrink-0">
+          <div className="flex items-start justify-between p-5 sm:p-6 border-b border-slate-100 shrink-0">
             <div>
               {title && (
                 <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
@@ -81,11 +81,11 @@ function Modal({
         )}
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 scroll-smooth">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl shrink-0">
+          <div className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl shrink-0">
             {footer}
           </div>
         )}

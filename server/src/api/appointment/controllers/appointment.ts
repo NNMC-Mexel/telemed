@@ -224,7 +224,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
     const user = ctx.state.user;
     // Requests from the signaling server arrive with an API token (no user session).
     // Treat them as trusted server-side calls, equivalent to admin for permission purposes.
-    const isApiToken = (ctx.state as any)?.auth?.strategy?.name === 'api-token';
+    const isApiToken = isApiTokenRequest(ctx);
 
     if (!user && !isApiToken) return ctx.forbidden('Not authenticated');
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { io } from "socket.io-client";
 import { QRCodeSVG } from "qrcode.react";
@@ -125,6 +125,52 @@ const isMobileDevice = () =>
 
 const SIGNALING_URL = getSignalingUrl();
 
+const DEFAULT_LANGUAGE_CODES = ["ru", "kk", "en"];
+const LANGUAGE_LABEL_KEYS = {
+    ru: "booking.lang_ru",
+    kk: "booking.lang_kk",
+    en: "booking.lang_en",
+};
+
+const normalizeLanguageCode = (value) => {
+    if (typeof value !== "string") return null;
+
+    const normalized = value
+        .trim()
+        .replace(/^booking\.lang_/i, "")
+        .replace(/^lang_/i, "")
+        .toLowerCase();
+
+    const languageAliases = {
+        ru: "ru",
+        rus: "ru",
+        russian: "ru",
+        "русский": "ru",
+        kk: "kk",
+        kz: "kk",
+        kazakh: "kk",
+        "казахский": "kk",
+        "қазақша": "kk",
+        en: "en",
+        eng: "en",
+        english: "en",
+    };
+
+    const baseCode = normalized.split(/[-_]/)[0];
+    return languageAliases[normalized] || languageAliases[baseCode] || null;
+};
+
+const getPreferredLanguageCode = (availableLanguageCodes, preferredLanguage) => {
+    const preferredCode = normalizeLanguageCode(preferredLanguage);
+    return preferredCode && availableLanguageCodes.includes(preferredCode)
+        ? preferredCode
+        : availableLanguageCodes[0];
+};
+
+const isMobileViewport = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 640px)").matches;
+
 // Load (or reload) ePay widget script — always fresh to avoid stale session state
 const loadHalykScript = () =>
     new Promise((resolve, reject) => {
@@ -171,11 +217,18 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const [selectedDate, setSelectedDate] = useState(null);
     const [selectedTime, setSelectedTime] = useState(null);
     const [consultationType, setConsultationType] = useState("video");
-    const doctorLangs = doctor?.languages?.filter(Boolean).length
-        ? doctor.languages
-        : ['ru', 'kk', 'en'];
+    const availableLanguageCodes = useMemo(() => {
+        const languages = doctor?.languages?.filter(Boolean).length
+            ? doctor.languages
+            : DEFAULT_LANGUAGE_CODES;
+        const normalizedLanguages = languages
+            .map(normalizeLanguageCode)
+            .filter((code, index, list) => code && list.indexOf(code) === index);
+
+        return normalizedLanguages.length ? normalizedLanguages : DEFAULT_LANGUAGE_CODES;
+    }, [doctor?.languages]);
     const [consultationLanguage, setConsultationLanguage] = useState(() =>
-        doctorLangs.includes(i18n.language) ? i18n.language : doctorLangs[0]
+        getPreferredLanguageCode(availableLanguageCodes, i18n.language)
     );
     const [paymentMethod, setPaymentMethod] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -183,6 +236,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const [error, setError] = useState(null);
     const [bookedSlots, setBookedSlots] = useState([]);
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+    const timeSectionRef = useRef(null);
+    const typeSectionRef = useRef(null);
+    const paymentSectionRef = useRef(null);
+    const confirmSectionRef = useRef(null);
 
     // Halyk QR flow state
     const [halykQR, setHalykQR] = useState(null); // { qrcode, homebankLink, billNumber }
@@ -232,6 +289,33 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const doctorSpecialization = getSpecName(doctor?.specialization, i18n.language)
         || t('booking.specialist_fallback');
     const doctorPrice = doctor?.price || 0;
+    const getConsultationLanguageLabel = (language) => {
+        const code = normalizeLanguageCode(language) || availableLanguageCodes[0] || "ru";
+        return t(LANGUAGE_LABEL_KEYS[code] || LANGUAGE_LABEL_KEYS.ru);
+    };
+    const scrollToMobileSection = useCallback((sectionRef) => {
+        if (!isMobileViewport() || !sectionRef.current) return;
+
+        window.setTimeout(() => {
+            sectionRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+                inline: "nearest",
+            });
+        }, 120);
+    }, []);
+
+    useEffect(() => {
+        const code = normalizeLanguageCode(consultationLanguage);
+        if (code && availableLanguageCodes.includes(code)) {
+            if (code !== consultationLanguage) {
+                setConsultationLanguage(code);
+            }
+            return;
+        }
+
+        setConsultationLanguage(getPreferredLanguageCode(availableLanguageCodes, i18n.language));
+    }, [availableLanguageCodes, consultationLanguage, i18n.language]);
 
     useEffect(() => {
         const loadSlots = async () => {
@@ -254,6 +338,25 @@ function BookingModal({ isOpen, onClose, doctor }) {
         };
         loadSlots();
     }, [selectedDate, doctor?.id, fetchTimeSlots]);
+
+    useEffect(() => {
+        if (!isOpen || step !== 1 || !selectedDate) return;
+        scrollToMobileSection(timeSectionRef);
+    }, [isOpen, scrollToMobileSection, selectedDate, step]);
+
+    useEffect(() => {
+        if (!isOpen || isComplete) return;
+
+        const activeSection = {
+            2: typeSectionRef,
+            3: paymentSectionRef,
+            4: confirmSectionRef,
+        }[step];
+
+        if (activeSection) {
+            scrollToMobileSection(activeSection);
+        }
+    }, [isComplete, isOpen, scrollToMobileSection, step]);
 
     // Socket: join slot-watch room when doctor + date are known, leave on cleanup
     useEffect(() => {
@@ -798,7 +901,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
         setSelectedTime(null);
         setConsultationType("video");
         setConsultationLanguage(
-            doctorLangs.includes(i18n.language) ? i18n.language : doctorLangs[0]
+            getPreferredLanguageCode(availableLanguageCodes, i18n.language)
         );
         setPaymentMethod(null);
         setIsComplete(false);
@@ -820,6 +923,9 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 return true;
         }
     };
+    const confirmationRowClass = "p-4 flex items-start justify-between gap-4";
+    const confirmationLabelClass = "text-slate-600 shrink-0";
+    const confirmationValueClass = "font-medium text-slate-900 text-right wrap-break-word min-w-0";
 
     if (!doctor) return null;
 
@@ -1147,25 +1253,26 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     )}
 
                     {/* Doctor Info */}
-                    <div className='flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-slate-50 rounded-xl mb-6 min-w-0'>
+                    <div className='flex items-center gap-3 p-3 sm:p-4 bg-slate-50 rounded-xl mb-5 sm:mb-6 min-w-0'>
                         <Avatar
                             src={getMediaUrl(doctor.photo)}
                             name={doctorName}
                             size='lg'
+                            className='shrink-0'
                         />
-                        <div className='min-w-0'>
-                            <h3 className='font-semibold text-slate-900 wrap-break-word'>
+                        <div className='min-w-0 flex-1'>
+                            <h3 className='font-semibold text-sm sm:text-base text-slate-900 wrap-break-word leading-snug'>
                                 {doctorName}
                             </h3>
                             <p className='text-sm text-teal-600'>
                                 {doctorSpecialization}
                             </p>
                         </div>
-                        <div className='sm:ml-auto sm:text-right w-full sm:w-auto'>
+                        <div className='text-right shrink-0'>
                             <p className='font-bold text-slate-900'>
                                 {formatPrice(doctorPrice)}
                             </p>
-                            <p className='text-xs text-slate-500'>
+                            <p className='hidden sm:block text-xs text-slate-500'>
                                 {t('booking.per_consultation')}
                             </p>
                         </div>
@@ -1229,7 +1336,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             </div>
 
                             {selectedDate && (
-                                <div>
+                                <div ref={timeSectionRef} className='scroll-mt-4'>
                                     <label className='block text-sm font-medium text-slate-700 mb-3'>
                                         {t('booking.select_time')}
                                     </label>
@@ -1291,7 +1398,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
                     {/* Step 2: Consultation Type */}
                     {step === 2 && (
-                        <div className='space-y-4'>
+                        <div ref={typeSectionRef} className='space-y-4 scroll-mt-4'>
                             <label className='block text-sm font-medium text-slate-700 mb-3'>
                                 {t('booking.select_type')}
                             </label>
@@ -1357,7 +1464,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                         { code: 'ru', label: t('booking.lang_ru') },
                                         { code: 'kk', label: t('booking.lang_kk') },
                                         { code: 'en', label: t('booking.lang_en') },
-                                    ].filter(l => doctorLangs.includes(l.code)).map(({ code, label }) => (
+                                    ].filter(l => availableLanguageCodes.includes(l.code)).map(({ code, label }) => (
                                         <button
                                             key={code}
                                             onClick={() => setConsultationLanguage(code)}
@@ -1378,7 +1485,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
                     {/* Step 3: Payment */}
                     {step === 3 && (
-                        <div className='space-y-4'>
+                        <div ref={paymentSectionRef} className='space-y-4 scroll-mt-4'>
                             <label className='block text-sm font-medium text-slate-700 mb-3'>
                                 {t('booking.payment_method_label')}
                             </label>
@@ -1476,64 +1583,64 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
                     {/* Step 4: Confirmation */}
                     {step === 4 && (
-                        <div className='space-y-4'>
+                        <div ref={confirmSectionRef} className='space-y-4 scroll-mt-4'>
                             <h3 className='font-semibold text-slate-900 mb-4'>
                                 {t('booking.confirm_title')}
                             </h3>
 
                             <div className='bg-slate-50 rounded-xl divide-y divide-slate-200'>
-                                <div className='p-4 flex justify-between'>
-                                    <span className='text-slate-600'>{t('booking.field_doctor')}</span>
-                                    <span className='font-medium text-slate-900'>
+                                <div className={confirmationRowClass}>
+                                    <span className={confirmationLabelClass}>{t('booking.field_doctor')}</span>
+                                    <span className={confirmationValueClass}>
                                         {doctorName}
                                     </span>
                                 </div>
-                                <div className='p-4 flex justify-between'>
-                                    <span className='text-slate-600'>
+                                <div className={confirmationRowClass}>
+                                    <span className={confirmationLabelClass}>
                                         {t('booking.field_spec')}
                                     </span>
-                                    <span className='font-medium text-slate-900'>
+                                    <span className={confirmationValueClass}>
                                         {doctorSpecialization}
                                     </span>
                                 </div>
-                                <div className='p-4 flex justify-between'>
-                                    <span className='text-slate-600'>{t('booking.field_date')}</span>
-                                    <span className='font-medium text-slate-900'>
+                                <div className={confirmationRowClass}>
+                                    <span className={confirmationLabelClass}>{t('booking.field_date')}</span>
+                                    <span className={confirmationValueClass}>
                                         {selectedDate &&
                                             format(
                                                 selectedDate,
                                                 "d MMMM yyyy",
                                                 { locale: dateLocale }
-                                            )}
+                                        )}
                                     </span>
                                 </div>
-                                <div className='p-4 flex justify-between'>
-                                    <span className='text-slate-600'>
+                                <div className={confirmationRowClass}>
+                                    <span className={confirmationLabelClass}>
                                         {t('booking.field_time')}
                                     </span>
-                                    <span className='font-medium text-slate-900'>
+                                    <span className={confirmationValueClass}>
                                         {selectedTime}
                                     </span>
                                 </div>
-                                <div className='p-4 flex justify-between'>
-                                    <span className='text-slate-600'>{t('booking.field_type')}</span>
-                                    <span className='font-medium text-slate-900'>
+                                <div className={confirmationRowClass}>
+                                    <span className={confirmationLabelClass}>{t('booking.field_type')}</span>
+                                    <span className={confirmationValueClass}>
                                         {consultationType === "video"
                                             ? t('booking.video_title')
                                             : t('booking.chat_title')}
                                     </span>
                                 </div>
-                                <div className='p-4 flex justify-between'>
-                                    <span className='text-slate-600'>{t('booking.field_language')}</span>
-                                    <span className='font-medium text-slate-900'>
-                                        {t(`booking.lang_${consultationLanguage}`)}
+                                <div className={confirmationRowClass}>
+                                    <span className={confirmationLabelClass}>{t('booking.field_language')}</span>
+                                    <span className={confirmationValueClass}>
+                                        {getConsultationLanguageLabel(consultationLanguage)}
                                     </span>
                                 </div>
-                                <div className='p-4 flex justify-between'>
-                                    <span className='text-slate-600'>
+                                <div className={confirmationRowClass}>
+                                    <span className={confirmationLabelClass}>
                                         {t('booking.field_payment')}
                                     </span>
-                                    <span className='font-medium text-slate-900'>
+                                    <span className={confirmationValueClass}>
                                         {
                                             paymentMethods.find(
                                                 (m) => m.id === paymentMethod
