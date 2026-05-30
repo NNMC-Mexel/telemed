@@ -52,6 +52,44 @@ const isInternalSlotRequest = (ctx: any) => {
   return String(ctx.request?.headers?.['x-internal-secret'] || '') === configuredSecret;
 };
 
+const requestAutomaticRefund = async (appointment: any, amount: number) => {
+  const signalingUrl = process.env.SIGNALING_SERVER_URL || process.env.SIGNALING_API_URL;
+  const internalSecret = process.env.SIGNALING_INTERNAL_SECRET;
+  if (!signalingUrl || !internalSecret) {
+    throw new Error('SIGNALING_SERVER_URL/SIGNALING_INTERNAL_SECRET are not configured');
+  }
+  if (!appointment?.paymentId) {
+    throw new Error('appointment.paymentId is required for automatic refund');
+  }
+
+  const res = await fetch(`${signalingUrl.replace(/\/$/, '')}/api/payment/refund-appointment`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-internal-secret': internalSecret,
+    },
+    body: JSON.stringify({
+      appointmentId: appointment.documentId,
+      paymentId: appointment.paymentId,
+      amount,
+    }),
+  });
+
+  const raw = await res.text().catch(() => '');
+  let data: any = null;
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = { raw };
+    }
+  }
+  if (!res.ok || data?.success !== true) {
+    throw new Error(`Refund API HTTP ${res.status}: ${raw.slice(0, 500)}`);
+  }
+  return data;
+};
+
 // ── Slot mutex: prevents two concurrent creates for the same doctor+time ──
 const slotLocks = new Map<string, Promise<void>>();
 
@@ -507,6 +545,8 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
     // --- Field allowlists by role ---
     let allowed: Record<string, any> = {};
+    let shouldRequestRefund = false;
+    let refundAmount = 0;
 
     const CANCEL_REFUND_CUTOFF_HOURS = 24;
 
@@ -526,7 +566,10 @@ export default factories.createCoreController('api::appointment.appointment', ()
         // Refund only if cancelled more than CANCEL_REFUND_CUTOFF_HOURS before appointment
         if ((appointment as any).paymentStatus === 'paid') {
           const hoursUntil = (appointmentTime.getTime() - Date.now()) / (1000 * 60 * 60);
-          allowed.paymentStatus = hoursUntil >= CANCEL_REFUND_CUTOFF_HOURS ? 'refunded' : 'paid';
+          if (hoursUntil >= CANCEL_REFUND_CUTOFF_HOURS) {
+            shouldRequestRefund = true;
+            refundAmount = Number((appointment as any).price || 0);
+          }
         }
       }
 
@@ -553,7 +596,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
       return ctx.badRequest('No allowed fields to update');
     }
 
-    const updated = await strapi.documents('api::appointment.appointment').update({
+    let updated = await strapi.documents('api::appointment.appointment').update({
       documentId,
       data: {
         ...allowed,
@@ -569,6 +612,37 @@ export default factories.createCoreController('api::appointment.appointment', ()
       } as any,
       status: 'published',
     });
+
+    if (shouldRequestRefund) {
+      try {
+        const refund = await requestAutomaticRefund(
+          { ...(appointment as any), documentId },
+          refundAmount,
+        );
+        updated = await strapi.documents('api::appointment.appointment').update({
+          documentId,
+          data: { paymentStatus: 'refunded' },
+          status: 'published',
+        });
+        strapi.log.info(JSON.stringify({
+          audit: 'APPOINTMENT_REFUNDED',
+          documentId,
+          paymentId: (appointment as any).paymentId,
+          amount: refundAmount,
+          refund,
+          ts: new Date().toISOString(),
+        }));
+      } catch (err: any) {
+        strapi.log.error(JSON.stringify({
+          audit: 'APPOINTMENT_REFUND_FAILED',
+          documentId,
+          paymentId: (appointment as any).paymentId,
+          amount: refundAmount,
+          error: err?.message || String(err),
+          ts: new Date().toISOString(),
+        }));
+      }
+    }
 
     strapi.log.info(JSON.stringify({
       audit: 'APPOINTMENT_UPDATED',

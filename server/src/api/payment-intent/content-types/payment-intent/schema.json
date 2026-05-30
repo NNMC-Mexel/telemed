@@ -31,7 +31,7 @@
     "status": {
       "type": "enumeration",
       "default": "pending",
-      "enum": ["pending", "paid", "appointment_created", "failed", "expired"]
+      "enum": ["pending", "paid", "appointment_created", "refunded", "refund_failed", "failed", "expired"]
     },
     "amount": {
       "type": "integer",

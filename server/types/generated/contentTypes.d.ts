@@ -1036,7 +1036,15 @@ export interface ApiPaymentIntentPaymentIntent
     publishedAt: Schema.Attribute.DateTime;
     roomId: Schema.Attribute.String & Schema.Attribute.Required;
     status: Schema.Attribute.Enumeration<
-      ['pending', 'paid', 'appointment_created', 'failed', 'expired']
+      [
+        'pending',
+        'paid',
+        'appointment_created',
+        'refunded',
+        'refund_failed',
+        'failed',
+        'expired',
+      ]
     > &
       Schema.Attribute.DefaultTo<'pending'>;
     updatedAt: Schema.Attribute.DateTime;

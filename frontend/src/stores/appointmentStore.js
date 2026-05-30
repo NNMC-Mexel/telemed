@@ -77,13 +77,15 @@ const useAppointmentStore = create((set, _get) => ({
         try {
             // Используем documentId для Strapi v5
             const idToUse = documentId || id;
-            await appointmentsAPI.cancel(idToUse);
+            const response = await appointmentsAPI.cancel(idToUse);
+            const { data } = normalizeResponse(response);
 
             set((state) => ({
                 appointments: state.appointments.map((apt) =>
                     (apt.id === id || apt.documentId === documentId) 
                         ? { 
                             ...apt, 
+                            ...data,
                             status: "cancelled",
                             refundStatus: refundInfo?.refundable ? 'refunded' : 'no_refund',
                             refundAmount: refundInfo?.amount || 0
@@ -92,7 +94,7 @@ const useAppointmentStore = create((set, _get) => ({
                 ),
             }));
 
-            return { success: true, refundInfo };
+            return { success: true, refundInfo, data };
         } catch (error) {
             return { success: false, error: error.message };
         }

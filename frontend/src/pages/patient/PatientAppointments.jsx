@@ -25,6 +25,7 @@ import { formatPrice, formatDate, getSpecName } from '../../utils/helpers'
 import { getMediaUrl, getServerNow } from '../../services/api'
 
 const ITEMS_PER_PAGE = 10
+const REFUND_CUTOFF_HOURS = 24
 
 const statusVariants = {
   pending: 'default',
@@ -170,10 +171,12 @@ function PatientAppointments() {
     setIsCancelling(true)
     try {
       const refundInfo = calculateRefund(selectedAppointment)
-      await cancelAppointment(selectedAppointment.id, selectedAppointment.documentId, refundInfo)
+      const result = await cancelAppointment(selectedAppointment.id, selectedAppointment.documentId, refundInfo)
+      if (!result?.success) throw new Error(result?.error || 'Cancel failed')
+      const refunded = result.data?.paymentStatus === 'refunded'
       setShowCancelModal(false)
       setSelectedAppointment(null)
-      setCancelResult({ show: true, refundable: refundInfo.refundable, amount: refundInfo.amount })
+      setCancelResult({ show: true, refundable: refunded, amount: refunded ? refundInfo.amount : 0 })
     } catch (err) {
       console.error('Error cancelling appointment:', err)
     } finally {
@@ -192,7 +195,7 @@ function PatientAppointments() {
     const now = new Date()
     const hoursUntilAppointment = (appointmentDate - now) / (1000 * 60 * 60)
     const price = appointment.price || appointment.doctor?.price || 0
-    if (hoursUntilAppointment >= 12) {
+    if (hoursUntilAppointment >= REFUND_CUTOFF_HOURS) {
       return { refundable: true, amount: price, hoursLeft: Math.floor(hoursUntilAppointment), message: t('appointments.refund_full') }
     }
     return { refundable: false, amount: 0, hoursLeft: Math.floor(hoursUntilAppointment), message: t('appointments.no_refund_info') }

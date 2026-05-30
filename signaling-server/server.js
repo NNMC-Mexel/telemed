@@ -110,6 +110,10 @@ const EPAY_TRANSACTION_STATUS_URL = IS_EPAY_TEST
   ? 'https://test-epay-api.epayment.kz/payment/transactions'
   : 'https://epay-api.homebank.kz/payment/transactions'
 
+const EPAY_REFUND_OPERATION_URL = IS_EPAY_TEST
+  ? 'https://test-epay-api.epayment.kz/operation'
+  : 'https://epay-api.homebank.kz/operation'
+
 const STRAPI_API_URL = process.env.STRAPI_API_URL
 
 function getBearerToken(req) {
@@ -159,6 +163,41 @@ function extractQRStatus(statusData) {
     statusData?.transactions?.[0]?.status,
   ]
   return candidates.map(normalizeStatusValue).find(Boolean) || 'UNKNOWN'
+}
+
+function extractEPayTransactionId(data) {
+  const candidates = [
+    data?.id,
+    data?.ID,
+    data?.transactionId,
+    data?.TransactionId,
+    data?.transactionID,
+    data?.operationId,
+    data?.OperationId,
+    data?.paymentId,
+    data?.PaymentId,
+    data?.transaction?.id,
+    data?.transaction?.ID,
+    data?.transaction?.transactionId,
+    data?.transactions?.[0]?.id,
+    data?.transactions?.[0]?.ID,
+    data?.transactions?.[0]?.transactionId,
+    data?.openwayId,
+    data?.reference,
+    data?.Reference,
+    data?.intReference,
+    data?.IntReference,
+  ]
+  return candidates.map((value) => String(value || '').trim()).find(Boolean) || null
+}
+
+function getIntentTransactionId(intent) {
+  return extractEPayTransactionId(intent) ||
+    intent?.metadata?.epayTransactionId ||
+    intent?.metadata?.transactionId ||
+    intent?.metadata?.paidTransaction?.id ||
+    intent?.metadata?.paidTransaction?.ID ||
+    null
 }
 
 async function fetchExistingAppointmentByPaymentId(paymentId, expected = {}) {
@@ -225,6 +264,7 @@ function normalizePersistedIntent(intent) {
   return {
     documentId: intent.documentId,
     provider: intent.provider,
+    status: intent.status,
     invoiceId: intent.invoiceId,
     billNumber: intent.billNumber,
     paymentId: intent.paymentId,
@@ -237,6 +277,7 @@ function normalizePersistedIntent(intent) {
     price: Number(intent.amount),
     amount: Number(intent.amount),
     appointmentId: intent.appointment?.documentId,
+    metadata: intent.metadata || {},
   }
 }
 
@@ -409,6 +450,105 @@ async function getQRAuthToken(invoiceId, amount, currency = 'KZT') {
     expires_in: data.expires_in,
     scope: data.scope,
   }
+}
+
+async function getEPayOperationToken(provider = 'epay_card') {
+  const isQR = provider === 'halyk_qr'
+  const clientId = isQR ? EPAY_QR_CLIENT_ID : EPAY_CLIENT_ID
+  const clientSecret = isQR ? EPAY_QR_CLIENT_SECRET : EPAY_CLIENT_SECRET
+
+  if (!clientId || !clientSecret) {
+    throw new Error(`ePay ${isQR ? 'QR ' : ''}credentials not configured`)
+  }
+
+  const params = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: clientId,
+    client_secret: clientSecret,
+    scope: 'payment',
+  })
+  const response = await fetch(EPAY_OAUTH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  })
+  const raw = await response.text()
+  let data = null
+  try {
+    data = JSON.parse(raw)
+  } catch {
+    throw new Error(`ePay operation OAuth non-json HTTP ${response.status}: ${raw.slice(0, 300)}`)
+  }
+  if (!response.ok || !data.access_token) {
+    throw new Error(`ePay operation OAuth HTTP ${response.status}: ${raw.slice(0, 300)}`)
+  }
+  return {
+    access_token: data.access_token,
+    token_type: data.token_type || 'Bearer',
+    expires_in: data.expires_in,
+  }
+}
+
+async function requestEPayRefund({ provider, transactionId, amount, externalId }) {
+  if (!transactionId) throw new Error('ePay transactionId is required for refund')
+
+  const auth = await getEPayOperationToken(provider)
+  const params = new URLSearchParams()
+  if (amount) params.set('amount', String(Math.round(Number(amount))))
+  if (externalId) params.set('externalID', externalId)
+  const query = params.toString()
+  const refundRes = await fetch(
+    `${EPAY_REFUND_OPERATION_URL}/${encodeURIComponent(transactionId)}/refund${query ? `?${query}` : ''}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `${auth.token_type} ${auth.access_token}` },
+    }
+  )
+  const raw = await refundRes.text().catch(() => '')
+  let data = null
+  if (raw) {
+    try {
+      data = JSON.parse(raw)
+    } catch {
+      data = { raw }
+    }
+  }
+  if (!refundRes.ok) {
+    throw new Error(`ePay refund HTTP ${refundRes.status}: ${raw.slice(0, 500)}`)
+  }
+  return { httpStatus: refundRes.status, data }
+}
+
+async function resolvePaidTransactionForRefund(intent) {
+  const provider = intent?.provider
+
+  if (provider === 'halyk_qr') {
+    if (!intent.billNumber) return null
+    const auth = await getQRAuthToken(intent.invoiceId || Date.now(), intent.amount || intent.price || 0)
+    const statusRes = await fetch(`${EPAY_QR_STATUS_URL}?billNumber=${encodeURIComponent(intent.billNumber)}`, {
+      headers: { Authorization: `${auth.token_type} ${auth.access_token}` },
+    })
+    const statusData = await statusRes.json().catch(() => null)
+    if (!statusRes.ok) {
+      throw new Error(`ePay QR status HTTP ${statusRes.status}: ${JSON.stringify(statusData || {}).slice(0, 500)}`)
+    }
+    return statusData
+  }
+
+  if (!intent.invoiceId) return null
+  const auth = await getEPayAuthToken(intent.invoiceId, intent.amount || intent.price || 0)
+  const statusRes = await fetch(
+    `${EPAY_TRANSACTION_STATUS_URL}?invoiceId=${encodeURIComponent(intent.invoiceId)}`,
+    { headers: { Authorization: `${auth.token_type} ${auth.access_token}` } }
+  )
+  const statusData = await statusRes.json().catch(() => null)
+  if (!statusRes.ok) {
+    throw new Error(`ePay transaction status HTTP ${statusRes.status}: ${JSON.stringify(statusData || {}).slice(0, 500)}`)
+  }
+  const transactions = Array.isArray(statusData)
+    ? statusData
+    : (statusData?.transactions || [statusData])
+  return transactions.find((tx) => ['PAID', 'CHARGE', 'CHARGED'].includes(normalizeStatusValue(tx?.status))) || transactions[0] || null
 }
 
 // POST /api/payment/create-halyk-qr
@@ -618,6 +758,19 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
     let appointmentId = null
     if (status === 'PAID' && !pending.appointmentCreated) {
       try {
+        const paidTransactionId = extractEPayTransactionId(statusData)
+        if (paidTransactionId && pending.documentId) {
+          await updatePaymentIntent(pending.documentId, {
+            status: 'paid',
+            metadata: {
+              source: 'halyk-qr-status',
+              epayTransactionId: paidTransactionId,
+              paidStatus: status,
+              paidAt: new Date().toISOString(),
+            },
+          })
+        }
+
         const existing = await fetchExistingAppointmentByPaymentId(pending.paymentId, pending)
         if (existing) {
           pending.appointmentCreated = true
@@ -814,6 +967,7 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
     }
 
     let verifiedPaymentIntent = null
+    let paidTransactionId = null
 
     // --- Live mode: verify payment status, amount, and owner with ePay ---
     if (process.env.PAYMENTS_LIVE === 'true') {
@@ -854,6 +1008,7 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
           console.warn(`[epay-confirm] invoiceId=${invoiceId} not PAID:`, JSON.stringify(statusData))
           return res.status(402).json({ error: 'Payment not confirmed by ePay' })
         }
+        paidTransactionId = extractEPayTransactionId(paidTx)
 
         // Verify amount: prevents using a cheaper payment to confirm a pricier booking
         const txAmount = Math.round(Number(paidTx.amount))
@@ -929,6 +1084,11 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
       await updatePaymentIntent(persistedIntent.documentId, {
         status: 'appointment_created',
         appointment: apptData?.data?.documentId,
+        metadata: {
+          source: 'epay-confirm',
+          epayTransactionId: paidTransactionId,
+          paidAt: new Date().toISOString(),
+        },
       })
     }
     console.log('[epay-confirm] Appointment created for patient', patientId)
@@ -979,6 +1139,7 @@ app.post('/api/payment/epay-callback', async (req, res) => {
   const invoiceId = payload?.invoiceId ? String(payload.invoiceId) : null
   const status = String(payload?.status || payload?.payment_status || '').toUpperCase()
   const txAmount = Math.round(Number(payload?.amount || 0))
+  const paidTransactionId = extractEPayTransactionId(payload)
 
   if (!invoiceId || status !== 'PAID') {
     console.log(`[ePay webhook] skip: invoiceId=${invoiceId} status=${status}`)
@@ -1034,6 +1195,11 @@ app.post('/api/payment/epay-callback', async (req, res) => {
         await updatePaymentIntent(stored.documentId, {
           status: 'appointment_created',
           appointment: apptData?.data?.documentId,
+          metadata: {
+            source: 'epay-webhook',
+            epayTransactionId: paidTransactionId,
+            paidAt: new Date().toISOString(),
+          },
         }).catch(() => {})
       }
       console.log(`[ePay webhook] appointment created for invoiceId=${invoiceId}`)
@@ -1050,6 +1216,89 @@ app.post('/api/payment/epay-failure-callback', (req, res) => {
   const payload = req.body
   console.warn('[ePay failure callback]', JSON.stringify(payload))
   res.sendStatus(200)
+})
+
+// POST /api/payment/refund-appointment
+// Internal endpoint called by Strapi after an eligible paid appointment is cancelled.
+app.post('/api/payment/refund-appointment', async (req, res) => {
+  const configuredSecret = process.env.SIGNALING_INTERNAL_SECRET
+  if (!configuredSecret || req.headers['x-internal-secret'] !== configuredSecret) {
+    return res.status(403).json({ error: 'Forbidden' })
+  }
+  if (!PAYMENTS_LIVE) {
+    return res.status(503).json({ error: 'Live payments are disabled' })
+  }
+
+  const { appointmentId, paymentId, amount } = req.body || {}
+  if (!paymentId) {
+    return res.status(400).json({ error: 'paymentId is required' })
+  }
+
+  let intentRecord = null
+  try {
+    intentRecord = await findPaymentIntent('paymentId', paymentId)
+    const intent = normalizePersistedIntent(intentRecord)
+    if (!intent?.documentId) {
+      return res.status(404).json({ error: 'Payment intent not found' })
+    }
+    if (intent.status === 'refunded') {
+      return res.json({ success: true, alreadyRefunded: true })
+    }
+
+    let transactionId = getIntentTransactionId(intent)
+    let resolvedTransaction = null
+    if (!transactionId) {
+      resolvedTransaction = await resolvePaidTransactionForRefund(intent)
+      transactionId = extractEPayTransactionId(resolvedTransaction)
+    }
+    if (!transactionId) {
+      throw new Error('Could not resolve ePay transaction id for refund')
+    }
+
+    const refundAmount = amount || intent.amount || intent.price
+    const externalId = String(`refund-${appointmentId || paymentId}`)
+      .replace(/[^a-zA-Z0-9_-]/g, '-')
+      .slice(0, 80)
+    const refundResult = await requestEPayRefund({
+      provider: intent.provider,
+      transactionId,
+      amount: refundAmount,
+      externalId,
+    })
+
+    await updatePaymentIntent(intent.documentId, {
+      status: 'refunded',
+      metadata: {
+        ...(intent.metadata || {}),
+        epayTransactionId: transactionId,
+        refund: {
+          externalId,
+          amount: Math.round(Number(refundAmount || 0)),
+          refundedAt: new Date().toISOString(),
+          result: refundResult,
+        },
+      },
+    })
+
+    console.log(`[ePay refund] success paymentId=${paymentId} transactionId=${transactionId}`)
+    res.json({ success: true, transactionId, refund: refundResult })
+  } catch (err) {
+    console.error(`[ePay refund] error paymentId=${paymentId}:`, err.message)
+    const intent = normalizePersistedIntent(intentRecord)
+    if (intent?.documentId) {
+      await updatePaymentIntent(intent.documentId, {
+        status: 'refund_failed',
+        metadata: {
+          ...(intent.metadata || {}),
+          refund: {
+            failedAt: new Date().toISOString(),
+            error: err.message,
+          },
+        },
+      }).catch(() => {})
+    }
+    res.status(502).json({ error: err.message })
+  }
 })
 
 // POST /api/payment/epay-token
