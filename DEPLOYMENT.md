@@ -38,6 +38,8 @@ NODE_ENV=production
 HOST=0.0.0.0
 PORT=1340
 SERVER_URL=https://medconnectserver.nnmc.kz
+SIGNALING_SERVER_URL=https://medconnectrtc.nnmc.kz
+SIGNALING_INTERNAL_SECRET=replace-with-shared-secret
 
 # Database: production uses PostgreSQL only
 DATABASE_CLIENT=postgres
@@ -62,6 +64,8 @@ ENCRYPTION_KEY=your-encryption-key-here
 NODE_ENV=production
 PORT=1341
 FRONTEND_URL=https://medconnect.nnmc.kz
+PAYMENTS_LIVE=true
+SIGNALING_INTERNAL_SECRET=replace-with-shared-secret
 ```
 
 ### Frontend - .env.production

@@ -253,12 +253,15 @@ APP_KEYS=ваш-ключ
 API_TOKEN_SALT=ваш-salt
 ADMIN_JWT_SECRET=ваш-jwt-secret
 JWT_SECRET=ваш-jwt-secret
+SIGNALING_SERVER_URL=http://localhost:3001
+SIGNALING_INTERNAL_SECRET=change-me
 ```
 
 ### Signaling Server (.env)
 ```env
 PORT=3001
 FRONTEND_URL=http://localhost:1342
+SIGNALING_INTERNAL_SECRET=change-me
 ```
 
 ---

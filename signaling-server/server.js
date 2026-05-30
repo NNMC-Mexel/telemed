@@ -52,6 +52,7 @@ const PAYMENT_ENV_VARS = [
   'EPAY_CLIENT_ID', 'EPAY_CLIENT_SECRET', 'EPAY_TERMINAL_ID',
   'EPAY_QR_CLIENT_ID', 'EPAY_QR_CLIENT_SECRET', 'EPAY_QR_TERMINAL_ID',
   'EPAY_TILDA_SECRET',
+  'SIGNALING_INTERNAL_SECRET',
 ]
 const missingRequired = REQUIRED_ENV_VARS.filter((v) => !process.env[v])
 if (missingRequired.length > 0) {

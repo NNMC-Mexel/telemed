@@ -344,10 +344,29 @@ async function seedRolesAndPermissions(strapi: Core.Strapi) {
   console.log('Roles and permissions setup complete.');
 }
 
+function validatePaymentRefundConfig(strapi: Core.Strapi) {
+  const isPaymentsLive = process.env.PAYMENTS_LIVE === 'true';
+  if (!isPaymentsLive) return;
+
+  const missing = [
+    process.env.SIGNALING_SERVER_URL || process.env.SIGNALING_API_URL ? null : 'SIGNALING_SERVER_URL',
+    process.env.SIGNALING_INTERNAL_SECRET ? null : 'SIGNALING_INTERNAL_SECRET',
+  ].filter(Boolean);
+
+  if (missing.length === 0) return;
+
+  const message = `PAYMENTS_LIVE=true but automatic refund config is missing: ${missing.join(', ')}`;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(message);
+  }
+  strapi.log.warn(message);
+}
+
 export default {
   register(/* { strapi }: { strapi: Core.Strapi } */) {},
 
   async bootstrap({ strapi }: { strapi: Core.Strapi }) {
+    validatePaymentRefundConfig(strapi);
     await seedSpecializations(strapi);
     await seedRolesAndPermissions(strapi);
   },
