@@ -116,6 +116,14 @@ export default factories.createCoreController('api::appointment.appointment', ()
       additionalFilters.statuse = { $in: statuseIn };
     }
 
+    // Apply exact payment filter. This is used by the signaling server for
+    // payment idempotency; ignoring it can make a paid booking look created
+    // when any appointment exists.
+    const paymentIdEq = queryFilters?.paymentId?.$eq;
+    if (paymentIdEq) {
+      additionalFilters.paymentId = String(paymentIdEq);
+    }
+
     // Apply doctor filter (so patients only see bookings for the requested doctor)
     const doctorIdFilter = queryFilters?.doctor?.id?.$eq;
     const doctorDocumentIdFilter = queryFilters?.doctor?.documentId?.$eq;

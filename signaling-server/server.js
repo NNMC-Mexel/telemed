@@ -131,15 +131,33 @@ async function verifyHttpUserToken(token) {
   return user?.id ? user : null
 }
 
-async function fetchExistingAppointmentByPaymentId(paymentId) {
+function sameInstant(left, right) {
+  if (!left || !right) return false
+  const leftMs = new Date(left).getTime()
+  const rightMs = new Date(right).getTime()
+  return Number.isFinite(leftMs) && Number.isFinite(rightMs) && leftMs === rightMs
+}
+
+function appointmentMatchesPaymentIntent(appointment, paymentId, expected = {}) {
+  if (!appointment || appointment.paymentId !== paymentId) return false
+  if (expected.patientId && String(appointment.patient?.id) !== String(expected.patientId)) return false
+  if (expected.dateTime && !sameInstant(appointment.dateTime, expected.dateTime)) return false
+  return true
+}
+
+async function fetchExistingAppointmentByPaymentId(paymentId, expected = {}) {
   if (!paymentId) return null
   const res = await fetch(
-    `${STRAPI_API_URL}/api/appointments?filters[paymentId][$eq]=${encodeURIComponent(paymentId)}&fields[0]=id&fields[1]=documentId&pagination[pageSize]=1`,
+    `${STRAPI_API_URL}/api/appointments?filters[paymentId][$eq]=${encodeURIComponent(paymentId)}` +
+      '&fields[0]=id&fields[1]=documentId&fields[2]=paymentId&fields[3]=dateTime' +
+      '&populate[patient][fields][0]=id' +
+      '&populate[doctor][fields][0]=id' +
+      '&pagination[pageSize]=1',
     { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` } }
   ).catch(() => null)
   if (!res?.ok) return null
   const json = await res.json().catch(() => null)
-  return json?.data?.[0] || null
+  return (json?.data || []).find((row) => appointmentMatchesPaymentIntent(row, paymentId, expected)) || null
 }
 
 const strapiServerHeaders = () => ({
@@ -560,17 +578,19 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
 
     // Create appointment exactly once when payment is confirmed.
     // Flag is set AFTER successful creation to ensure idempotency on server crash/retry.
+    let appointmentId = null
     if (status === 'PAID' && !pending.appointmentCreated) {
       try {
-        const existing = await fetchExistingAppointmentByPaymentId(pending.paymentId)
+        const existing = await fetchExistingAppointmentByPaymentId(pending.paymentId, pending)
         if (existing) {
           pending.appointmentCreated = true
+          appointmentId = existing.documentId || existing.id
           await updatePaymentIntent(pending.documentId, {
             status: 'appointment_created',
-            appointment: existing.documentId,
+            appointment: appointmentId,
           })
           setTimeout(() => pendingQRPayments.delete(billNumber), 60 * 1000)
-          return res.json({ status, billNumber, appointmentId: existing.documentId || existing.id })
+          return res.json({ status, billNumber, appointmentId })
         }
 
         const apptRes = await fetch(`${STRAPI_API_URL}/api/appointments`, {
@@ -600,19 +620,21 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
         // Only mark as created after confirmed success — allows safe retry on failure
         pending.appointmentCreated = true
         const apptJson = await apptRes.json().catch(() => null)
+        appointmentId = apptJson?.data?.documentId || apptJson?.data?.id || null
         await updatePaymentIntent(pending.documentId, {
           status: 'appointment_created',
-          appointment: apptJson?.data?.documentId,
+          appointment: appointmentId,
         })
         console.log(`[QR] Appointment created for billNumber: ${billNumber}`)
         setTimeout(() => pendingQRPayments.delete(billNumber), 60 * 1000)
       } catch (err) {
         console.error('[QR] appointment creation error:', err.message)
         // appointmentCreated stays false — next poll will retry
+        return res.status(202).json({ status: 'PAID_PENDING_APPOINTMENT', billNumber })
       }
     }
 
-    res.json({ status, billNumber })
+    res.json({ status, billNumber, ...(appointmentId ? { appointmentId } : {}) })
   } catch (err) {
     console.error('[QR] status error:', err.message)
     res.status(500).json({ error: err.message })
