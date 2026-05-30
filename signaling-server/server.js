@@ -145,6 +145,22 @@ function appointmentMatchesPaymentIntent(appointment, paymentId, expected = {}) 
   return true
 }
 
+function normalizeStatusValue(value) {
+  return String(value || '').trim().toUpperCase()
+}
+
+function extractQRStatus(statusData) {
+  const candidates = [
+    statusData?.status,
+    statusData?.paymentStatus,
+    statusData?.transactionStatus,
+    statusData?.result?.status,
+    statusData?.transaction?.status,
+    statusData?.transactions?.[0]?.status,
+  ]
+  return candidates.map(normalizeStatusValue).find(Boolean) || 'UNKNOWN'
+}
+
 async function fetchExistingAppointmentByPaymentId(paymentId, expected = {}) {
   if (!paymentId) return null
   const res = await fetch(
@@ -571,10 +587,31 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
       headers: { Authorization: `${tokenType} ${accessToken}` },
     })
     const statusRaw = await statusRes.text()
-    console.log(`[QR Status] billNumber=${billNumber} HTTP=${statusRes.status}`)
+    let statusData = null
+    try {
+      statusData = JSON.parse(statusRaw)
+    } catch {
+      console.warn(`[QR Status] billNumber=${billNumber} HTTP=${statusRes.status} non-json=${statusRaw.slice(0, 300)}`)
+      return res.status(502).json({ error: 'Invalid QR status response' })
+    }
+    const status = extractQRStatus(statusData)
+    const amount = statusData?.amount ?? statusData?.transaction?.amount ?? statusData?.transactions?.[0]?.amount
+    const retCode = statusData?.retCode || statusData?.code || ''
+    const errDescription = statusData?.errDescription || statusData?.message || statusData?.error || ''
+    console.log(
+      `[QR Status] billNumber=${billNumber} HTTP=${statusRes.status} status=${status}` +
+        `${amount !== undefined ? ` amount=${amount}` : ''}` +
+        `${retCode ? ` retCode=${retCode}` : ''}` +
+        `${errDescription ? ` err=${String(errDescription).slice(0, 160)}` : ''}`
+    )
 
-    const statusData = JSON.parse(statusRaw)
-    const status = statusData.status || 'UNKNOWN'
+    if (!statusRes.ok) {
+      return res.status(502).json({ error: 'QR status check failed' })
+    }
+
+    if (amount !== undefined && status === 'PAID' && Math.round(Number(amount)) !== Math.round(Number(pending.price))) {
+      console.warn(`[QR Status] amount mismatch: billNumber=${billNumber} paid=${amount} expected=${pending.price}`)
+    }
 
     // Create appointment exactly once when payment is confirmed.
     // Flag is set AFTER successful creation to ensure idempotency on server crash/retry.

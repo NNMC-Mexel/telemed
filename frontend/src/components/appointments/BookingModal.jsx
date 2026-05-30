@@ -10,6 +10,7 @@ import {
 } from "date-fns";
 import { ru, kk, enUS } from "date-fns/locale";
 import {
+    AlertCircle,
     Calendar,
     Clock,
     CreditCard,
@@ -185,7 +186,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
     // Halyk QR flow state
     const [halykQR, setHalykQR] = useState(null); // { qrcode, homebankLink, billNumber }
-    const [halykQRStatus, setHalykQRStatus] = useState("pending"); // pending | paid | rejected | expired
+    const [halykQRStatus, setHalykQRStatus] = useState("pending"); // pending | paid | paid_pending | appointment_error | rejected | expired
 
     // Real-time slot reservations: Map<time, expiresAt>
     const [reservedByOthers, setReservedByOthers] = useState(new Map())
@@ -656,7 +657,9 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
             // Start polling for payment status every 3 seconds
             let consecutivePollErrors = 0;
+            let paidPendingSince = null;
             const MAX_POLL_ERRORS = 5;
+            const PAID_PENDING_TIMEOUT_MS = 90 * 1000;
             const pollInterval = setInterval(async () => {
                 try {
                     const statusRes = await fetch(
@@ -688,7 +691,14 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             setHalykQR(null);
                             setIsComplete(true);
                         }, 1500);
-                    } else if (status === "REJECTED" || status === "CLOSED") {
+                    } else if (status === "PAID_PENDING_APPOINTMENT") {
+                        paidPendingSince = paidPendingSince || Date.now();
+                        setHalykQRStatus("paid_pending");
+                        if (Date.now() - paidPendingSince >= PAID_PENDING_TIMEOUT_MS) {
+                            clearInterval(pollInterval);
+                            setHalykQRStatus("appointment_error");
+                        }
+                    } else if (status === "REJECTED" || status === "CLOSED" || status === "RETURN") {
                         clearInterval(pollInterval);
                         setHalykQRStatus("rejected");
                     }
@@ -853,6 +863,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
     // Halyk QR modal — official ePay QR by API
     if (halykQR) {
         const isPaid = halykQRStatus === "paid";
+        const isPaidPending = halykQRStatus === "paid_pending";
+        const isAppointmentError = halykQRStatus === "appointment_error";
         const isRejected = halykQRStatus === "rejected";
         const isExpired = halykQRStatus === "expired";
         const mobile = isMobileDevice();
@@ -879,6 +891,46 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                 <p className="text-slate-500 text-sm">
                                     {t('booking.halyk_paid_desc')}
                                 </p>
+                            </div>
+                        </>
+                    ) : isPaidPending ? (
+                        <>
+                            <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center">
+                                <Clock className="w-10 h-10 text-teal-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-semibold text-slate-900 mb-1">
+                                    {t('booking.halyk_paid_title')}
+                                </h3>
+                                <p className="text-slate-500 text-sm">
+                                    {t('booking.halyk_paid_pending_desc')}
+                                </p>
+                            </div>
+                            <div className="flex items-center justify-center gap-2 text-teal-600 text-sm">
+                                <div className="w-3 h-3 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                                <span>{t('booking.halyk_creating_wait')}</span>
+                            </div>
+                        </>
+                    ) : isAppointmentError ? (
+                        <>
+                            <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center">
+                                <AlertCircle className="w-10 h-10 text-amber-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-semibold text-slate-900 mb-1">
+                                    {t('booking.halyk_appointment_error_title')}
+                                </h3>
+                                <p className="text-slate-500 text-sm">
+                                    {t('booking.halyk_appointment_error_desc')}
+                                </p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                <Button variant="outline" onClick={() => { window.location.href = "/patient/appointments"; }}>
+                                    {t('booking.my_appointments')}
+                                </Button>
+                                <Button onClick={() => { window.location.href = "mailto:support@nnmc.kz"; }}>
+                                    {t('booking.halyk_contact_support')}
+                                </Button>
                             </div>
                         </>
                     ) : isRejected ? (
