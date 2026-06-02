@@ -374,11 +374,11 @@ function AdminDoctors() {
     const intervalValidation = validateWorkingIntervals(form.workingIntervals)
     if (intervalValidation.error) {
       const messages = {
-        empty: 'Добавьте хотя бы один рабочий интервал',
-        invalid: 'Проверьте время начала и конца интервалов',
-        overlap: 'Интервалы не должны пересекаться или идти подряд',
+        empty: t('admin_doc.err_interval_empty'),
+        invalid: t('admin_doc.err_interval_invalid'),
+        overlap: t('admin_doc.err_interval_overlap'),
       }
-      alert(messages[intervalValidation.error] || 'Проверьте расписание врача')
+      alert(messages[intervalValidation.error] || t('admin_doc.err_schedule'))
       return
     }
 
@@ -778,7 +778,7 @@ function AdminDoctors() {
           <div className='space-y-3'>
             <div className='flex items-center justify-between gap-3'>
               <label className='block text-sm font-medium text-slate-700'>
-                Рабочие интервалы
+                {t('admin_doc.label_working_intervals')}
               </label>
               <Button
                 type='button'
@@ -786,7 +786,7 @@ function AdminDoctors() {
                 size='sm'
                 leftIcon={<Plus className='w-4 h-4' />}
                 onClick={addWorkingInterval}>
-                Добавить
+                {t('admin_doc.add_interval')}
               </Button>
             </div>
             <div className='space-y-3'>
@@ -795,13 +795,13 @@ function AdminDoctors() {
                   key={`${index}-${interval.start}-${interval.end}`}
                   className='grid grid-cols-[1fr_1fr_40px] gap-3 items-end'>
                   <Input
-                    label={index === 0 ? t('admin_doc.label_start') : 'Начало'}
+                    label={index === 0 ? t('admin_doc.label_start') : t('admin_doc.label_interval_start')}
                     value={interval.start}
                     onChange={(e) => updateWorkingInterval(index, 'start', e.target.value)}
                     placeholder='09:00'
                   />
                   <Input
-                    label={index === 0 ? t('admin_doc.label_end') : 'Конец'}
+                    label={index === 0 ? t('admin_doc.label_end') : t('admin_doc.label_interval_end')}
                     value={interval.end}
                     onChange={(e) => updateWorkingInterval(index, 'end', e.target.value)}
                     placeholder='18:00'

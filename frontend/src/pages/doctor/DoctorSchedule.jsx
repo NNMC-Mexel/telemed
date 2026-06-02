@@ -183,9 +183,9 @@ function DoctorSchedule() {
         const validation = validateWorkingIntervals(workingIntervals);
         if (validation.error) {
             const messages = {
-                empty: "Добавьте хотя бы один рабочий интервал",
-                invalid: "Проверьте время начала и конца интервалов",
-                overlap: "Интервалы не должны пересекаться или идти подряд",
+                empty: t('schedule.err_interval_empty'),
+                invalid: t('schedule.err_interval_invalid'),
+                overlap: t('schedule.err_interval_overlap'),
             };
             toast.error(messages[validation.error] || t('schedule.save_error'));
             return;
@@ -315,7 +315,7 @@ function DoctorSchedule() {
                 lastEndMinutes === null ||
                 lastEndMinutes + INTERVAL_GAP_MINUTES * 2 > LAST_TIME_OPTION_MINUTES
             ) {
-                toast.error("Недостаточно времени для нового интервала");
+                toast.error(t('schedule.err_interval_no_space'));
                 return prev;
             }
 
@@ -743,7 +743,7 @@ function DoctorSchedule() {
                     <div className='space-y-5'>
                         <div className='space-y-3'>
                             <label className='block text-sm font-semibold text-slate-800'>
-                                Основное время приема
+                                {t('schedule.primary_interval_title')}
                             </label>
                             <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                                 <Select
@@ -768,7 +768,7 @@ function DoctorSchedule() {
                         <div className='space-y-3'>
                             <div className='flex items-center justify-between gap-3'>
                                 <label className='block text-sm font-semibold text-slate-800'>
-                                    Интервалы пауз рабочего времени
+                                    {t('schedule.pause_intervals_title')}
                                 </label>
                                 <Button
                                     type='button'
@@ -777,7 +777,7 @@ function DoctorSchedule() {
                                     onClick={addWorkingInterval}
                                     disabled={!canAddWorkingInterval()}
                                     leftIcon={<Plus className='w-4 h-4' />}>
-                                    Добавить
+                                    {t('schedule.add_interval')}
                                 </Button>
                             </div>
                             {workingIntervals.length > 1 && (
@@ -789,7 +789,7 @@ function DoctorSchedule() {
                                                 key={`${index}-${interval.start}-${interval.end}`}
                                                 className='grid grid-cols-[1fr_1fr_40px] gap-3 items-end'>
                                                 <Select
-                                                    label='Начало'
+                                                    label={t('schedule.interval_start')}
                                                     value={interval.start}
                                                     onChange={(e) =>
                                                         updateWorkingInterval(index, "start", e.target.value)
@@ -797,7 +797,7 @@ function DoctorSchedule() {
                                                     options={getIntervalTimeOptions(index, "start")}
                                                 />
                                                 <Select
-                                                    label='Конец'
+                                                    label={t('schedule.interval_end')}
                                                     value={interval.end}
                                                     onChange={(e) =>
                                                         updateWorkingInterval(index, "end", e.target.value)
