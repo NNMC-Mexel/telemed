@@ -84,10 +84,10 @@ export const getDoctorWorkingIntervals = (doctor = {}) => {
   if (intervals.length > 0) return intervals;
 
   return legacyWorkingHoursToIntervals({
-    workStartTime: doctor.workStartTime || "09:00",
-    workEndTime: doctor.workEndTime || "18:00",
-    breakStart: doctor.breakStart || "12:00",
-    breakEnd: doctor.breakEnd || "14:00",
+    workStartTime: doctor.workStartTime ?? "09:00",
+    workEndTime: doctor.workEndTime ?? "18:00",
+    breakStart: doctor.breakStart ?? "12:00",
+    breakEnd: doctor.breakEnd ?? "14:00",
   });
 };
 
@@ -95,7 +95,7 @@ export const validateWorkingIntervals = (value) => {
   const rawIntervals = parseIntervals(value);
   const normalized = normalizeWorkingIntervals(rawIntervals);
 
-  if (rawIntervals.length === 0 || normalized.length === 0) {
+  if (rawIntervals.length === 0) {
     return { intervals: [], error: "empty" };
   }
 

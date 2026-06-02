@@ -60,10 +60,10 @@ const normalizeWorkingIntervals = (value: any) => parseWorkingIntervals(value)
   .sort((a: any, b: any) => (timeToMinutes(a.start) as number) - (timeToMinutes(b.start) as number));
 
 const legacyWorkingHoursToIntervals = (doctor: any) => {
-  const workStartTime = doctor?.workStartTime || '09:00';
-  const workEndTime = doctor?.workEndTime || '18:00';
-  const breakStart = doctor?.breakStart || '12:00';
-  const breakEnd = doctor?.breakEnd || '14:00';
+  const workStartTime = doctor?.workStartTime ?? '09:00';
+  const workEndTime = doctor?.workEndTime ?? '18:00';
+  const breakStart = doctor?.breakStart ?? '12:00';
+  const breakEnd = doctor?.breakEnd ?? '14:00';
   const workStart = timeToMinutes(workStartTime);
   const workEnd = timeToMinutes(workEndTime);
   const pauseStart = timeToMinutes(breakStart);

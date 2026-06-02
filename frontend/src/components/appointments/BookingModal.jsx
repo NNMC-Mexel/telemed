@@ -225,11 +225,12 @@ function BookingModal({ isOpen, onClose, doctor }) {
     
     // Получаем рабочие дни врача (по умолчанию Пн-Пт)
     const getWorkingDays = () => {
+        const normalizeDay = (day) => day === 0 ? 7 : day;
         if (doctor?.workingDays) {
             if (typeof doctor.workingDays === 'string') {
-                return doctor.workingDays.split(',').map(Number).filter(n => !isNaN(n));
+                return doctor.workingDays.split(',').map(Number).filter(n => !isNaN(n)).map(normalizeDay);
             }
-            return doctor.workingDays;
+            return doctor.workingDays.map(normalizeDay);
         }
         return [1, 2, 3, 4, 5]; // Пн-Пт по умолчанию
     };

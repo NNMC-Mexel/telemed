@@ -195,7 +195,9 @@ export const isDoctorOnline = (doctor) => {
     const days = typeof doctor.workingDays === 'string'
       ? doctor.workingDays.split(',').map(Number).filter(n => !isNaN(n))
       : doctor.workingDays
-    if (!days.includes(currentDay)) return false
+    const isoCurrentDay = currentDay === 0 ? 7 : currentDay
+    const normalizedDays = days.map((day) => day === 0 ? 7 : day)
+    if (!normalizedDays.includes(isoCurrentDay)) return false
   }
 
   const currentMinutes = now.getHours() * 60 + now.getMinutes()

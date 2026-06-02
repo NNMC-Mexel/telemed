@@ -104,7 +104,7 @@ function DoctorSchedule() {
                                   .map(Number)
                                   .filter((n) => !isNaN(n))
                             : doctorData.workingDays;
-                    setWorkingDays(days);
+                    setWorkingDays(days.map((day) => (day === 7 ? 0 : day)));
                 }
             }
 
@@ -159,7 +159,14 @@ function DoctorSchedule() {
     const selectedAppointments = getAppointmentsForDate(selectedDate);
 
     // Генерируем слоты для отображения на основе текущих настроек
-    const daySlots = generateSlotsFromIntervals(workingIntervals, workingHours.slotDuration)
+    const workingSlotTimes = isWorkingDay(selectedDate)
+        ? generateSlotsFromIntervals(workingIntervals, workingHours.slotDuration)
+        : [];
+    const appointmentSlotTimes = selectedAppointments.map((appointment) =>
+        format(new Date(appointment.dateTime), "HH:mm")
+    );
+    const daySlots = Array.from(new Set([...workingSlotTimes, ...appointmentSlotTimes]))
+        .sort((a, b) => (timeToMinutes(a) ?? 0) - (timeToMinutes(b) ?? 0))
         .map((time) => ({ time, isBreak: false }));
 
     const [isSaving, setIsSaving] = useState(false);
