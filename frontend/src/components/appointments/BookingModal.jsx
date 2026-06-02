@@ -27,6 +27,7 @@ import Button from "../ui/Button";
 import Avatar from "../ui/Avatar";
 import Badge from "../ui/Badge";
 import { cn, formatPrice, getSpecName, getDoctorField } from "../../utils/helpers";
+import { generateSlotsFromIntervals, getDoctorWorkingIntervals } from "../../utils/schedule";
 import { getMediaUrl, getBookedSlots, getSignalingUrl } from "../../services/api";
 import useAppointmentStore from "../../stores/appointmentStore";
 import useAuthStore from "../../stores/authStore";
@@ -34,52 +35,8 @@ import { useToast } from "../ui/Toast";
 
 // Функция генерации временных слотов на основе настроек врача
 const generateTimeSlots = (doctor) => {
-    // Берём настройки из профиля врача или используем дефолтные
-    const workStartTime = doctor?.workStartTime || "09:00";
-    const workEndTime = doctor?.workEndTime || "18:00";
     const slotDuration = doctor?.slotDuration || 30; // минуты
-    const breakStart = doctor?.breakStart || "12:00";
-    const breakEnd = doctor?.breakEnd || "14:00";
-
-    const slots = [];
-    const [startHour, startMin] = workStartTime.split(":").map(Number);
-    const [endHour, endMin] = workEndTime.split(":").map(Number);
-    const [breakStartHour, breakStartMin] = breakStart.split(":").map(Number);
-    const [breakEndHour, breakEndMin] = breakEnd.split(":").map(Number);
-
-    let currentHour = startHour;
-    let currentMin = startMin;
-
-    while (
-        currentHour < endHour ||
-        (currentHour === endHour && currentMin < endMin)
-    ) {
-        const timeString = `${currentHour
-            .toString()
-            .padStart(2, "0")}:${currentMin.toString().padStart(2, "0")}`;
-
-        // Проверяем, не попадает ли слот в перерыв
-        const currentTotalMins = currentHour * 60 + currentMin;
-        const breakStartMins = breakStartHour * 60 + breakStartMin;
-        const breakEndMins = breakEndHour * 60 + breakEndMin;
-
-        const isInBreak =
-            currentTotalMins >= breakStartMins &&
-            currentTotalMins < breakEndMins;
-
-        if (!isInBreak) {
-            slots.push(timeString);
-        }
-
-        // Добавляем интервал
-        currentMin += slotDuration;
-        if (currentMin >= 60) {
-            currentHour += Math.floor(currentMin / 60);
-            currentMin = currentMin % 60;
-        }
-    }
-
-    return slots;
+    return generateSlotsFromIntervals(getDoctorWorkingIntervals(doctor), slotDuration);
 };
 
 // Функция фильтрации прошедших слотов для сегодняшнего дня

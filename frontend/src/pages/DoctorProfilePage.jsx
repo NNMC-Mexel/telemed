@@ -30,6 +30,7 @@ import BookingModal from "../components/appointments/BookingModal";
 import { useTranslation } from "react-i18next";
 import api, { normalizeResponse, getMediaUrl } from "../services/api";
 import { formatPrice, formatDate, isDoctorOnline, getSpecName, getDoctorField } from "../utils/helpers";
+import { getDoctorWorkingIntervals } from "../utils/schedule";
 
 function DoctorProfilePage() {
     const { id } = useParams();
@@ -276,26 +277,16 @@ function DoctorProfilePage() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className='space-y-3'>
-                                    <div className='flex items-center justify-between p-3 bg-slate-50 rounded-xl'>
-                                        <span className='text-slate-600 text-sm'>
-                                            {t('doctor_public.reception')}
-                                        </span>
-                                        <span className='font-semibold text-slate-900'>
-                                            {doctor.workStartTime || "09:00"} —{" "}
-                                            {doctor.workEndTime || "18:00"}
-                                        </span>
-                                    </div>
-                                    {doctor.breakStart && doctor.breakEnd && (
+                                    {getDoctorWorkingIntervals(doctor).map((interval, index) => (
                                         <div className='flex items-center justify-between p-3 bg-slate-50 rounded-xl'>
                                             <span className='text-slate-600 text-sm'>
-                                                {t('doctor_public.break')}
+                                                {t('doctor_public.reception')} {index + 1}
                                             </span>
                                             <span className='font-semibold text-slate-900'>
-                                                {doctor.breakStart} —{" "}
-                                                {doctor.breakEnd}
+                                                {interval.start} — {interval.end}
                                             </span>
                                         </div>
-                                    )}
+                                    ))}
                                     <div className='flex items-center justify-between p-3 bg-slate-50 rounded-xl'>
                                         <span className='text-slate-600 text-sm'>
                                             {t('doctor_public.working_days')}

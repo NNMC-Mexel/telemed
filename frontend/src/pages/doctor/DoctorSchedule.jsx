@@ -11,6 +11,8 @@ import {
     MessageCircle,
     Loader2,
     Calendar,
+    Plus,
+    Trash2,
 } from "lucide-react";
 import {
     Card,
@@ -27,6 +29,13 @@ import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { ru, kk, enUS } from "date-fns/locale";
 import useAuthStore from "../../stores/authStore";
 import api, { normalizeResponse, getMediaUrl, getServerNow } from "../../services/api";
+import {
+    DEFAULT_WORKING_INTERVALS,
+    generateSlotsFromIntervals,
+    getDoctorWorkingIntervals,
+    timeToMinutes,
+    validateWorkingIntervals,
+} from "../../utils/schedule";
 
 // Генерируем все возможные временные слоты для выбора в настройках (каждые 30 минут)
 const generateAllTimeOptions = () => {
@@ -44,51 +53,6 @@ const generateAllTimeOptions = () => {
 
 const allTimeOptions = generateAllTimeOptions();
 
-// Функция генерации слотов на основе рабочих часов
-const generateWorkingSlots = (workingHours) => {
-    const slots = [];
-    const [startHour, startMin] = workingHours.startTime.split(":").map(Number);
-    const [endHour, endMin] = workingHours.endTime.split(":").map(Number);
-    const [breakStartHour, breakStartMin] = workingHours.breakStart
-        .split(":")
-        .map(Number);
-    const [breakEndHour, breakEndMin] = workingHours.breakEnd
-        .split(":")
-        .map(Number);
-
-    let currentHour = startHour;
-    let currentMin = startMin;
-
-    while (
-        currentHour < endHour ||
-        (currentHour === endHour && currentMin < endMin)
-    ) {
-        const timeString = `${currentHour
-            .toString()
-            .padStart(2, "0")}:${currentMin.toString().padStart(2, "0")}`;
-
-        // Проверяем, не попадает ли слот в перерыв
-        const currentTotalMins = currentHour * 60 + currentMin;
-        const breakStartMins = breakStartHour * 60 + breakStartMin;
-        const breakEndMins = breakEndHour * 60 + breakEndMin;
-
-        const isInBreak =
-            currentTotalMins >= breakStartMins &&
-            currentTotalMins < breakEndMins;
-
-        slots.push({ time: timeString, isBreak: isInBreak });
-
-        // Добавляем интервал
-        currentMin += workingHours.slotDuration;
-        if (currentMin >= 60) {
-            currentHour += Math.floor(currentMin / 60);
-            currentMin = currentMin % 60;
-        }
-    }
-
-    return slots;
-};
-
 function DoctorSchedule() {
     const { t, i18n } = useTranslation()
     const dateLocale = i18n.language === 'kk' ? kk : i18n.language === 'en' ? enUS : ru
@@ -102,12 +66,9 @@ function DoctorSchedule() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [workingHours, setWorkingHours] = useState({
-        startTime: "09:00",
-        endTime: "18:00",
         slotDuration: 30,
-        breakStart: "12:00",
-        breakEnd: "14:00",
     });
+    const [workingIntervals, setWorkingIntervals] = useState(DEFAULT_WORKING_INTERVALS);
     const [workingDays, setWorkingDays] = useState([1, 2, 3, 4, 5]);
 
     useEffect(() => {
@@ -130,12 +91,9 @@ function DoctorSchedule() {
             // Загружаем настройки расписания из профиля врача (если есть в Strapi)
             if (doctorData) {
                 setWorkingHours({
-                    startTime: doctorData.workStartTime || "09:00",
-                    endTime: doctorData.workEndTime || "18:00",
                     slotDuration: doctorData.slotDuration || 30,
-                    breakStart: doctorData.breakStart || "12:00",
-                    breakEnd: doctorData.breakEnd || "14:00",
                 });
+                setWorkingIntervals(getDoctorWorkingIntervals(doctorData));
 
                 // Загружаем рабочие дни (если есть в Strapi)
                 if (doctorData.workingDays) {
@@ -201,7 +159,8 @@ function DoctorSchedule() {
     const selectedAppointments = getAppointmentsForDate(selectedDate);
 
     // Генерируем слоты для отображения на основе текущих настроек
-    const daySlots = generateWorkingSlots(workingHours);
+    const daySlots = generateSlotsFromIntervals(workingIntervals, workingHours.slotDuration)
+        .map((time) => ({ time, isBreak: false }));
 
     const [isSaving, setIsSaving] = useState(false);
 
@@ -211,25 +170,49 @@ function DoctorSchedule() {
             return;
         }
 
+        const validation = validateWorkingIntervals(workingIntervals);
+        if (validation.error) {
+            const messages = {
+                empty: "Добавьте хотя бы один рабочий интервал",
+                invalid: "Проверьте время начала и конца интервалов",
+                overlap: "Рабочие интервалы не должны пересекаться",
+            };
+            toast.error(messages[validation.error] || t('schedule.save_error'));
+            return;
+        }
+
+        const normalizedIntervals = validation.intervals;
+        const firstInterval = normalizedIntervals[0];
+        const lastInterval = normalizedIntervals[normalizedIntervals.length - 1];
+        const firstGap =
+            normalizedIntervals.length > 1
+                ? {
+                      start: normalizedIntervals[0].end,
+                      end: normalizedIntervals[1].start,
+                  }
+                : null;
+
         setIsSaving(true);
         try {
             console.log("Saving settings for doctor:", doctor.documentId, {
-                workStartTime: workingHours.startTime,
-                workEndTime: workingHours.endTime,
+                workingIntervals: normalizedIntervals,
+                workStartTime: firstInterval.start,
+                workEndTime: lastInterval.end,
                 slotDuration: workingHours.slotDuration,
-                breakStart: workingHours.breakStart,
-                breakEnd: workingHours.breakEnd,
+                breakStart: firstGap?.start || "",
+                breakEnd: firstGap?.end || "",
                 workingDays: workingDays.join(","),
             });
 
             // Сохраняем настройки расписания в профиль врача (Strapi v5 использует documentId)
             const response = await api.put(`/api/doctors/${doctor.documentId}`, {
                 data: {
-                    workStartTime: workingHours.startTime,
-                    workEndTime: workingHours.endTime,
+                    workingIntervals: normalizedIntervals,
+                    workStartTime: firstInterval.start,
+                    workEndTime: lastInterval.end,
                     slotDuration: workingHours.slotDuration,
-                    breakStart: workingHours.breakStart,
-                    breakEnd: workingHours.breakEnd,
+                    breakStart: firstGap?.start || "",
+                    breakEnd: firstGap?.end || "",
                     workingDays: workingDays.join(","),
                 },
             });
@@ -252,6 +235,41 @@ function DoctorSchedule() {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const updateWorkingInterval = (index, field, value) => {
+        setWorkingIntervals((prev) =>
+            prev.map((interval, currentIndex) =>
+                currentIndex === index
+                    ? { ...interval, [field]: value }
+                    : interval
+            )
+        );
+    };
+
+    const addWorkingInterval = () => {
+        setWorkingIntervals((prev) => {
+            const lastInterval = prev[prev.length - 1];
+            const nextStart = lastInterval?.end || "09:00";
+            const nextStartMinutes = timeToMinutes(nextStart) ?? 9 * 60;
+            const nextEndMinutes = Math.min(nextStartMinutes + 60, 23 * 60 + 30);
+
+            return [
+                ...prev,
+                {
+                    start: nextStart,
+                    end: nextEndMinutes > nextStartMinutes
+                        ? `${String(Math.floor(nextEndMinutes / 60)).padStart(2, "0")}:${String(nextEndMinutes % 60).padStart(2, "0")}`
+                        : "23:30",
+                },
+            ];
+        });
+    };
+
+    const removeWorkingInterval = (index) => {
+        setWorkingIntervals((prev) =>
+            prev.length > 1 ? prev.filter((_, currentIndex) => currentIndex !== index) : prev
+        );
     };
 
     if (isLoading) {
@@ -570,31 +588,16 @@ function DoctorSchedule() {
                         </CardHeader>
                         <CardContent>
                             <div className='space-y-3 text-sm'>
-                                <div className='flex justify-between'>
-                                    <span className='text-slate-600'>
-                                        {t('schedule.work_start')}
-                                    </span>
-                                    <span className='font-medium'>
-                                        {workingHours.startTime}
-                                    </span>
-                                </div>
-                                <div className='flex justify-between'>
-                                    <span className='text-slate-600'>
-                                        {t('schedule.work_end')}
-                                    </span>
-                                    <span className='font-medium'>
-                                        {workingHours.endTime}
-                                    </span>
-                                </div>
-                                <div className='flex justify-between'>
-                                    <span className='text-slate-600'>
-                                        {t('schedule.break_time')}
-                                    </span>
-                                    <span className='font-medium'>
-                                        {workingHours.breakStart} -{" "}
-                                        {workingHours.breakEnd}
-                                    </span>
-                                </div>
+                                {workingIntervals.map((interval, index) => (
+                                    <div key={`${interval.start}-${interval.end}-${index}`} className='flex justify-between gap-3'>
+                                        <span className='text-slate-600'>
+                                            Интервал {index + 1}
+                                        </span>
+                                        <span className='font-medium text-right'>
+                                            {interval.start} - {interval.end}
+                                        </span>
+                                    </div>
+                                ))}
                                 <div className='flex justify-between'>
                                     <span className='text-slate-600'>
                                         {t('schedule.slot_duration_label')}
@@ -670,56 +673,54 @@ function DoctorSchedule() {
                         </div>
                     </div>
 
-                    {/* Working Hours */}
-                    <div className='grid grid-cols-2 gap-4'>
-                        <Select
-                            label={t('schedule.select_start')}
-                            value={workingHours.startTime}
-                            onChange={(e) =>
-                                setWorkingHours((prev) => ({
-                                    ...prev,
-                                    startTime: e.target.value,
-                                }))
-                            }
-                            options={allTimeOptions}
-                        />
-                        <Select
-                            label={t('schedule.select_end')}
-                            value={workingHours.endTime}
-                            onChange={(e) =>
-                                setWorkingHours((prev) => ({
-                                    ...prev,
-                                    endTime: e.target.value,
-                                }))
-                            }
-                            options={allTimeOptions}
-                        />
-                    </div>
-
-                    {/* Break Time */}
-                    <div className='grid grid-cols-2 gap-4'>
-                        <Select
-                            label={t('schedule.select_break_start')}
-                            value={workingHours.breakStart}
-                            onChange={(e) =>
-                                setWorkingHours((prev) => ({
-                                    ...prev,
-                                    breakStart: e.target.value,
-                                }))
-                            }
-                            options={allTimeOptions}
-                        />
-                        <Select
-                            label={t('schedule.select_break_end')}
-                            value={workingHours.breakEnd}
-                            onChange={(e) =>
-                                setWorkingHours((prev) => ({
-                                    ...prev,
-                                    breakEnd: e.target.value,
-                                }))
-                            }
-                            options={allTimeOptions}
-                        />
+                    {/* Working Intervals */}
+                    <div className='space-y-3'>
+                        <div className='flex items-center justify-between gap-3'>
+                            <label className='block text-sm font-medium text-slate-700'>
+                                Рабочие интервалы
+                            </label>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                size='sm'
+                                onClick={addWorkingInterval}
+                                leftIcon={<Plus className='w-4 h-4' />}>
+                                Добавить
+                            </Button>
+                        </div>
+                        <div className='space-y-3'>
+                            {workingIntervals.map((interval, index) => (
+                                <div
+                                    key={`${index}-${interval.start}-${interval.end}`}
+                                    className='grid grid-cols-[1fr_1fr_40px] gap-3 items-end'>
+                                    <Select
+                                        label={index === 0 ? t('schedule.select_start') : "Начало"}
+                                        value={interval.start}
+                                        onChange={(e) =>
+                                            updateWorkingInterval(index, "start", e.target.value)
+                                        }
+                                        options={allTimeOptions}
+                                    />
+                                    <Select
+                                        label={index === 0 ? t('schedule.select_end') : "Конец"}
+                                        value={interval.end}
+                                        onChange={(e) =>
+                                            updateWorkingInterval(index, "end", e.target.value)
+                                        }
+                                        options={allTimeOptions}
+                                    />
+                                    <button
+                                        type='button'
+                                        title='Удалить интервал'
+                                        aria-label='Удалить интервал'
+                                        onClick={() => removeWorkingInterval(index)}
+                                        disabled={workingIntervals.length === 1}
+                                        className='h-10 w-10 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors'>
+                                        <Trash2 className='w-4 h-4' />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Slot Duration */}

@@ -89,6 +89,9 @@
     "workingHours": {
       "type": "json"
     },
+    "workingIntervals": {
+      "type": "json"
+    },
     "appointments": {
       "type": "relation",
       "relation": "oneToMany",

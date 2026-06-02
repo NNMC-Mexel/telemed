@@ -10,6 +10,11 @@ import Modal from '../../components/ui/Modal'
 import Badge from '../../components/ui/Badge'
 import ImageCropModal from '../../components/ui/ImageCropModal'
 import api, { doctorsAPI, getMediaUrl, normalizeResponse, specializationsAPI, uploadFile } from '../../services/api'
+import {
+  DEFAULT_WORKING_INTERVALS,
+  getDoctorWorkingIntervals,
+  validateWorkingIntervals,
+} from '../../utils/schedule'
 
 const defaultForm = {
   username: '',
@@ -32,9 +37,20 @@ const defaultForm = {
   breakEnd: '14:00',
   slotDuration: '30',
   workingDays: '1,2,3,4,5',
+  workingIntervals: DEFAULT_WORKING_INTERVALS,
 }
 
 function toPayload(form) {
+  const validation = validateWorkingIntervals(form.workingIntervals)
+  const workingIntervals = validation.intervals.length
+    ? validation.intervals
+    : DEFAULT_WORKING_INTERVALS
+  const firstInterval = workingIntervals[0]
+  const lastInterval = workingIntervals[workingIntervals.length - 1]
+  const firstGap = workingIntervals.length > 1
+    ? { start: workingIntervals[0].end, end: workingIntervals[1].start }
+    : null
+
   return {
     fullName: form.fullName.trim(),
     specialization: form.specialization ? Number(form.specialization) : null,
@@ -46,12 +62,13 @@ function toPayload(form) {
     bio: form.bio || '',
     education: form.education || '',
     isActive: Boolean(form.isActive),
-    workStartTime: form.workStartTime || '09:00',
-    workEndTime: form.workEndTime || '18:00',
-    breakStart: form.breakStart || '12:00',
-    breakEnd: form.breakEnd || '14:00',
+    workStartTime: firstInterval.start,
+    workEndTime: lastInterval.end,
+    breakStart: firstGap?.start || '',
+    breakEnd: firstGap?.end || '',
     slotDuration: Number(form.slotDuration) || 30,
     workingDays: form.workingDays || '1,2,3,4,5',
+    workingIntervals,
   }
 }
 
@@ -193,11 +210,47 @@ function AdminDoctors() {
 
   const openCreateModal = () => {
     setEditingDoctor(null)
-    setForm(defaultForm)
+    setForm({
+      ...defaultForm,
+      workingIntervals: DEFAULT_WORKING_INTERVALS.map((interval) => ({ ...interval })),
+    })
     setPhotoFile(null)
     setPhotoPreview('')
     setRemovePhoto(false)
     setIsModalOpen(true)
+  }
+
+  const updateWorkingInterval = (index, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      workingIntervals: prev.workingIntervals.map((interval, currentIndex) =>
+        currentIndex === index ? { ...interval, [field]: value } : interval
+      ),
+    }))
+  }
+
+  const addWorkingInterval = () => {
+    setForm((prev) => {
+      const lastInterval = prev.workingIntervals[prev.workingIntervals.length - 1]
+      const nextStart = lastInterval?.end || '09:00'
+      return {
+        ...prev,
+        workingIntervals: [
+          ...prev.workingIntervals,
+          { start: nextStart, end: '23:30' },
+        ],
+      }
+    })
+  }
+
+  const removeWorkingInterval = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      workingIntervals:
+        prev.workingIntervals.length > 1
+          ? prev.workingIntervals.filter((_, currentIndex) => currentIndex !== index)
+          : prev.workingIntervals,
+    }))
   }
 
   const openEditModal = (doctor) => {
@@ -227,6 +280,7 @@ function AdminDoctors() {
       breakEnd: doctor.breakEnd || '14:00',
       slotDuration: String(doctor.slotDuration || 30),
       workingDays: doctor.workingDays || '1,2,3,4,5',
+      workingIntervals: getDoctorWorkingIntervals(doctor),
     })
     setPhotoFile(null)
     setPhotoPreview(getMediaUrl(doctor.photo) || '')
@@ -317,6 +371,17 @@ function AdminDoctors() {
       return
     }
 
+    const intervalValidation = validateWorkingIntervals(form.workingIntervals)
+    if (intervalValidation.error) {
+      const messages = {
+        empty: 'Добавьте хотя бы один рабочий интервал',
+        invalid: 'Проверьте время начала и конца интервалов',
+        overlap: 'Рабочие интервалы не должны пересекаться',
+      }
+      alert(messages[intervalValidation.error] || 'Проверьте расписание врача')
+      return
+    }
+
     setIsSaving(true)
     try {
       const payload = toPayload(form)
@@ -366,7 +431,10 @@ function AdminDoctors() {
 
       setIsModalOpen(false)
       setEditingDoctor(null)
-      setForm(defaultForm)
+      setForm({
+        ...defaultForm,
+        workingIntervals: DEFAULT_WORKING_INTERVALS.map((interval) => ({ ...interval })),
+      })
       setPhotoFile(null)
       setPhotoPreview('')
       setRemovePhoto(false)
@@ -707,34 +775,49 @@ function AdminDoctors() {
             />
           </div>
 
-          <div className='grid md:grid-cols-2 gap-4'>
-            <Input
-              label={t('admin_doc.label_start')}
-              value={form.workStartTime}
-              onChange={(e) => setForm((prev) => ({ ...prev, workStartTime: e.target.value }))}
-              placeholder='09:00'
-            />
-            <Input
-              label={t('admin_doc.label_end')}
-              value={form.workEndTime}
-              onChange={(e) => setForm((prev) => ({ ...prev, workEndTime: e.target.value }))}
-              placeholder='18:00'
-            />
-          </div>
-
-          <div className='grid md:grid-cols-2 gap-4'>
-            <Input
-              label={t('admin_doc.label_break_start')}
-              value={form.breakStart}
-              onChange={(e) => setForm((prev) => ({ ...prev, breakStart: e.target.value }))}
-              placeholder='12:00'
-            />
-            <Input
-              label={t('admin_doc.label_break_end')}
-              value={form.breakEnd}
-              onChange={(e) => setForm((prev) => ({ ...prev, breakEnd: e.target.value }))}
-              placeholder='14:00'
-            />
+          <div className='space-y-3'>
+            <div className='flex items-center justify-between gap-3'>
+              <label className='block text-sm font-medium text-slate-700'>
+                Рабочие интервалы
+              </label>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                leftIcon={<Plus className='w-4 h-4' />}
+                onClick={addWorkingInterval}>
+                Добавить
+              </Button>
+            </div>
+            <div className='space-y-3'>
+              {form.workingIntervals.map((interval, index) => (
+                <div
+                  key={`${index}-${interval.start}-${interval.end}`}
+                  className='grid grid-cols-[1fr_1fr_40px] gap-3 items-end'>
+                  <Input
+                    label={index === 0 ? t('admin_doc.label_start') : 'Начало'}
+                    value={interval.start}
+                    onChange={(e) => updateWorkingInterval(index, 'start', e.target.value)}
+                    placeholder='09:00'
+                  />
+                  <Input
+                    label={index === 0 ? t('admin_doc.label_end') : 'Конец'}
+                    value={interval.end}
+                    onChange={(e) => updateWorkingInterval(index, 'end', e.target.value)}
+                    placeholder='18:00'
+                  />
+                  <button
+                    type='button'
+                    title='Удалить интервал'
+                    aria-label='Удалить интервал'
+                    onClick={() => removeWorkingInterval(index)}
+                    disabled={form.workingIntervals.length === 1}
+                    className='h-10 w-10 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors'>
+                    <Trash2 className='w-4 h-4' />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
           <Input

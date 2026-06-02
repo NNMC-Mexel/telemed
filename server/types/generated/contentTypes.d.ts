@@ -815,6 +815,7 @@ export interface ApiDoctorDoctor extends Struct.CollectionTypeSchema {
     workEndTime: Schema.Attribute.String;
     workingDays: Schema.Attribute.String;
     workingHours: Schema.Attribute.JSON;
+    workingIntervals: Schema.Attribute.JSON;
     workplace: Schema.Attribute.String;
     workStartTime: Schema.Attribute.String;
   };

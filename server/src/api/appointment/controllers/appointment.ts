@@ -28,6 +28,72 @@ const normalizeFilterList = (value: any) => {
   return value ? [value] : [];
 };
 
+const timeToMinutes = (value: any) => {
+  if (typeof value !== 'string' || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(value)) return null;
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const parseWorkingIntervals = (value: any) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
+const normalizeWorkingIntervals = (value: any) => parseWorkingIntervals(value)
+  .map((interval: any) => ({
+    start: interval?.start || interval?.startTime,
+    end: interval?.end || interval?.endTime,
+  }))
+  .filter((interval: any) => {
+    const start = timeToMinutes(interval.start);
+    const end = timeToMinutes(interval.end);
+    return start !== null && end !== null && start < end;
+  })
+  .sort((a: any, b: any) => (timeToMinutes(a.start) as number) - (timeToMinutes(b.start) as number));
+
+const legacyWorkingHoursToIntervals = (doctor: any) => {
+  const workStartTime = doctor?.workStartTime || '09:00';
+  const workEndTime = doctor?.workEndTime || '18:00';
+  const breakStart = doctor?.breakStart || '12:00';
+  const breakEnd = doctor?.breakEnd || '14:00';
+  const workStart = timeToMinutes(workStartTime);
+  const workEnd = timeToMinutes(workEndTime);
+  const pauseStart = timeToMinutes(breakStart);
+  const pauseEnd = timeToMinutes(breakEnd);
+
+  if (workStart === null || workEnd === null || workStart >= workEnd) {
+    return [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '18:00' }];
+  }
+
+  if (
+    pauseStart === null ||
+    pauseEnd === null ||
+    pauseStart >= pauseEnd ||
+    pauseStart <= workStart ||
+    pauseEnd >= workEnd
+  ) {
+    return [{ start: workStartTime, end: workEndTime }];
+  }
+
+  return [
+    { start: workStartTime, end: breakStart },
+    { start: breakEnd, end: workEndTime },
+  ].filter((interval) => (timeToMinutes(interval.start) as number) < (timeToMinutes(interval.end) as number));
+};
+
+const getDoctorWorkingIntervals = (doctor: any) => {
+  const intervals = normalizeWorkingIntervals(doctor?.workingIntervals);
+  return intervals.length > 0 ? intervals : legacyWorkingHoursToIntervals(doctor);
+};
+
 const getBearerToken = (ctx: any) => {
   const header = String(ctx.request?.headers?.authorization || '');
   return header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -304,29 +370,32 @@ export default factories.createCoreController('api::appointment.appointment', ()
         const kzDate = new Date(parsedDate.getTime() + 5 * 60 * 60 * 1000);
         const isoDay = kzDate.getUTCDay() === 0 ? 7 : kzDate.getUTCDay();
         const workingDays = (drForHours.workingDays || '1,2,3,4,5')
-          .split(',').map((d: string) => parseInt(d.trim(), 10));
+          .split(',')
+          .map((d: string) => parseInt(d.trim(), 10))
+          .filter((day: number) => !Number.isNaN(day))
+          .map((day: number) => day === 0 ? 7 : day);
         if (!workingDays.includes(isoDay)) {
           return ctx.badRequest('Doctor does not work on the selected day');
         }
 
-        // Check working hours — times stored as "HH:MM"
+        // Check working intervals - times stored as "HH:MM"
         // Используем UTC+5 (Астана/Алматы) для сравнения с рабочими часами врача
-        const toMinutes = (t: string) => {
-          const [h, m] = t.split(':').map(Number);
-          return h * 60 + m;
-        };
         const KZ_OFFSET = 5 * 60; // UTC+5 в минутах
         const apptMinutes = (parsedDate.getUTCHours() * 60 + parsedDate.getUTCMinutes() + KZ_OFFSET) % 1440;
-        const workStart = toMinutes(drForHours.workStartTime || '09:00');
-        const workEnd   = toMinutes(drForHours.workEndTime   || '18:00');
-        const breakStart = toMinutes(drForHours.breakStart    || '13:00');
-        const breakEnd   = toMinutes(drForHours.breakEnd      || '14:00');
+        const slotMinutes = Number(drForHours.slotDuration) || 30;
+        const appointmentEndMinutes = apptMinutes + slotMinutes;
+        const workingIntervals = getDoctorWorkingIntervals(drForHours);
+        const isInsideWorkingInterval = workingIntervals.some((interval: any) => {
+          const start = timeToMinutes(interval.start);
+          const end = timeToMinutes(interval.end);
+          return start !== null &&
+            end !== null &&
+            apptMinutes >= start &&
+            appointmentEndMinutes <= end;
+        });
 
-        if (apptMinutes < workStart || apptMinutes >= workEnd) {
+        if (!isInsideWorkingInterval) {
           return ctx.badRequest('Appointment time is outside doctor working hours');
-        }
-        if (apptMinutes >= breakStart && apptMinutes < breakEnd) {
-          return ctx.badRequest('Appointment time falls during doctor break time');
         }
       }
     }

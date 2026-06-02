@@ -2,6 +2,7 @@ import { format, formatDistanceToNow, isToday, isTomorrow, isYesterday, parseISO
 import { ru } from 'date-fns/locale/ru'
 import { enUS } from 'date-fns/locale/en-US'
 import { kk } from 'date-fns/locale/kk'
+import { getDoctorWorkingIntervals, timeToMinutes } from './schedule'
 
 const getDateLocale = (lang) => {
   if (lang === 'en') return enUS
@@ -197,29 +198,13 @@ export const isDoctorOnline = (doctor) => {
     if (!days.includes(currentDay)) return false
   }
 
-  // Check working hours
-  const startTime = doctor.workStartTime
-  const endTime = doctor.workEndTime
-  if (startTime && endTime) {
-    const [sh, sm] = startTime.split(':').map(Number)
-    const [eh, em] = endTime.split(':').map(Number)
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
-    const startMinutes = sh * 60 + sm
-    const endMinutes = eh * 60 + em
-    if (currentMinutes < startMinutes || currentMinutes >= endMinutes) return false
-  }
-
-  // Check break time
-  const breakStart = doctor.breakStart
-  const breakEnd = doctor.breakEnd
-  if (breakStart && breakEnd) {
-    const [bsh, bsm] = breakStart.split(':').map(Number)
-    const [beh, bem] = breakEnd.split(':').map(Number)
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
-    const breakStartMinutes = bsh * 60 + bsm
-    const breakEndMinutes = beh * 60 + bem
-    if (currentMinutes >= breakStartMinutes && currentMinutes < breakEndMinutes) return false
-  }
-
-  return true
+  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+  return getDoctorWorkingIntervals(doctor).some((interval) => {
+    const startMinutes = timeToMinutes(interval.start)
+    const endMinutes = timeToMinutes(interval.end)
+    return startMinutes !== null &&
+      endMinutes !== null &&
+      currentMinutes >= startMinutes &&
+      currentMinutes < endMinutes
+  })
 }
