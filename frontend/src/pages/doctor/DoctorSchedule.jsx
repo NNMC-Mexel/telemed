@@ -768,7 +768,7 @@ function DoctorSchedule() {
                         <div className='space-y-3'>
                             <div className='flex items-center justify-between gap-3'>
                                 <label className='block text-sm font-semibold text-slate-800'>
-                                    Дополнительные интервалы
+                                    Интервалы пауз рабочего времени
                                 </label>
                                 <Button
                                     type='button'
