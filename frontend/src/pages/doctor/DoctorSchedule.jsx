@@ -33,6 +33,7 @@ import {
     DEFAULT_WORKING_INTERVALS,
     generateSlotsFromIntervals,
     getDoctorWorkingIntervals,
+    minutesToTime,
     timeToMinutes,
     validateWorkingIntervals,
 } from "../../utils/schedule";
@@ -52,6 +53,8 @@ const generateAllTimeOptions = () => {
 };
 
 const allTimeOptions = generateAllTimeOptions();
+const INTERVAL_GAP_MINUTES = 30;
+const LAST_TIME_OPTION_MINUTES = 23 * 60 + 30;
 
 function DoctorSchedule() {
     const { t, i18n } = useTranslation()
@@ -182,7 +185,7 @@ function DoctorSchedule() {
             const messages = {
                 empty: "Добавьте хотя бы один рабочий интервал",
                 invalid: "Проверьте время начала и конца интервалов",
-                overlap: "Рабочие интервалы не должны пересекаться",
+                overlap: "Интервалы не должны пересекаться или идти подряд",
             };
             toast.error(messages[validation.error] || t('schedule.save_error'));
             return;
@@ -254,20 +257,76 @@ function DoctorSchedule() {
         );
     };
 
+    const getIntervalTimeOptions = (index, field) => {
+        const interval = workingIntervals[index];
+        const currentStart = timeToMinutes(interval?.start) ?? 0;
+        const currentEnd = timeToMinutes(interval?.end) ?? LAST_TIME_OPTION_MINUTES;
+        const previousEnd =
+            index > 0
+                ? timeToMinutes(workingIntervals[index - 1]?.end)
+                : null;
+        const nextStart =
+            index < workingIntervals.length - 1
+                ? timeToMinutes(workingIntervals[index + 1]?.start)
+                : null;
+        const selectedValue = field === "start" ? interval?.start : interval?.end;
+
+        return allTimeOptions.filter((option) => {
+            const optionMinutes = timeToMinutes(option.value);
+            if (optionMinutes === null) return false;
+
+            if (option.value === selectedValue) return true;
+
+            if (field === "start") {
+                const isAfterPrevious =
+                    previousEnd === null ||
+                    optionMinutes >= previousEnd + INTERVAL_GAP_MINUTES;
+                const isBeforeEnd = optionMinutes < currentEnd;
+                const isBeforeNext =
+                    nextStart === null ||
+                    optionMinutes <= nextStart - INTERVAL_GAP_MINUTES;
+
+                return isAfterPrevious && isBeforeEnd && isBeforeNext;
+            }
+
+            const isAfterStart = optionMinutes > currentStart;
+            const isBeforeNext =
+                nextStart === null ||
+                optionMinutes <= nextStart - INTERVAL_GAP_MINUTES;
+
+            return isAfterStart && isBeforeNext;
+        });
+    };
+
+    const canAddWorkingInterval = () => {
+        const lastInterval = workingIntervals[workingIntervals.length - 1];
+        const lastEndMinutes = timeToMinutes(lastInterval?.end);
+        return (
+            lastEndMinutes !== null &&
+            lastEndMinutes + INTERVAL_GAP_MINUTES * 2 <= LAST_TIME_OPTION_MINUTES
+        );
+    };
+
     const addWorkingInterval = () => {
         setWorkingIntervals((prev) => {
             const lastInterval = prev[prev.length - 1];
-            const nextStart = lastInterval?.end || "09:00";
-            const nextStartMinutes = timeToMinutes(nextStart) ?? 9 * 60;
-            const nextEndMinutes = Math.min(nextStartMinutes + 60, 23 * 60 + 30);
+            const lastEndMinutes = timeToMinutes(lastInterval?.end);
+            if (
+                lastEndMinutes === null ||
+                lastEndMinutes + INTERVAL_GAP_MINUTES * 2 > LAST_TIME_OPTION_MINUTES
+            ) {
+                toast.error("Недостаточно времени для нового интервала");
+                return prev;
+            }
+
+            const nextStartMinutes = lastEndMinutes + INTERVAL_GAP_MINUTES;
+            const nextEndMinutes = nextStartMinutes + INTERVAL_GAP_MINUTES;
 
             return [
                 ...prev,
                 {
-                    start: nextStart,
-                    end: nextEndMinutes > nextStartMinutes
-                        ? `${String(Math.floor(nextEndMinutes / 60)).padStart(2, "0")}:${String(nextEndMinutes % 60).padStart(2, "0")}`
-                        : "23:30",
+                    start: minutesToTime(nextStartMinutes),
+                    end: minutesToTime(nextEndMinutes),
                 },
             ];
         });
@@ -681,52 +740,83 @@ function DoctorSchedule() {
                     </div>
 
                     {/* Working Intervals */}
-                    <div className='space-y-3'>
-                        <div className='flex items-center justify-between gap-3'>
-                            <label className='block text-sm font-medium text-slate-700'>
-                                Рабочие интервалы
-                            </label>
-                            <Button
-                                type='button'
-                                variant='outline'
-                                size='sm'
-                                onClick={addWorkingInterval}
-                                leftIcon={<Plus className='w-4 h-4' />}>
-                                Добавить
-                            </Button>
-                        </div>
+                    <div className='space-y-5'>
                         <div className='space-y-3'>
-                            {workingIntervals.map((interval, index) => (
-                                <div
-                                    key={`${index}-${interval.start}-${interval.end}`}
-                                    className='grid grid-cols-[1fr_1fr_40px] gap-3 items-end'>
-                                    <Select
-                                        label={index === 0 ? t('schedule.select_start') : "Начало"}
-                                        value={interval.start}
-                                        onChange={(e) =>
-                                            updateWorkingInterval(index, "start", e.target.value)
-                                        }
-                                        options={allTimeOptions}
-                                    />
-                                    <Select
-                                        label={index === 0 ? t('schedule.select_end') : "Конец"}
-                                        value={interval.end}
-                                        onChange={(e) =>
-                                            updateWorkingInterval(index, "end", e.target.value)
-                                        }
-                                        options={allTimeOptions}
-                                    />
-                                    <button
-                                        type='button'
-                                        title='Удалить интервал'
-                                        aria-label='Удалить интервал'
-                                        onClick={() => removeWorkingInterval(index)}
-                                        disabled={workingIntervals.length === 1}
-                                        className='h-10 w-10 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors'>
-                                        <Trash2 className='w-4 h-4' />
-                                    </button>
+                            <label className='block text-sm font-semibold text-slate-800'>
+                                Основное время приема
+                            </label>
+                            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                                <Select
+                                    label={t('schedule.select_start')}
+                                    value={workingIntervals[0]?.start || "09:00"}
+                                    onChange={(e) =>
+                                        updateWorkingInterval(0, "start", e.target.value)
+                                    }
+                                    options={getIntervalTimeOptions(0, "start")}
+                                />
+                                <Select
+                                    label={t('schedule.select_end')}
+                                    value={workingIntervals[0]?.end || "18:00"}
+                                    onChange={(e) =>
+                                        updateWorkingInterval(0, "end", e.target.value)
+                                    }
+                                    options={getIntervalTimeOptions(0, "end")}
+                                />
+                            </div>
+                        </div>
+
+                        <div className='space-y-3'>
+                            <div className='flex items-center justify-between gap-3'>
+                                <label className='block text-sm font-semibold text-slate-800'>
+                                    Дополнительные интервалы
+                                </label>
+                                <Button
+                                    type='button'
+                                    variant='outline'
+                                    size='sm'
+                                    onClick={addWorkingInterval}
+                                    disabled={!canAddWorkingInterval()}
+                                    leftIcon={<Plus className='w-4 h-4' />}>
+                                    Добавить
+                                </Button>
+                            </div>
+                            {workingIntervals.length > 1 && (
+                                <div className='space-y-3'>
+                                    {workingIntervals.slice(1).map((interval, offset) => {
+                                        const index = offset + 1;
+                                        return (
+                                            <div
+                                                key={`${index}-${interval.start}-${interval.end}`}
+                                                className='grid grid-cols-[1fr_1fr_40px] gap-3 items-end'>
+                                                <Select
+                                                    label='Начало'
+                                                    value={interval.start}
+                                                    onChange={(e) =>
+                                                        updateWorkingInterval(index, "start", e.target.value)
+                                                    }
+                                                    options={getIntervalTimeOptions(index, "start")}
+                                                />
+                                                <Select
+                                                    label='Конец'
+                                                    value={interval.end}
+                                                    onChange={(e) =>
+                                                        updateWorkingInterval(index, "end", e.target.value)
+                                                    }
+                                                    options={getIntervalTimeOptions(index, "end")}
+                                                />
+                                                <button
+                                                    type='button'
+                                                    title='Удалить интервал'
+                                                    aria-label='Удалить интервал'
+                                                    onClick={() => removeWorkingInterval(index)}
+                                                    className='h-10 w-10 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors'>
+                                                    <Trash2 className='w-4 h-4' />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </div>
 

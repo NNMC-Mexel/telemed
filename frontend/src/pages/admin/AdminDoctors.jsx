@@ -376,7 +376,7 @@ function AdminDoctors() {
       const messages = {
         empty: 'Добавьте хотя бы один рабочий интервал',
         invalid: 'Проверьте время начала и конца интервалов',
-        overlap: 'Рабочие интервалы не должны пересекаться',
+        overlap: 'Интервалы не должны пересекаться или идти подряд',
       }
       alert(messages[intervalValidation.error] || 'Проверьте расписание врача')
       return

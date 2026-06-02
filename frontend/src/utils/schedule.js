@@ -106,7 +106,7 @@ export const validateWorkingIntervals = (value) => {
   for (let i = 1; i < normalized.length; i += 1) {
     const prevEnd = timeToMinutes(normalized[i - 1].end);
     const nextStart = timeToMinutes(normalized[i].start);
-    if (nextStart < prevEnd) {
+    if (nextStart <= prevEnd) {
       return { intervals: normalized, error: "overlap" };
     }
   }
