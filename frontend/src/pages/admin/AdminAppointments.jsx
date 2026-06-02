@@ -59,13 +59,13 @@ const TYPE_ICONS = {
 function StatCard({ icon: Icon, label, value, color }) {
   return (
     <Card>
-      <CardContent>
+      <CardContent className="p-4 sm:p-6">
         <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
+          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
             <Icon className="w-6 h-6 text-white" />
           </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-900">{value}</p>
+          <div className="min-w-0">
+            <p className="text-xl sm:text-2xl font-bold text-slate-900 wrap-break-word">{value}</p>
             <p className="text-sm text-slate-500">{label}</p>
           </div>
         </div>
@@ -337,7 +337,7 @@ function AdminAppointments() {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [t])
+  }, [t, toast])
 
   useEffect(() => { fetchAppointments() }, [fetchAppointments])
 
@@ -506,7 +506,7 @@ function AdminAppointments() {
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <div className="flex items-center gap-1.5">
                 <Filter className="w-4 h-4 text-slate-400" />
                 <select
@@ -519,7 +519,7 @@ function AdminAppointments() {
                   ))}
                 </select>
               </div>
-              <div className="flex items-center gap-2 text-sm text-slate-500">
+              <div className="grid grid-cols-[auto_1fr] items-center gap-2 text-sm text-slate-500 sm:flex">
                 <span>{t('admin_apt.from_label')}</span>
                 <input
                   type="date"
@@ -537,7 +537,7 @@ function AdminAppointments() {
                 {(dateFrom || dateTo) && (
                   <button
                     onClick={() => { setDateFrom(''); setDateTo('') }}
-                    className="text-rose-500 hover:text-rose-700 text-xs font-medium"
+                    className="col-span-2 text-left text-rose-500 hover:text-rose-700 text-xs font-medium sm:col-span-1"
                   >
                     {t('admin_apt.reset_dates')}
                   </button>
@@ -557,7 +557,75 @@ function AdminAppointments() {
               <p className="text-sm mt-1">{t('admin_apt.empty_hint')}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="divide-y divide-slate-100 md:hidden">
+              {filtered.map((apt) => {
+                const TypeIcon = TYPE_ICONS[apt.type] || Video
+                const next = STATUS_NEXT[apt.status] || []
+                return (
+                  <div key={apt.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('admin_apt.col_patient')}</p>
+                        <p className="font-medium text-slate-900 wrap-break-word">
+                          {apt.patient?.fullName || t('admin_apt.unknown_patient')}
+                        </p>
+                        <p className="text-sm text-slate-500 wrap-break-word">{apt.patient?.email || '—'}</p>
+                      </div>
+                      <Button variant="secondary" size="icon" title={t('admin_apt.details_btn')} onClick={() => setDetailAppointment(apt)}>
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar src={getMediaUrl(apt.doctor?.photo)} name={apt.doctor?.fullName || 'В'} size="sm" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('admin_apt.col_doctor')}</p>
+                          <p className="text-sm font-medium text-slate-900 wrap-break-word">{apt.doctor?.fullName || '—'}</p>
+                          <p className="text-xs text-slate-500">{apt.doctor?.specialization?.name || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs text-slate-400">{t('admin_apt.col_datetime')}</p>
+                          <p className="font-medium text-slate-900">{formatDateTime(apt.dateTime)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400">{t('admin_apt.col_type')}</p>
+                          <p className="inline-flex items-center gap-1.5 text-slate-700">
+                            <TypeIcon className="w-4 h-4" />
+                            {t(`admin_apt.type_${apt.type}`) || apt.type}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400">{t('admin_apt.col_amount')}</p>
+                          <p className="font-semibold text-slate-900">{apt.price ? formatPrice(apt.price) : '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400">{t('admin_apt.col_payment')}</p>
+                          <PaymentDropdown appointment={apt} onChange={handlePaymentStatusChange} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      {next.length > 0 ? (
+                        <StatusDropdown appointment={apt} onSelect={(newStatus) => openStatusModal(apt, newStatus)} />
+                      ) : (
+                        <StatusBadge status={apt.status} />
+                      )}
+                      {apt.roomId && (apt.status === 'confirmed' || apt.status === 'in_progress') && (
+                        <Button variant="secondary" size="icon" title={t('admin_apt.open_room_icon')} onClick={() => window.open(`/consultation/${apt.roomId}`, '_blank')}>
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/50">
@@ -646,6 +714,7 @@ function AdminAppointments() {
                 </span>
               </div>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

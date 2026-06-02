@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MedConnect</string>
+    <string name="title_activity_main">MedConnect</string>
+    <string name="package_name">kz.nnmc.medconnect</string>
+    <string name="custom_url_scheme">kz.nnmc.medconnect</string>
+</resources>

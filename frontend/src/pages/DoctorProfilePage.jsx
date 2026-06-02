@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import SEOHead from "../components/seo/SEOHead";
 import {
     Star,
@@ -33,6 +33,7 @@ import { formatPrice, formatDate, isDoctorOnline, getSpecName, getDoctorField } 
 
 function DoctorProfilePage() {
     const { id } = useParams();
+    const location = useLocation();
     const { t, i18n } = useTranslation();
     const [doctor, setDoctor] = useState(null);
     const [reviews, setReviews] = useState([]);
@@ -96,6 +97,8 @@ function DoctorProfilePage() {
     const averageRating = Math.min(doctor.rating || 0, 5);
     const reviewsCount = reviews.length || 0;
     const totalPatients = doctor.appointmentsCount || reviewsCount || 0;
+    const isDashboardView = location.pathname.startsWith('/patient/');
+    const backTo = isDashboardView ? '/patient/doctors' : '/doctors';
 
     const doctorStructuredData = {
         "@context": "https://schema.org",
@@ -121,7 +124,7 @@ function DoctorProfilePage() {
     };
 
     return (
-        <div className='pt-28 pb-16 bg-slate-50 min-h-screen'>
+        <div className={isDashboardView ? 'pb-6 min-h-full' : 'pt-28 pb-16 bg-slate-50 min-h-screen'}>
             <SEOHead
                 title={`${doctorDisplayName} — ${specialization}`}
                 description={`Онлайн-консультация у ${doctorDisplayName}, ${specialization}. Опыт работы: ${doctor.experience || 0} лет. Запись на видеоконсультацию или чат на MedConnect ННМЦ.`}
@@ -133,7 +136,7 @@ function DoctorProfilePage() {
                 <div className='space-y-6 animate-fadeIn'>
                     {/* Back Button */}
                     <Link
-                        to='/doctors'
+                        to={backTo}
                         className='inline-flex items-center gap-2 text-slate-600 hover:text-teal-600 transition-colors'>
                         <ChevronLeft className='w-5 h-5' />
                         <span>{t('doctor_public.back')}</span>

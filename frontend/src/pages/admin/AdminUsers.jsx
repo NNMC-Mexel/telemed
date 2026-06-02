@@ -134,7 +134,7 @@ function AdminUsers() {
             className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
           {[
             { value: 'all', label: t('admin_users.filter_all') },
             { value: 'patient', label: t('admin_users.filter_patient') },
@@ -156,10 +156,78 @@ function AdminUsers() {
         </div>
       </div>
 
-      {/* Users Table */}
+      {/* Users */}
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="divide-y divide-slate-100 md:hidden">
+            {filteredUsers.length === 0 ? (
+              <div className="px-4 py-12 text-center text-slate-500">
+                {t('admin.no_users')}
+              </div>
+            ) : (
+              filteredUsers.map((user) => (
+                <div key={user.id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Avatar
+                      src={getMediaUrl(user.avatar)}
+                      name={user.fullName || user.username}
+                      size="md"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-slate-900 wrap-break-word">
+                        {user.fullName || user.username}
+                      </p>
+                      <p className="text-sm text-slate-500 wrap-break-word">{user.email}</p>
+                      <p className="text-sm text-slate-500">{user.phone || t('admin_users.no_phone')}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Badge variant={roleVariants[user.userRole] || 'default'}>
+                      {roleLabels[user.userRole] || user.userRole}
+                    </Badge>
+                    {user.blocked ? (
+                      <Badge variant="danger">{t('admin_users.blocked')}</Badge>
+                    ) : user.confirmed ? (
+                      <Badge variant="success">{t('admin_users.active')}</Badge>
+                    ) : (
+                      <Badge variant="default">{t('admin_users.not_confirmed')}</Badge>
+                    )}
+                    <span className="text-xs text-slate-400">{formatDate(user.createdAt)}</span>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    {user.blocked ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleBlockUser(user.id, false)}
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        {t('admin_users.active')}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleBlockUser(user.id, true)}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        {t('admin_users.blocked')}
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      onClick={() => openDeleteModal(user)}
+                      aria-label={t('documents.delete_action')}
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-600" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200">
@@ -198,7 +266,7 @@ function AdminUsers() {
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-6 text-slate-600">{user.email}</td>
+                      <td className="py-4 px-6 text-slate-600 break-all">{user.email}</td>
                       <td className="py-4 px-6">
                         <Badge variant={roleVariants[user.userRole] || 'default'}>
                           {roleLabels[user.userRole] || user.userRole}

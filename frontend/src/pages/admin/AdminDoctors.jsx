@@ -438,7 +438,64 @@ function AdminDoctors() {
           <CardTitle>{t('admin_doc.list_title', { count: filteredDoctors.length })}</CardTitle>
         </CardHeader>
         <CardContent className='p-0'>
-          <div className='overflow-x-auto'>
+          <div className='divide-y divide-slate-100 md:hidden'>
+            {filteredDoctors.length === 0 ? (
+              <div className='px-4 py-10 text-center text-slate-500'>
+                {t('admin_doc.not_found')}
+              </div>
+            ) : (
+              filteredDoctors.map((doctor) => (
+                <div key={doctor.documentId || doctor.id} className='p-4'>
+                  <div className='flex items-start justify-between gap-3'>
+                    <div className='min-w-0'>
+                      <p className='font-medium text-slate-900 wrap-break-word'>{doctor.fullName}</p>
+                      <p className='text-sm text-slate-500'>
+                        {typeof doctor.specialization === 'object'
+                          ? doctor.specialization?.name || t('admin_doc.no_spec')
+                          : doctor.specialization || t('admin_doc.no_spec')}
+                      </p>
+                    </div>
+                    <Badge variant={doctor.isActive === false ? 'danger' : 'success'} className='shrink-0'>
+                      {doctor.isActive === false ? t('admin_doc.inactive') : t('admin_doc.active')}
+                    </Badge>
+                  </div>
+                  <div className='mt-3 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm'>
+                    <div>
+                      <p className='text-xs text-slate-400'>{t('admin_doc.col_license')}</p>
+                      <p className='font-medium text-slate-900 wrap-break-word'>{doctor.licenseNumber || '—'}</p>
+                    </div>
+                    <div>
+                      <p className='text-xs text-slate-400'>{t('admin_doc.col_exp')}</p>
+                      <p className='font-medium text-slate-900'>{t('admin_doc.exp_years', { count: doctor.experience || 0 })}</p>
+                    </div>
+                    <div>
+                      <p className='text-xs text-slate-400'>{t('admin_doc.col_price')}</p>
+                      <p className='font-medium text-slate-900'>{(doctor.price || 0).toLocaleString('ru-RU')} ₸</p>
+                    </div>
+                  </div>
+                  <div className='mt-4 flex justify-end gap-2'>
+                    <Button
+                      size='icon'
+                      variant='secondary'
+                      onClick={() => openEditModal(doctor)}
+                      aria-label={t('admin_doc.edit_aria')}
+                    >
+                      <Pencil className='w-4 h-4' />
+                    </Button>
+                    <Button
+                      size='icon'
+                      variant='secondary'
+                      onClick={() => handleDelete(doctor)}
+                      aria-label={t('admin_doc.delete_aria')}
+                    >
+                      <Trash2 className='w-4 h-4 text-rose-600' />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className='hidden overflow-x-auto md:block'>
             <table className='w-full'>
               <thead>
                 <tr className='border-b border-slate-200'>

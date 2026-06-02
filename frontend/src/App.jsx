@@ -212,6 +212,7 @@ function App() {
           <Route path="appointments" element={<AdminAppointments />} />
           <Route path="specializations" element={<AdminSpecializations />} />
           <Route path="settings" element={<AdminContent />} />
+          <Route path="notifications" element={<NotificationsPage />} />
         </Route>
 
         {/* Video Consultation */}

@@ -118,8 +118,8 @@ function AdminDashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center">
                 <Users className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{stats.totalUsers}</p>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold text-slate-900 wrap-break-word">{stats.totalUsers}</p>
                 <p className="text-sm text-slate-500">{t('admin.stat_users')}</p>
               </div>
             </div>
@@ -131,8 +131,8 @@ function AdminDashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center">
                 <UserPlus className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{stats.totalDoctors}</p>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold text-slate-900 wrap-break-word">{stats.totalDoctors}</p>
                 <p className="text-sm text-slate-500">{t('admin.stat_doctors')}</p>
               </div>
             </div>
@@ -144,8 +144,8 @@ function AdminDashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{stats.totalAppointments}</p>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold text-slate-900 wrap-break-word">{stats.totalAppointments}</p>
                 <p className="text-sm text-slate-500">{t('admin.stat_appointments')}</p>
               </div>
             </div>
@@ -157,8 +157,8 @@ function AdminDashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{formatPrice(stats.totalRevenue)}</p>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 wrap-break-word">{formatPrice(stats.totalRevenue)}</p>
                 <p className="text-sm text-slate-500">{t('admin.stat_revenue')}</p>
               </div>
             </div>
@@ -166,12 +166,12 @@ function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Users */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>{t('admin.new_users')}</CardTitle>
-            <Link to="/admin/users" className="text-sm text-teal-600 hover:text-teal-700">
+        <Card className="min-w-0 overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <CardTitle className="min-w-0 truncate">{t('admin.new_users')}</CardTitle>
+            <Link to="/admin/users" className="shrink-0 text-sm text-teal-600 hover:text-teal-700">
               {t('admin.all_link')}
             </Link>
           </CardHeader>
@@ -180,7 +180,7 @@ function AdminDashboard() {
               <p className="text-center text-slate-500 py-4">{t('admin.no_users')}</p>
             ) : (
               recentUsers.map((user) => (
-                <div key={user.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg">
+                <div key={user.id} className="flex min-w-0 items-center gap-3 p-2 hover:bg-slate-50 rounded-lg">
                   <Avatar 
                     src={getMediaUrl(user.avatar)} 
                     name={user.fullName || user.username} 
@@ -190,9 +190,9 @@ function AdminDashboard() {
                     <p className="font-medium text-slate-900 truncate">
                       {user.fullName || user.username}
                     </p>
-                    <p className="text-xs text-slate-500">{user.email}</p>
+                    <p className="text-xs text-slate-500 wrap-break-word">{user.email}</p>
                   </div>
-                  <Badge variant={user.userRole === 'doctor' ? 'primary' : 'default'}>
+                  <Badge variant={user.userRole === 'doctor' ? 'primary' : 'default'} className="shrink-0">
                     {user.userRole === 'doctor' ? t('admin.role_doctor') : t('admin.role_patient')}
                   </Badge>
                 </div>
@@ -202,7 +202,7 @@ function AdminDashboard() {
         </Card>
 
         {/* Recent Appointments */}
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{t('admin.recent_appointments')}</CardTitle>
           </CardHeader>
@@ -211,22 +211,22 @@ function AdminDashboard() {
               <p className="text-center text-slate-500 py-4">{t('admin.no_appointments')}</p>
             ) : (
               recentAppointments.map((apt) => (
-                <div key={apt.id} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-3">
+                <div key={apt.id} className="flex min-w-0 items-center justify-between gap-3 p-2 hover:bg-slate-50 rounded-lg">
+                  <div className="flex min-w-0 items-center gap-3">
                     <Avatar 
                       name={apt.patient?.fullName || t('admin.role_patient')}
                       size="sm" 
                     />
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-900">
                         {apt.patient?.fullName || t('admin.role_patient')}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-500 wrap-break-word">
                         → {apt.doctor?.fullName || t('admin.role_doctor')}
                       </p>
                     </div>
                   </div>
-                  {getStatusBadge(apt.status)}
+                  <div className="shrink-0">{getStatusBadge(apt.status)}</div>
                 </div>
               ))
             )}
@@ -234,7 +234,7 @@ function AdminDashboard() {
         </Card>
 
         {/* Top Doctors */}
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{t('admin.top_doctors')}</CardTitle>
           </CardHeader>

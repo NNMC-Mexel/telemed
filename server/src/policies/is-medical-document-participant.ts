@@ -1,7 +1,7 @@
 /**
  * Policy: is-medical-document-participant
  * Пропускает, если текущий пользователь — владелец документа (patient)
- * ИЛИ доктор, связанный с документом.
+ * ИЛИ доктор, связанный с документом/доступом sharedWithDoctors.
  * Admin role всегда получает доступ.
  */
 export default async (policyContext, config, { strapi }) => {
@@ -19,6 +19,7 @@ export default async (policyContext, config, { strapi }) => {
     populate: {
       user: { fields: ['id'] },
       doctor: { populate: { users_permissions_user: { fields: ['id'] } } },
+      sharedWithDoctors: { populate: { users_permissions_user: { fields: ['id'] } } },
     },
   });
 
@@ -29,6 +30,12 @@ export default async (policyContext, config, { strapi }) => {
 
   // Доктор, привязанный к документу
   if (medDoc.doctor?.users_permissions_user?.id === user.id) return true;
+
+  // Доктор, которому пациент расшарил документ
+  const sharedDoctors: any[] = (medDoc as any).sharedWithDoctors || [];
+  if (sharedDoctors.some((doctor) => doctor?.users_permissions_user?.id === user.id)) {
+    return true;
+  }
 
   return false;
 };

@@ -2,16 +2,38 @@ import { errors } from '@strapi/utils';
 
 const { ValidationError } = errors;
 
-async function getExistingDoctor(documentId?: string) {
-  if (!documentId) return null;
-  return strapi.documents('api::doctor.doctor').findOne({
-    documentId,
-    fields: ['licenseNumber', 'isActive'],
-  });
+function getScalarValue(value: any) {
+  if (value && typeof value === 'object') {
+    return value.$eq ?? value.eq ?? null;
+  }
+
+  return value ?? null;
 }
 
-async function assertActiveDoctorHasLicense(data: any, documentId?: string) {
-  const existing = await getExistingDoctor(documentId);
+async function getExistingDoctor(where?: any) {
+  if (!where) return null;
+
+  const documentId = getScalarValue(where.documentId);
+  if (documentId) {
+    return strapi.db.query('api::doctor.doctor').findOne({
+      where: { documentId: String(documentId) },
+      select: ['licenseNumber', 'isActive'],
+    });
+  }
+
+  const id = getScalarValue(where.id);
+  if (id) {
+    return strapi.db.query('api::doctor.doctor').findOne({
+      where: { id },
+      select: ['licenseNumber', 'isActive'],
+    });
+  }
+
+  return null;
+}
+
+async function assertActiveDoctorHasLicense(data: any, where?: any) {
+  const existing = await getExistingDoctor(where);
   const merged = {
     licenseNumber: (existing as any)?.licenseNumber,
     isActive: (existing as any)?.isActive,
@@ -30,6 +52,6 @@ export default {
   },
 
   async beforeUpdate(event) {
-    await assertActiveDoctorHasLicense(event.params.data, event.params.where?.documentId);
+    await assertActiveDoctorHasLicense(event.params.data, event.params.where);
   },
 };

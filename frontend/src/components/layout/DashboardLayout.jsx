@@ -12,8 +12,16 @@ function DashboardLayout({ navItems }) {
   const sidebarTouchStartX = useRef(null)
 
   const path = location.pathname
-  const title = t(`dashboard.page_titles.${path}`, t('dashboard.page_titles.default'))
-  const subtitle = t(`dashboard.page_titles.${path}_sub`, '')
+  const title = path.startsWith('/patient/doctors/')
+    ? t('nav.doctors')
+    : path.endsWith('/notifications')
+      ? t('notifications.title')
+    : t(`dashboard.page_titles.${path}`, t('dashboard.page_titles.default'))
+  const subtitle = path.startsWith('/patient/doctors/')
+    ? ''
+    : path.endsWith('/notifications')
+      ? ''
+    : t(`dashboard.page_titles.${path}_sub`, '')
 
   useEffect(() => {
     setIsMobileMenuOpen(false)
@@ -22,7 +30,7 @@ function DashboardLayout({ navItems }) {
   const closeMobileMenu = () => setIsMobileMenuOpen(false)
 
   return (
-    <div className="min-h-[var(--app-height)] bg-gradient-to-br from-slate-50 via-teal-50/30 to-sky-50/30">
+    <div className="min-h-[var(--app-height)] overflow-x-hidden bg-gradient-to-br from-slate-50 via-teal-50/30 to-sky-50/30">
       {/* Sidebar */}
       <div
         className={cn(
