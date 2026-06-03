@@ -45,6 +45,11 @@ export default ({ env }) => {
           ? [
               'https://medconnect.nnmc.kz',
               'https://www.medconnect.nnmc.kz',
+              // Capacitor native app origins.
+              'https://localhost',
+              'http://localhost',
+              'capacitor://localhost',
+              'ionic://localhost',
               // Removed: medconnectserver.nnmc.kz (that's the API itself, not a valid origin)
             ]
           : [

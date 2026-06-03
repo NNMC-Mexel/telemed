@@ -1,4 +1,5 @@
 import axios from "axios";
+import { Capacitor } from "@capacitor/core";
 
 // =====================================================
 // КОНФИГУРАЦИЯ ДОМЕНОВ ДЛЯ ПРОДАКШНА
@@ -16,7 +17,35 @@ const DEVELOPMENT_API_URL = "http://localhost:1340";
 const PRODUCTION_SIGNALING_URL = "https://medconnectrtc.nnmc.kz";
 const DEVELOPMENT_SIGNALING_URL = "http://localhost:1341";
 
+const isNativeMobileApp = () => {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+};
+
+const isLocalhostUrl = (url) => {
+  try {
+    const { hostname } = new URL(url);
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname === "[::1]"
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const getSignalingUrl = () => {
+  if (isNativeMobileApp()) {
+    const configuredUrl = import.meta.env.VITE_SIGNALING_SERVER;
+    return configuredUrl && !isLocalhostUrl(configuredUrl)
+      ? configuredUrl
+      : PRODUCTION_SIGNALING_URL;
+  }
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
     if (hostname === "medconnect.nnmc.kz" || hostname === "www.medconnect.nnmc.kz") {
@@ -33,6 +62,15 @@ export const getSignalingUrl = () => {
 
 // Определяем URL API в зависимости от окружения
 const getApiUrl = () => {
+  // В нативном приложении localhost указывает на сам телефон/эмулятор, а не на
+  // backend. Поэтому локальный URL из .env нельзя использовать внутри Capacitor.
+  if (isNativeMobileApp()) {
+    const configuredUrl = import.meta.env.VITE_API_URL;
+    return configuredUrl && !isLocalhostUrl(configuredUrl)
+      ? configuredUrl
+      : PRODUCTION_API_URL;
+  }
+
   // ВАЖНО: Проверяем hostname в первую очередь - это самый надежный способ
   // для определения продакшна, так как работает в runtime
   if (typeof window !== 'undefined') {
