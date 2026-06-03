@@ -17,6 +17,11 @@ const getCorsOrigin = () => {
     return [
       'https://medconnect.nnmc.kz',
       'https://www.medconnect.nnmc.kz',
+      // Capacitor native app origins.
+      'https://localhost',
+      'http://localhost',
+      'capacitor://localhost',
+      'ionic://localhost',
     ];
   }
   // In development allow any localhost origin (Vite may use any port)
