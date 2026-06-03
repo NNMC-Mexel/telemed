@@ -17,7 +17,7 @@ import Button from "../ui/Button";
 import LanguageSwitcher from "../ui/LanguageSwitcher";
 import useAuthStore from "../../stores/authStore";
 
-function PublicLayout() {
+function PublicLayout({ children }) {
     const { t } = useTranslation();
     const location = useLocation();
     const navigate = useNavigate();
@@ -347,7 +347,7 @@ function PublicLayout() {
 
             {/* Main Content */}
             <main className='flex-1'>
-                <Outlet />
+                {children || <Outlet />}
             </main>
 
             {/* Footer */}

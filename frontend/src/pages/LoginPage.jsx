@@ -7,12 +7,14 @@ import Input from '../components/ui/Input'
 import { Card, CardContent } from '../components/ui/Card'
 import useAuthStore from '../stores/authStore'
 import { authAPI } from '../services/api'
+import { isNativeMobileApp } from '../utils/platform'
 
 function LoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { login, isLoading, error, clearError } = useAuthStore()
+  const isNativeApp = isNativeMobileApp()
   const [resendStatus, setResendStatus] = useState(null) // null | 'sending' | 'sent' | 'error'
 
   const isUnconfirmedError = error === 'email_not_confirmed' || error?.includes('email_not_confirmed')
@@ -73,13 +75,15 @@ function LoginPage() {
       {/* Left Side - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-8"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            {t('auth.login.back_home')}
-          </Link>
+          {!isNativeApp && (
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-8"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              {t('auth.login.back_home')}
+            </Link>
+          )}
 
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('auth.login.title')}</h1>

@@ -52,6 +52,7 @@ import useAuthStore from './stores/authStore'
 
 // Utils
 import { PATIENT_NAV_ITEMS, DOCTOR_NAV_ITEMS, ADMIN_NAV_ITEMS } from './utils/constants'
+import { isNativeMobileApp } from './utils/platform'
 
 // Loading component
 function LoadingScreen() {
@@ -113,6 +114,31 @@ function PublicRoute({ children }) {
   return children
 }
 
+function getDashboardPath(user) {
+  const userRole = user?.userRole || 'patient'
+  if (userRole === 'doctor') return '/doctor'
+  if (userRole === 'admin') return '/admin'
+  return '/patient'
+}
+
+function AppHomeRoute() {
+  const { isAuthenticated, user, _hasHydrated } = useAuthStore()
+
+  if (!_hasHydrated) {
+    return <LoadingScreen />
+  }
+
+  if (!isNativeMobileApp()) {
+    return (
+      <PublicLayout>
+        <LandingPage />
+      </PublicLayout>
+    )
+  }
+
+  return <Navigate to={isAuthenticated ? getDashboardPath(user) : '/login'} replace />
+}
+
 function App() {
   const { fetchUser, token, _hasHydrated } = useAuthStore()
 
@@ -126,9 +152,10 @@ function App() {
     <ToastProvider>
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<AppHomeRoute />} />
+
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
-          <Route path="/" element={<LandingPage />} />
           <Route path="/doctors" element={<DoctorsPage />} />
           <Route path="/doctors/:id" element={<DoctorProfilePage />} />
           <Route path="/specializations" element={<DoctorsPage />} />
@@ -237,7 +264,7 @@ function App() {
         <Route path="/payment/failure" element={<PaymentFailure />} />
 
         {/* 404 */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to={isNativeMobileApp() ? '/login' : '/'} replace />} />
       </Routes>
     </BrowserRouter>
     </ToastProvider>
