@@ -575,28 +575,28 @@ function PatientDocuments() {
                 return (
                   <Card key={doc.id} hover className="cursor-pointer" onClick={() => setSelectedDocument(doc)}>
                     <CardContent>
-                      <div className="flex items-center gap-4">
+                      <div className="grid grid-cols-[3rem,minmax(0,1fr)] gap-3 sm:flex sm:items-center sm:gap-4">
                         <div className={`w-12 h-12 rounded-xl ${typeConfig.color} flex items-center justify-center flex-shrink-0`}>
                           <typeConfig.icon className="w-6 h-6" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-slate-900">{doc.title}</h3>
-                          <div className="flex items-center gap-4 mt-1 flex-wrap">
+                          <h3 className="font-medium text-slate-900 break-words">{doc.title}</h3>
+                          <div className="flex items-center gap-x-3 gap-y-1 mt-1 flex-wrap">
                             {doc.doctor?.fullName && (
                               <>
-                                <span className="text-sm text-slate-500">{doc.doctor.fullName}</span>
-                                <span className="text-sm text-slate-400">&middot;</span>
+                                <span className="text-sm text-slate-500 break-words">{doc.doctor.fullName}</span>
+                                <span className="hidden sm:inline text-sm text-slate-400">&middot;</span>
                               </>
                             )}
                             <span className="text-sm text-slate-500 flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               {formatDate(doc.createdAt, i18n.language)}
                             </span>
-                            <span className="text-sm text-slate-400">&middot;</span>
+                            <span className="hidden sm:inline text-sm text-slate-400">&middot;</span>
                             <span className="text-sm text-slate-500">{getFileSize(doc.file)}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="col-span-2 flex items-center gap-2 flex-shrink-0 border-t border-slate-100 pt-3 sm:col-span-1 sm:border-t-0 sm:pt-0 sm:ml-auto">
                           <Badge className={typeConfig.color}>{typeConfig.label}</Badge>
                           {doc.sharedWithDoctors?.length > 0 && (
                             <span className="flex items-center gap-1 text-xs text-teal-600" title={t('documents.shared_badge_title')}>

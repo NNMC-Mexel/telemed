@@ -326,7 +326,7 @@ function AppointmentDetail() {
   ]
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto px-3 py-4 sm:p-6 overflow-x-hidden">
       {/* Back button */}
       <Link
         to={backPath}
@@ -337,9 +337,9 @@ function AppointmentDetail() {
       </Link>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">{t('appointment_detail.title')}</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+        <h1 className="text-2xl font-bold text-slate-900 break-words">{t('appointment_detail.title')}</h1>
+        <div className="flex items-center gap-2 shrink-0">
           {isPast && (appointment.status || appointment.statuse) !== 'cancelled' ? (
             <Badge variant="success">{t('appointment_detail.status_completed')}</Badge>
           ) : (
@@ -348,42 +348,44 @@ function AppointmentDetail() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Main Info */}
         <div className="lg:col-span-2 space-y-6">
           {/* Appointment Info Card */}
           <Card>
             <CardContent>
-              <div className="flex items-start gap-5">
-                <Avatar
-                  src={getMediaUrl(isDoctor ? appointment.patient?.avatar : appointment.doctor?.photo)}
-                  name={isDoctor ? patientName : doctorName}
-                  size="lg"
-                />
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold text-slate-900">
+              <div className="flex items-start gap-4 sm:gap-5 min-w-0">
+                <div className="shrink-0">
+                  <Avatar
+                    src={getMediaUrl(isDoctor ? appointment.patient?.avatar : appointment.doctor?.photo)}
+                    name={isDoctor ? patientName : doctorName}
+                    size="lg"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl font-semibold text-slate-900 break-words">
                     {isDoctor ? patientName : doctorName}
                   </h2>
                   {!isDoctor && specName && (
-                    <p className="text-teal-600 font-medium mt-0.5">{specName}</p>
+                    <p className="text-teal-600 font-medium mt-0.5 break-words">{specName}</p>
                   )}
 
-                  <div className="flex flex-wrap gap-4 mt-4">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Calendar className="w-4 h-4 text-slate-400" />
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
+                    <div className="flex items-center gap-2 text-slate-600 min-w-0">
+                      <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
                       <span className="text-sm">{formattedDate}</span>
                     </div>
                     <div className="flex items-center gap-2 text-slate-600">
-                      <Clock className="w-4 h-4 text-slate-400" />
+                      <Clock className="w-4 h-4 text-slate-400 shrink-0" />
                       <span className="text-sm">{formattedTime}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-slate-600">
+                    <div className="flex items-center gap-2 text-slate-600 min-w-0">
                       {appointment.type === 'video' ? (
-                        <Video className="w-4 h-4 text-slate-400" />
+                        <Video className="w-4 h-4 text-slate-400 shrink-0" />
                       ) : (
-                        <MessageCircle className="w-4 h-4 text-slate-400" />
+                        <MessageCircle className="w-4 h-4 text-slate-400 shrink-0" />
                       )}
-                      <span className="text-sm">
+                      <span className="text-sm break-words">
                         {appointment.type === 'video' ? t('appointment_detail.type_video') : t('appointment_detail.type_chat')}
                       </span>
                     </div>
@@ -397,17 +399,17 @@ function AppointmentDetail() {
           {isDoctor && isCompleted && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Stethoscope className="w-5 h-5 text-teal-600" />
+                <CardTitle className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Stethoscope className="w-5 h-5 text-teal-600 shrink-0" />
                     {t('appointment_detail.notes_title')}
                   </div>
                   {isWithinWindow ? (
-                    <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg">
+                    <span className="shrink-0 text-xs font-medium text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg">
                       {t('appointment_detail.hours_left', { hours: hoursRemaining })}
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                    <span className="shrink-0 flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
                       <Lock className="w-3 h-3" />
                       {t('appointment_detail.locked')}
                     </span>
@@ -429,12 +431,12 @@ function AppointmentDetail() {
                 )}
 
                 {/* Tabs */}
-                <div className="flex gap-1 mb-4 bg-slate-100 p-1 rounded-xl">
+                <div className="grid grid-cols-3 gap-1 mb-4 bg-slate-100 p-1 rounded-xl">
                   {notesTabs.map(tab => (
                     <button
                       key={tab.key}
                       onClick={() => setActiveNotesTab(tab.key)}
-                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`min-h-11 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium leading-tight transition-colors ${
                         activeNotesTab === tab.key
                           ? 'bg-white text-slate-900 shadow-sm'
                           : 'text-slate-600 hover:text-slate-900'
@@ -620,24 +622,24 @@ function AppointmentDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-96 overflow-y-auto overflow-x-hidden pr-1">
                   {appointment.chatLog.map((msg, idx) => {
                     const currentUserName = user?.fullName || user?.username || ''
                     const isMe = msg.senderName === currentUserName
                     return (
                       <div
                         key={idx}
-                        className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                        className={`flex max-w-full flex-col ${isMe ? 'items-end' : 'items-start'}`}
                       >
-                        <span className="text-xs text-slate-400 mb-1 px-1">{msg.senderName}</span>
+                        <span className="max-w-[78vw] truncate text-xs text-slate-400 mb-1 px-1">{msg.senderName}</span>
                         <div
-                          className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ${
+                          className={`max-w-[min(78vw,22rem)] px-4 py-2.5 rounded-2xl text-sm break-words ${
                             isMe
                               ? 'bg-teal-600 text-white rounded-br-sm'
                               : 'bg-slate-100 text-slate-900 rounded-bl-sm'
                           }`}
                         >
-                          <p className="whitespace-pre-wrap wrap-break-word">{msg.text}</p>
+                          <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                           {msg.time && (
                             <p className={`text-xs mt-1 ${isMe ? 'text-teal-100' : 'text-slate-400'}`}>
                               {new Date(msg.time).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
@@ -673,23 +675,23 @@ function AppointmentDetail() {
                     return (
                       <div
                         key={doc.id}
-                        className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+                        className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors min-w-0"
                       >
                         <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
                           <FileText className="w-5 h-5 text-amber-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium text-slate-900">
+                          <h4 className="text-sm font-medium text-slate-900 break-words">
                             {doc.title || t('appointment_detail.doc_label')}
                           </h4>
-                          <p className="text-xs text-slate-500 mt-0.5">
+                          <p className="text-xs text-slate-500 mt-0.5 break-words">
                             {typeLabels[doc.type] || doc.type}
                             {doc.createdAt && (
                               <> &middot; {new Date(doc.createdAt).toLocaleDateString(dateLocale)}</>
                             )}
                           </p>
                           {doc.description && (
-                            <p className="text-sm text-slate-600 mt-2 whitespace-pre-wrap">
+                            <p className="text-sm text-slate-600 mt-2 whitespace-pre-wrap break-words">
                               {doc.description}
                             </p>
                           )}

@@ -101,7 +101,7 @@ function ChatComponent({ userRole = 'patient' }) {
   }
 
   return (
-    <div className="h-full min-h-0 flex bg-white border-y border-slate-200 sm:border sm:rounded-2xl overflow-hidden">
+    <div className="h-full min-h-0 max-w-full flex bg-white border-y border-slate-200 sm:border sm:rounded-2xl overflow-hidden">
       {/* Conversations List */}
       <div className={cn(
         'w-full md:w-80 border-r border-slate-200 flex flex-col min-h-0',
@@ -241,47 +241,49 @@ function ChatComponent({ userRole = 'patient' }) {
       {/* Chat Area */}
       {selectedConsultation ? (
         /* Read-only consultation chat history */
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-x-hidden">
           {/* Header */}
-          <div className="p-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="p-3 sm:p-4 border-b border-slate-100 flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSelectedConsultation(null)}
-              className="md:hidden p-2 hover:bg-slate-100 rounded-lg"
+              className="md:hidden p-2 hover:bg-slate-100 rounded-lg shrink-0"
             >
               ←
             </button>
-            <Avatar
-              src={getMediaUrl(selectedConsultation.doctor?.photo)}
-              name={selectedConsultation.doctor?.fullName || t('booking.doctor_fallback')}
-              size="md"
-            />
+            <div className="shrink-0">
+              <Avatar
+                src={getMediaUrl(selectedConsultation.doctor?.photo)}
+                name={selectedConsultation.doctor?.fullName || t('booking.doctor_fallback')}
+                size="md"
+              />
+            </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-slate-900 truncate">
                 {selectedConsultation.doctor?.fullName || t('booking.doctor_fallback')}
               </h3>
-              <p className="text-sm text-slate-500">
+              <p className="text-xs sm:text-sm text-slate-500 truncate">
                 {t('chat.video_consultation')} &middot;{' '}
                 {new Date(selectedConsultation.dateTime).toLocaleDateString(dateLocale, {
                   day: 'numeric', month: 'long', year: 'numeric',
                 })}
               </p>
             </div>
-            <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">{t('chat.archive')}</span>
+            <span className="shrink-0 text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">{t('chat.archive')}</span>
           </div>
 
           {/* Messages (read-only) */}
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-4 space-y-4">
             {selectedConsultation.chatLog.map((msg, idx) => {
               const currentUserName = user?.fullName || user?.username || ''
               const isMe = msg.senderName === currentUserName
               return (
-                <div key={idx} className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}>
-                  <span className="text-xs text-slate-400 mb-1 px-1">{msg.senderName}</span>
+                <div key={idx} className={cn('flex max-w-full flex-col', isMe ? 'items-end' : 'items-start')}>
+                  <span className="max-w-[78vw] truncate text-xs text-slate-400 mb-1 px-1">{msg.senderName}</span>
                   <div className={cn(
-                    'max-w-[70%] rounded-2xl px-4 py-3',
+                    'max-w-[min(78vw,22rem)] rounded-2xl px-4 py-3 break-words',
                     isMe ? 'bg-teal-600 text-white rounded-br-md' : 'bg-slate-100 text-slate-900 rounded-bl-md'
                   )}>
-                    <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
                     {msg.time && (
                       <p className={cn('text-xs mt-1', isMe ? 'text-teal-100' : 'text-slate-400')}>
                         {new Date(msg.time).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
@@ -299,13 +301,13 @@ function ChatComponent({ userRole = 'patient' }) {
           </div>
         </div>
       ) : currentConversation ? (
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-x-hidden">
           {/* Chat Header */}
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="p-3 sm:p-4 border-b border-slate-100 flex items-center justify-between gap-2 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setCurrentConversation(null)}
-                className="md:hidden p-2 hover:bg-slate-100 rounded-lg"
+                className="md:hidden p-2 hover:bg-slate-100 rounded-lg shrink-0"
               >
                 ←
               </button>
@@ -319,14 +321,16 @@ function ChatComponent({ userRole = 'patient' }) {
 
                 return (
                   <>
-                    <Avatar
-                      src={getMediaUrl(participant.avatar || participant.photo)}
-                      name={participantName}
-                      size="md"
-                    />
-                    <div>
-                      <h3 className="font-semibold text-slate-900">{participantName}</h3>
-                      <p className="text-sm text-slate-500">
+                    <div className="shrink-0">
+                      <Avatar
+                        src={getMediaUrl(participant.avatar || participant.photo)}
+                        name={participantName}
+                        size="md"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-slate-900 truncate">{participantName}</h3>
+                      <p className="text-sm text-slate-500 truncate">
                         {spec}
                         {isOnline && (
                           <span className="text-emerald-600 ml-2">{t('chat.online_status')}</span>
@@ -337,7 +341,7 @@ function ChatComponent({ userRole = 'patient' }) {
                 )
               })()}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-600">
                 <Phone className="w-5 h-5" />
               </button>
@@ -351,7 +355,7 @@ function ChatComponent({ userRole = 'patient' }) {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-4 space-y-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
@@ -369,15 +373,15 @@ function ChatComponent({ userRole = 'patient' }) {
                 return (
                   <div
                     key={message.id}
-                    className={cn('flex', isMe ? 'justify-end' : 'justify-start')}
+                    className={cn('flex max-w-full', isMe ? 'justify-end' : 'justify-start')}
                   >
                     <div className={cn(
-                      'max-w-[70%] rounded-2xl px-4 py-3',
+                      'max-w-[min(78vw,22rem)] rounded-2xl px-4 py-3 break-words',
                       isMe
                         ? 'bg-teal-600 text-white rounded-br-md'
                         : 'bg-slate-100 text-slate-900 rounded-bl-md'
                     )}>
-                      <p className="text-sm">{message.content}</p>
+                      <p className="text-sm break-words">{message.content}</p>
                       <p className={cn(
                         'text-xs mt-1',
                         isMe ? 'text-teal-100' : 'text-slate-400'

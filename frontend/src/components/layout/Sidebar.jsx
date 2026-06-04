@@ -45,9 +45,9 @@ function Sidebar({ navItems, onNavClick }) {
   }
 
   return (
-    <aside className="h-(--app-height) w-64 bg-white border-r border-slate-100 flex flex-col">
+    <aside className="h-[var(--app-height)] w-64 bg-white border-r border-slate-100 flex flex-col">
       {/* Logo */}
-      <div className="p-6 border-b border-slate-100">
+      <div className="px-6 pb-6 pt-[max(1.5rem,calc(env(safe-area-inset-top)+0.75rem))] border-b border-slate-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center">
