@@ -26,6 +26,7 @@ import { getMediaUrl, getServerNow } from '../../services/api'
 
 const ITEMS_PER_PAGE = 10
 const REFUND_CUTOFF_HOURS = 24
+const JOINABLE_APPOINTMENT_STATUSES = ['pending', 'confirmed', 'in_progress']
 
 const statusVariants = {
   pending: 'default',
@@ -113,7 +114,7 @@ function PatientAppointments() {
   }
 
   const getEffectiveStatus = (appointment) => {
-    if (['confirmed', 'pending'].includes(appointment.status) && isAppointmentPast(appointment)) {
+    if (['confirmed', 'pending', 'in_progress'].includes(appointment.status) && isAppointmentPast(appointment)) {
       return 'no_show'
     }
     return appointment.status
@@ -124,11 +125,11 @@ function PatientAppointments() {
 
     // Status filter
     if (filter === 'upcoming') {
-      if (!(['pending', 'confirmed'].includes(apt.status) && !isPast)) return false
+      if (!(JOINABLE_APPOINTMENT_STATUSES.includes(apt.status) && !isPast)) return false
     } else if (filter === 'completed') {
       if (!(
-        ['completed', 'no_show', 'in_progress'].includes(apt.status) ||
-        (['pending', 'confirmed'].includes(apt.status) && isPast)
+        ['completed', 'no_show'].includes(apt.status) ||
+        (JOINABLE_APPOINTMENT_STATUSES.includes(apt.status) && isPast)
       )) return false
     } else if (filter === 'cancelled') {
       if (apt.status !== 'cancelled') return false
@@ -353,10 +354,10 @@ function PatientAppointments() {
               const consultationDuration = appointment.doctor?.consultationDuration || 30
               const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + 5) * 60 * 1000)
               const isPastAppointment = now > consultationEnd || appointment.status === 'completed'
-              const isUpcoming = ['confirmed', 'pending'].includes(appointment.status) && !isPastAppointment
+              const isUpcoming = JOINABLE_APPOINTMENT_STATUSES.includes(appointment.status) && !isPastAppointment
               const effectiveStatus = getEffectiveStatus(appointment)
               const fifteenMinBefore = new Date(appointmentDate.getTime() - 15 * 60 * 1000)
-              const canJoin = ['confirmed', 'pending'].includes(appointment.status) &&
+              const canJoin = JOINABLE_APPOINTMENT_STATUSES.includes(appointment.status) &&
                              now >= fifteenMinBefore &&
                              now <= consultationEnd
 
@@ -416,7 +417,7 @@ function PatientAppointments() {
                                 {t('appointments.connect')}
                               </Button>
                             </Link>
-                          ) : ['completed', 'no_show', 'in_progress'].includes(effectiveStatus) ? (
+                          ) : ['completed', 'no_show'].includes(effectiveStatus) ? (
                             <Link to={`/patient/appointments/${appointment.documentId || appointment.id}`}>
                               <Button size="sm" variant="secondary" leftIcon={<FileText className="w-4 h-4" />}>
                                 {t('appointments.details')}

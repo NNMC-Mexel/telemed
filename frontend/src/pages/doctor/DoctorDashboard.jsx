@@ -29,6 +29,8 @@ import {
     getLocalizedField,
 } from "../../utils/helpers";
 
+const ACTIVE_APPOINTMENT_STATUSES = ["pending", "confirmed", "in_progress"];
+
 function DoctorDashboard() {
     const { t, i18n } = useTranslation()
     const { user } = useAuthStore();
@@ -92,7 +94,7 @@ function DoctorDashboard() {
                 const todayStr = today;
                 const todayAppts = doctorAppointments.filter((a) => {
                     const aptDate = new Date(a.dateTime).toISOString().split("T")[0];
-                    return aptDate === todayStr && (a.statuse || a.status) === "confirmed";
+                    return aptDate === todayStr && ACTIVE_APPOINTMENT_STATUSES.includes(a.statuse || a.status);
                 });
 
                 const monthStart = new Date();
@@ -127,6 +129,8 @@ function DoctorDashboard() {
                 return <Badge variant='success'>{t('appointment.status_completed')}</Badge>;
             case "confirmed":
                 return <Badge variant='primary'>{t('appointment.status_confirmed')}</Badge>;
+            case "in_progress":
+                return <Badge variant='success'>{t('appointment.status_in_progress')}</Badge>;
             case "pending":
                 return <Badge variant='warning'>{t('appointment.status_pending')}</Badge>;
             case "cancelled":
@@ -278,13 +282,14 @@ function DoctorDashboard() {
                                     const consultationEnd = new Date(
                                         aptTime.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000,
                                     );
+                                    const appointmentStatus = appointment.statuse || appointment.status;
                                     const canJoin =
-                                        ["confirmed", "pending"].includes(appointment.statuse || appointment.status) &&
+                                        ACTIVE_APPOINTMENT_STATUSES.includes(appointmentStatus) &&
                                         now >= fifteenMinBefore &&
                                         now <= consultationEnd;
 
                                     const isPastConsultation =
-                                        now > consultationEnd || appointment.statuse === 'completed';
+                                        now > consultationEnd || appointmentStatus === 'completed';
 
                                     const isNow = Math.abs(now - aptTime) < 30 * 60 * 1000;
 
@@ -292,7 +297,7 @@ function DoctorDashboard() {
                                         <div
                                             key={appointment.id}
                                             className={`p-3 sm:p-4 rounded-xl ${
-                                                isNow && appointment.status === "confirmed" && !isPastConsultation
+                                                isNow && ACTIVE_APPOINTMENT_STATUSES.includes(appointmentStatus) && !isPastConsultation
                                                     ? "bg-teal-50 border-2 border-teal-200"
                                                     : isPastConsultation
                                                       ? "bg-slate-100"

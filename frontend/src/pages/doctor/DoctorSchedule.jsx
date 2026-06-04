@@ -55,6 +55,7 @@ const generateAllTimeOptions = () => {
 const allTimeOptions = generateAllTimeOptions();
 const INTERVAL_GAP_MINUTES = 30;
 const LAST_TIME_OPTION_MINUTES = 23 * 60 + 30;
+const JOINABLE_APPOINTMENT_STATUSES = ["pending", "confirmed", "in_progress"];
 
 function DoctorSchedule() {
     const { t, i18n } = useTranslation()
@@ -533,28 +534,42 @@ function DoctorSchedule() {
                                                                 const fifteenMinBefore = new Date(aptTime.getTime() - 15 * 60 * 1000);
                                                                 const consultationEnd = new Date(aptTime.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000);
                                                                 const appointmentStatus = appointment.statuse || appointment.status;
-                                                                const canJoin = ['confirmed', 'pending'].includes(appointmentStatus) &&
+                                                                const canJoin = JOINABLE_APPOINTMENT_STATUSES.includes(appointmentStatus) &&
                                                                     now >= fifteenMinBefore && now <= consultationEnd;
                                                                 const isPast = now > consultationEnd || appointmentStatus === 'completed';
+                                                                const statusBadge = {
+                                                                    confirmed: {
+                                                                        variant: 'success',
+                                                                        label: t('schedule.status_confirmed_short'),
+                                                                    },
+                                                                    pending: {
+                                                                        variant: 'default',
+                                                                        label: t('schedule.status_pending'),
+                                                                    },
+                                                                    in_progress: {
+                                                                        variant: 'success',
+                                                                        label: t('appointment.status_in_progress'),
+                                                                    },
+                                                                    cancelled: {
+                                                                        variant: 'danger',
+                                                                        label: t('schedule.status_cancelled'),
+                                                                    },
+                                                                    completed: {
+                                                                        variant: 'success',
+                                                                        label: t('schedule.status_completed'),
+                                                                    },
+                                                                }[appointmentStatus] || {
+                                                                    variant: 'default',
+                                                                    label: appointmentStatus || t('schedule.status_pending'),
+                                                                };
 
                                                                 return (
                                                                     <>
                                                                         {isPast && appointmentStatus !== 'cancelled' ? (
                                                                             <Badge variant='success'>{t('schedule.status_completed')}</Badge>
                                                                         ) : (
-                                                                            <Badge
-                                                                                variant={
-                                                                                    appointmentStatus === "confirmed"
-                                                                                        ? "success"
-                                                                                        : appointmentStatus === "pending"
-                                                                                        ? "default"
-                                                                                        : "danger"
-                                                                                }>
-                                                                                {appointmentStatus === "confirmed"
-                                                                                    ? t('schedule.status_confirmed_short')
-                                                                                    : appointmentStatus === "pending"
-                                                                                    ? t('schedule.status_pending')
-                                                                                    : t('schedule.status_cancelled')}
+                                                                            <Badge variant={statusBadge.variant}>
+                                                                                {statusBadge.label}
                                                                             </Badge>
                                                                         )}
                                                                         {canJoin && appointment.roomId && (

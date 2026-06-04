@@ -23,6 +23,8 @@ import useChatStore from '../../stores/chatStore'
 import { formatRelativeDate } from '../../utils/helpers'
 import { getMediaUrl, getServerNow } from '../../services/api'
 
+const JOINABLE_APPOINTMENT_STATUSES = ['pending', 'confirmed', 'in_progress']
+
 function PatientDashboard() {
   const { t } = useTranslation()
   const { user } = useAuthStore()
@@ -56,10 +58,10 @@ function PatientDashboard() {
   useEffect(() => {
     const completed = appointments.filter(a =>
       a.status === 'completed' ||
-      (['pending', 'confirmed'].includes(a.status) && isAppointmentPast(a))
+      (JOINABLE_APPOINTMENT_STATUSES.includes(a.status) && isAppointmentPast(a))
     ).length
     const upcoming = appointments.filter(a =>
-      ['pending', 'confirmed'].includes(a.status) && !isAppointmentPast(a)
+      JOINABLE_APPOINTMENT_STATUSES.includes(a.status) && !isAppointmentPast(a)
     ).length
     const unread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
 
@@ -72,7 +74,7 @@ function PatientDashboard() {
   }, [appointments, documents, conversations])
 
   const upcomingAppointments = appointments
-    .filter(a => ['pending', 'confirmed'].includes(a.status) && !isAppointmentPast(a))
+    .filter(a => JOINABLE_APPOINTMENT_STATUSES.includes(a.status) && !isAppointmentPast(a))
     .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime))
     .slice(0, 3)
 
@@ -212,7 +214,7 @@ function PatientDashboard() {
 
                   const fifteenMinBefore = new Date(appointmentDate.getTime() - 15 * 60 * 1000)
                   const consultationEnd = new Date(appointmentDate.getTime() + (consultationDuration + bufferMinutes) * 60 * 1000)
-                  const canJoin = ['confirmed', 'pending'].includes(appointment.status) &&
+                  const canJoin = JOINABLE_APPOINTMENT_STATUSES.includes(appointment.status) &&
                                   now >= fifteenMinBefore &&
                                   now <= consultationEnd
 
