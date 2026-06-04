@@ -42,6 +42,7 @@ import { io } from 'socket.io-client'
 import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import { cn, getSpecName } from '../utils/helpers'
+import { CONSULTATION_EXIT_REASON, buildPatientRatingPayload, shouldShowPatientRating } from '../utils/consultationFlow'
 import useAuthStore from '../stores/authStore'
 import api, { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl, getSignalingUrl, downloadMedia } from '../services/api'
 
@@ -71,6 +72,58 @@ const ICE_SERVERS = {
 }
 
 const SIGNALING_SERVER = getSignalingUrl();
+
+const getMediaConstraints = (isMobile, fallback = false) => {
+  if (fallback) {
+    return {
+      video: true,
+      audio: true,
+    }
+  }
+
+  return {
+    video: isMobile
+      ? { facingMode: { ideal: 'user' } }
+      : {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
+  }
+}
+
+const getMediaErrorMessage = (err, t) => {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return t('video.media_error_unsupported')
+  }
+
+  if (window.isSecureContext === false) {
+    return t('video.media_error_insecure')
+  }
+
+  switch (err?.name) {
+    case 'NotAllowedError':
+    case 'PermissionDeniedError':
+      return t('video.media_error_denied')
+    case 'NotFoundError':
+    case 'DevicesNotFoundError':
+      return t('video.media_error_not_found')
+    case 'NotReadableError':
+    case 'TrackStartError':
+      return t('video.media_error_busy')
+    case 'OverconstrainedError':
+    case 'ConstraintNotSatisfiedError':
+      return t('video.media_error_constraints')
+    case 'AbortError':
+      return t('video.media_error_abort')
+    default:
+      return t('video.media_error_detail', { errorName: err?.name || 'unknown' })
+  }
+}
 
 function VideoConsultation() {
   const { roomId } = useParams()
@@ -148,6 +201,7 @@ function VideoConsultation() {
   const activeSocketRef = useRef(null)
   const reconnectAttemptsRef = useRef(0)
   const reconnectTimerRef = useRef(null)
+  const ratingPromptShownRef = useRef(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
@@ -327,10 +381,20 @@ function VideoConsultation() {
     const init = async () => {
       try {
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: isMobile ? { facingMode: 'user' } : { width: 1280, height: 720 },
-          audio: true,
-        })
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('getUserMedia is not supported in this context')
+        }
+
+        let stream
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(isMobile))
+        } catch (mediaErr) {
+          if (mediaErr?.name !== 'OverconstrainedError' && mediaErr?.name !== 'ConstraintNotSatisfiedError') {
+            throw mediaErr
+          }
+          console.warn('[WebRTC] Media constraints failed, retrying with basic constraints:', mediaErr)
+          stream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(isMobile, true))
+        }
 
         if (!mounted) {
           stream.getTracks().forEach(track => track.stop())
@@ -470,16 +534,23 @@ function VideoConsultation() {
           setRemoteIsPortrait(isPortrait)
         })
 
-        // Врач принудительно завершил звонок — пациент видит модалку с оценкой
+        // Врач завершил консультацию — только тогда пациент видит модалку с оценкой.
         socket.on('call-force-ended', () => {
           cleanupCall()
-          setShowRatingModal(true)
+          if (shouldShowPatientRating({
+            userRole: user?.userRole,
+            exitReason: CONSULTATION_EXIT_REASON.DOCTOR_FORCE_END,
+            hasPromptedRating: ratingPromptShownRef.current,
+          })) {
+            ratingPromptShownRef.current = true
+            setShowRatingModal(true)
+          }
         })
 
       } catch (err) {
         console.error('Error initializing:', err)
         if (mounted) {
-          setError(t('video.media_error'))
+          setError(getMediaErrorMessage(err, t))
           setConnectionState('failed')
         }
       }
@@ -667,8 +738,7 @@ function VideoConsultation() {
     if (isDoctor) {
       navigate('/doctor')
     } else {
-      // Patient — show rating modal
-      setShowRatingModal(true)
+      navigate('/patient/appointments')
     }
   }
 
@@ -692,11 +762,7 @@ function VideoConsultation() {
     if (!appointment?.documentId || rating === 0) return
     setIsSubmittingRating(true)
     try {
-      await appointmentsAPI.update(appointment.documentId, {
-        rating,
-        review: reviewText.trim() || undefined,
-        status: 'completed',
-      })
+      await appointmentsAPI.update(appointment.documentId, buildPatientRatingPayload({ rating, reviewText }))
     } catch (err) {
       console.error('Error submitting rating:', err)
     } finally {
@@ -704,6 +770,11 @@ function VideoConsultation() {
       setShowRatingModal(false)
       navigate('/patient/appointments')
     }
+  }
+
+  const skipRating = () => {
+    setShowRatingModal(false)
+    navigate('/patient/appointments')
   }
 
   const sendMessage = (e) => {
@@ -1764,6 +1835,14 @@ function VideoConsultation() {
 
             {/* Buttons */}
             <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={skipRating}
+                disabled={isSubmittingRating}
+              >
+                {t('video.skip_rating')}
+              </Button>
               <Button
                 className="flex-1"
                 onClick={submitRating}

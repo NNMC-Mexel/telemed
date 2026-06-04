@@ -1051,8 +1051,17 @@
     "rating_4": "Good",
     "rating_5": "Excellent",
     "review_placeholder": "Write a review (optional)...",
+    "skip_rating": "Skip",
     "submit": "Submit",
-    "media_error": "Could not access camera and microphone"
+    "media_error": "Could not access camera and microphone",
+    "media_error_unsupported": "This browser does not support camera and microphone access in this mode.",
+    "media_error_insecure": "Camera and microphone access works only over HTTPS or localhost.",
+    "media_error_denied": "The browser or operating system denied camera and microphone access.",
+    "media_error_not_found": "Camera or microphone was not found. Check the connected devices.",
+    "media_error_busy": "Camera or microphone is busy in another app. Close it and try again.",
+    "media_error_constraints": "The camera does not support the requested settings. Try again.",
+    "media_error_abort": "The browser interrupted the camera or microphone request. Try again.",
+    "media_error_detail": "Could not access camera and microphone ({{errorName}})."
   },
   "appointment_detail": {
     "back": "Back",
