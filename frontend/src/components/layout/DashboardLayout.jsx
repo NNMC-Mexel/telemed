@@ -1,17 +1,19 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import MobileBottomNav from './MobileBottomNav'
 import { cn } from '../../utils/helpers'
 
 function DashboardLayout({ navItems }) {
   const { t } = useTranslation()
   const location = useLocation()
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [mobileMenu, setMobileMenu] = useState({ isOpen: false, path: location.pathname })
   const sidebarTouchStartX = useRef(null)
 
   const path = location.pathname
+  const isMobileMenuOpen = mobileMenu.isOpen && mobileMenu.path === path
   const title = path.startsWith('/patient/doctors/')
     ? t('nav.doctors')
     : path.endsWith('/notifications')
@@ -23,11 +25,14 @@ function DashboardLayout({ navItems }) {
       ? ''
     : t(`dashboard.page_titles.${path}_sub`, '')
 
-  useEffect(() => {
-    setIsMobileMenuOpen(false)
-  }, [location.pathname])
-
-  const closeMobileMenu = () => setIsMobileMenuOpen(false)
+  const closeMobileMenu = () => setMobileMenu({ isOpen: false, path })
+  const toggleMobileMenu = () => {
+    setMobileMenu((current) => ({
+      isOpen: current.path === path ? !current.isOpen : true,
+      path,
+    }))
+  }
+  const hasMobileBottomNav = path.startsWith('/patient')
 
   return (
     <div className="min-h-[var(--app-height)] overflow-x-hidden bg-gradient-to-br from-slate-50 via-teal-50/30 to-sky-50/30">
@@ -60,13 +65,19 @@ function DashboardLayout({ navItems }) {
         <Header
           title={title}
           subtitle={subtitle}
-          onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          onMenuClick={toggleMobileMenu}
           isMobileMenuOpen={isMobileMenuOpen}
         />
-        <main className="flex-1 min-h-0 p-4 sm:p-6">
+        <main
+          className={cn(
+            'flex-1 min-h-0 p-4 sm:p-6',
+            hasMobileBottomNav && 'pb-[calc(5.75rem+var(--safe-bottom))] sm:pb-[calc(6.25rem+var(--safe-bottom))] lg:pb-6'
+          )}
+        >
           <Outlet />
         </main>
       </div>
+      <MobileBottomNav />
     </div>
   )
 }

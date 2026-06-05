@@ -63,6 +63,9 @@
     "patient_cabinet": "Пациент кабинеті",
     "doctor_cabinet": "Дәрігер кабинеті"
   },
+  "bottom_nav": {
+    "book": "Жазылу"
+  },
   "auth": {
     "login": {
       "title": "Қош келдіңіз",

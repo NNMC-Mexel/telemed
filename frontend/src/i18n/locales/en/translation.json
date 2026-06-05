@@ -63,6 +63,9 @@
     "patient_cabinet": "Patient Dashboard",
     "doctor_cabinet": "Doctor Dashboard"
   },
+  "bottom_nav": {
+    "book": "Book"
+  },
   "auth": {
     "login": {
       "title": "Welcome Back",

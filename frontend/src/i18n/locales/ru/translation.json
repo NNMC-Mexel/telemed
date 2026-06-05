@@ -63,6 +63,9 @@
     "patient_cabinet": "Личный кабинет пациента",
     "doctor_cabinet": "Личный кабинет врача"
   },
+  "bottom_nav": {
+    "book": "Записаться"
+  },
   "auth": {
     "login": {
       "title": "Добро пожаловать",
