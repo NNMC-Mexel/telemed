@@ -82,6 +82,7 @@
       "back_home": "Back to Home",
       "error_identifier": "Enter email or phone",
       "error_password": "Enter password",
+      "error_invalid_credentials": "Invalid email, phone, or password",
       "doctor_title": "Doctor's Dashboard",
       "doctor_desc": "Manage your schedule, conduct consultations, and help patients online",
       "platform_desc": "Modern telemedicine platform for online consultations with doctors",

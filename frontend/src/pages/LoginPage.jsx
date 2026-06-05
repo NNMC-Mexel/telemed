@@ -37,6 +37,15 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [formErrors, setFormErrors] = useState({})
 
+  const getLoginErrorMessage = (message) => {
+    const normalized = String(message || '').trim().toLowerCase()
+    if (!normalized) return ''
+    if (normalized.includes('invalid identifier or password')) {
+      return t('auth.login.error_invalid_credentials')
+    }
+    return message
+  }
+
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -169,7 +178,7 @@ function LoginPage() {
 
                 {error && !isUnconfirmedError && (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-600">
-                    {error}
+                    {getLoginErrorMessage(error)}
                   </div>
                 )}
 

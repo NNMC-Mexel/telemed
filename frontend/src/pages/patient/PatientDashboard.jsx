@@ -80,6 +80,37 @@ function PatientDashboard() {
 
   const recentConversations = conversations.slice(0, 3)
 
+  const statsCards = [
+    {
+      value: stats.totalConsultations,
+      label: t('patient.stat_consultations'),
+      icon: Video,
+      to: '/patient/appointments',
+      color: 'from-teal-500 to-sky-500',
+    },
+    {
+      value: stats.upcomingCount,
+      label: t('patient.stat_upcoming'),
+      icon: Calendar,
+      to: '/patient/appointments',
+      color: 'from-sky-500 to-indigo-500',
+    },
+    {
+      value: stats.documentsCount,
+      label: t('patient.stat_documents'),
+      icon: FileText,
+      to: '/patient/documents',
+      color: 'from-amber-500 to-orange-500',
+    },
+    {
+      value: stats.unreadMessages,
+      label: t('patient.stat_messages'),
+      icon: MessageCircle,
+      to: '/patient/chat',
+      color: 'from-violet-500 to-purple-500',
+    },
+  ]
+
   const quickActions = [
     { label: t('patient.quick_book'), icon: Calendar, to: '/patient/doctors', color: 'bg-teal-500' },
     { label: t('patient.quick_appointments'), icon: Clock, to: '/patient/appointments', color: 'bg-sky-500' },
@@ -111,51 +142,22 @@ function PatientDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4 sm:p-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-sky-500 flex items-center justify-center shrink-0">
-              <Video className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{stats.totalConsultations}</p>
-              <p className="text-sm text-slate-500">{t('patient.stat_consultations')}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4 sm:p-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center shrink-0">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{stats.upcomingCount}</p>
-              <p className="text-sm text-slate-500">{t('patient.stat_upcoming')}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4 sm:p-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shrink-0">
-              <FileText className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{stats.documentsCount}</p>
-              <p className="text-sm text-slate-500">{t('patient.stat_documents')}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4 sm:p-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shrink-0">
-              <MessageCircle className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{stats.unreadMessages}</p>
-              <p className="text-sm text-slate-500">{t('patient.stat_messages')}</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        {statsCards.map((item) => (
+          <Link key={item.label} to={item.to} className="min-w-0">
+            <Card hover className="h-full">
+              <CardContent className="flex h-full min-h-24 flex-col justify-center gap-2.5 p-3.5 sm:min-h-28 sm:p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center shrink-0`}>
+                    <item.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  <p className="text-2xl sm:text-3xl font-bold leading-none text-slate-900">{item.value}</p>
+                </div>
+                <p className="text-sm leading-snug text-slate-500 break-words">{item.label}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </div>
 
       {/* Quick Actions */}
