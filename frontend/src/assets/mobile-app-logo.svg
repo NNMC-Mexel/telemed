@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="NNMC mobile logo">
+  <defs>
+    <linearGradient id="leafTop" x1="268" y1="343" x2="842" y2="538" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#89D33B"/>
+      <stop offset="0.33" stop-color="#9FDA3E"/>
+      <stop offset="0.66" stop-color="#40BC65"/>
+      <stop offset="1" stop-color="#0A8F9D"/>
+    </linearGradient>
+    <linearGradient id="leafBottom" x1="260" y1="566" x2="862" y2="641" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1DC97A"/>
+      <stop offset="0.48" stop-color="#2EB886"/>
+      <stop offset="1" stop-color="#113A97"/>
+    </linearGradient>
+    <linearGradient id="leafRidge" x1="374" y1="520" x2="806" y2="499" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E3F15C" stop-opacity="0.9"/>
+      <stop offset="0.48" stop-color="#9DDC3E" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#065F69" stop-opacity="0.15"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="93" y1="659" x2="209" y2="763" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#003DBD"/>
+      <stop offset="0.55" stop-color="#18A7F0"/>
+      <stop offset="1" stop-color="#85E2FF"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0" cy="0" r="1" gradientTransform="translate(457 456) rotate(30) scale(260 90)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3F66F" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#F3F66F" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g>
+    <path
+      fill="url(#leafTop)"
+      d="M235 502C338 302 503 266 671 357C773 412 856 439 932 417C901 505 814 592 688 620C536 654 386 574 235 502Z"/>
+    <path
+      fill="url(#leafBottom)"
+      d="M234 502C383 458 501 512 624 558C746 604 841 583 931 417C883 572 765 696 605 673C447 651 355 530 234 502Z"/>
+    <path
+      fill="url(#shine)"
+      d="M333 456C430 347 560 339 703 414C613 398 505 408 405 474C370 497 345 493 333 456Z"
+      opacity="0.85"/>
+    <path
+      fill="url(#leafRidge)"
+      d="M274 501C414 462 532 500 654 531C751 555 835 527 916 428C831 569 724 607 600 584C479 562 374 506 274 501Z"
+      opacity="0.78"/>
+    <path
+      fill="#0F5D2A"
+      d="M236 501C335 433 438 436 548 469C438 422 330 412 236 501Z"
+      opacity="0.55"/>
+  </g>
+
+  <path
+    fill="url(#drop)"
+    d="M143 597C185 575 232 504 235 502C215 558 206 631 159 647C123 660 107 616 143 597Z"/>
+  <circle cx="91" cy="685" r="31" fill="url(#drop)"/>
+  <circle cx="166" cy="613" r="19" fill="#72DFFF" opacity="0.55"/>
+  <circle cx="80" cy="674" r="10" fill="#86E6FF" opacity="0.6"/>
+</svg>

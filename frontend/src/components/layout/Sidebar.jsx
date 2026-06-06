@@ -16,9 +16,11 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '../../utils/helpers'
+import { isNativeMobileApp } from '../../utils/platform'
 import useAuthStore from '../../stores/authStore'
 import Avatar from '../ui/Avatar'
 import LanguageSwitcher from '../ui/LanguageSwitcher'
+import mobileAppLogo from '../../assets/mobile-app-logo.svg'
 
 const iconMap = {
   home: Home,
@@ -38,6 +40,7 @@ function Sidebar({ navItems, onNavClick }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const isNativeApp = isNativeMobileApp()
 
   const handleLogout = () => {
     logout()
@@ -50,9 +53,17 @@ function Sidebar({ navItems, onNavClick }) {
       <div className="px-6 pb-6 pt-[max(1.5rem,calc(env(safe-area-inset-top)+0.75rem))] border-b border-slate-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center">
-              <Activity className="w-6 h-6 text-white" />
-            </div>
+            {isNativeApp ? (
+              <img
+                src={mobileAppLogo}
+                alt="MedConnect"
+                className="w-12 h-12 rounded-xl object-contain"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center">
+                <Activity className="w-6 h-6 text-white" />
+              </div>
+            )}
             <div>
               <h1 className="font-bold text-slate-900">MedConnect</h1>
               <p className="text-xs text-slate-500">{t('common.telemedicine')}</p>
