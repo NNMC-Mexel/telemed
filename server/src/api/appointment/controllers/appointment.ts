@@ -14,6 +14,13 @@ const PAID_APPOINTMENT_CREATE_GRACE_MINUTES = (() => {
     ? value
     : DEFAULT_PAID_APPOINTMENT_CREATE_GRACE_MINUTES;
 })();
+const DEFAULT_PAYMENT_SLOT_HOLD_MINUTES = 30;
+const PAYMENT_SLOT_HOLD_MINUTES = (() => {
+  const value = Number(process.env.PAYMENT_SLOT_HOLD_MINUTES);
+  return Number.isFinite(value) && value > 0
+    ? value
+    : DEFAULT_PAYMENT_SLOT_HOLD_MINUTES;
+})();
 
 const getActiveSlotKey = (doctorDocId: string | undefined, dateTime: string | undefined, status: string) => {
   if (!doctorDocId || !dateTime || !ACTIVE_SLOT_STATUSES.includes(status)) return null;
@@ -100,6 +107,16 @@ const getDoctorWorkingIntervals = (doctor: any) => {
   const intervals = normalizeWorkingIntervals(doctor?.workingIntervals);
   return intervals.length > 0 ? intervals : legacyWorkingHoursToIntervals(doctor);
 };
+
+const paymentIntentHoldFilter = () => ({
+  $or: [
+    { status: 'paid' },
+    {
+      status: 'pending',
+      createdAt: { $gte: new Date(Date.now() - PAYMENT_SLOT_HOLD_MINUTES * 60 * 1000).toISOString() },
+    },
+  ],
+});
 
 const getBearerToken = (ctx: any) => {
   const header = String(ctx.request?.headers?.authorization || '');
@@ -811,6 +828,28 @@ export default factories.createCoreController('api::appointment.appointment', ()
       slots.add(`${h}:${min}`);
     }
 
+    const heldPaymentIntents = await strapi.documents('api::payment-intent.payment-intent').findMany({
+      filters: {
+        doctor: { documentId: doctorDocId },
+        dateTime: { $gte: rangeStart.toISOString(), $lte: rangeEnd.toISOString() },
+        ...paymentIntentHoldFilter(),
+      } as any,
+      fields: ['dateTime'],
+      limit: 500,
+    });
+
+    for (const row of heldPaymentIntents as any[]) {
+      if (!row?.dateTime) continue;
+      const kz = new Date(new Date(row.dateTime).getTime() + KZ_OFFSET_MS);
+      const y = kz.getUTCFullYear();
+      const m = String(kz.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(kz.getUTCDate()).padStart(2, '0');
+      if (`${y}-${m}-${d}` !== date) continue;
+      const h = String(kz.getUTCHours()).padStart(2, '0');
+      const min = String(kz.getUTCMinutes()).padStart(2, '0');
+      slots.add(`${h}:${min}`);
+    }
+
     return { data: { slots: Array.from(slots).sort() } };
   },
 
@@ -866,7 +905,24 @@ export default factories.createCoreController('api::appointment.appointment', ()
       limit: 1,
     });
 
-    return { data: { available: rows.length === 0, conflicts: rows.length } };
+    if (rows.length > 0) {
+      return { data: { available: false, conflicts: rows.length } };
+    }
+
+    const heldPaymentIntents = await strapi.documents('api::payment-intent.payment-intent').findMany({
+      filters: {
+        doctor: { documentId: doctorDocId },
+        dateTime: {
+          $gte: slotStart.toISOString(),
+          $lt: slotEnd.toISOString(),
+        },
+        ...paymentIntentHoldFilter(),
+      } as any,
+      fields: ['id'],
+      limit: 1,
+    });
+
+    return { data: { available: heldPaymentIntents.length === 0, conflicts: heldPaymentIntents.length } };
   },
 
   /**

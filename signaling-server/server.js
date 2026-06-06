@@ -478,11 +478,11 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000)
 
-// Fetch the canonical price for a doctor from Strapi.
-// Returns the price as a number, or throws if the doctor is not found / request fails.
-async function fetchDoctorPrice(doctorId) {
+// Fetch canonical payment fields for a doctor from Strapi.
+async function fetchDoctorPaymentProfile(doctorId) {
   const res = await fetch(
-    `${STRAPI_API_URL}/api/doctors?filters[id][$eq]=${encodeURIComponent(doctorId)}&fields[0]=price`,
+    `${STRAPI_API_URL}/api/doctors?filters[id][$eq]=${encodeURIComponent(doctorId)}` +
+      '&fields[0]=price&fields[1]=slotDuration',
     {
       headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` },
     }
@@ -493,7 +493,53 @@ async function fetchDoctorPrice(doctorId) {
   if (!doctor) throw new Error(`Doctor ${doctorId} not found`)
   const price = doctor.price ?? doctor.attributes?.price
   if (price == null || isNaN(Number(price))) throw new Error(`Doctor ${doctorId} has no valid price`)
-  return Number(price)
+  return {
+    price: Number(price),
+    slotDuration: Number(doctor.slotDuration || doctor.attributes?.slotDuration || 30) || 30,
+  }
+}
+
+// Fetch the canonical price for a doctor from Strapi.
+// Returns the price as a number, or throws if the doctor is not found / request fails.
+async function fetchDoctorPrice(doctorId) {
+  return (await fetchDoctorPaymentProfile(doctorId)).price
+}
+
+async function assertPaymentSlotAvailable(doctorId, dateTime, slotDuration) {
+  const slotStart = new Date(dateTime)
+  if (Number.isNaN(slotStart.getTime())) {
+    const err = new Error('Invalid appointment dateTime')
+    err.statusCode = 400
+    throw err
+  }
+  const durationMs = (Number(slotDuration) || 30) * 60 * 1000
+  const slotEnd = new Date(slotStart.getTime() + durationMs)
+  const query = new URLSearchParams({
+    doctorId: String(doctorId),
+    start: slotStart.toISOString(),
+    end: slotEnd.toISOString(),
+  })
+  const headers = { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` }
+  if (process.env.SIGNALING_INTERNAL_SECRET) {
+    headers['X-Internal-Secret'] = process.env.SIGNALING_INTERNAL_SECRET
+  }
+  const res = await fetch(`${STRAPI_API_URL}/api/appointments/slot-conflicts/check?${query}`, { headers })
+    .catch((err) => {
+      const wrapped = new Error(`Slot availability check failed: ${err.message}`)
+      wrapped.statusCode = 503
+      throw wrapped
+    })
+  if (!res.ok) {
+    const err = new Error(`Slot availability check HTTP ${res.status}: ${await res.text().catch(() => '')}`)
+    err.statusCode = 503
+    throw err
+  }
+  const json = await res.json().catch(() => null)
+  if (json?.data?.available === false || Number(json?.data?.conflicts || 0) > 0) {
+    const err = new Error('Slot is no longer available')
+    err.statusCode = 409
+    throw err
+  }
 }
 
 // =====================================================
@@ -761,8 +807,9 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
       return res.status(400).json({ error: bookingError })
     }
 
-    // Validate price against the canonical doctor price in Strapi
-    const actualPrice = await fetchDoctorPrice(bookingData.doctorId)
+    // Validate price and slot availability against canonical server state.
+    const doctorProfile = await fetchDoctorPaymentProfile(bookingData.doctorId)
+    const actualPrice = doctorProfile.price
     const submittedPrice = Number(bookingData.price)
 
     if (!submittedPrice || submittedPrice !== actualPrice) {
@@ -771,6 +818,7 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
       )
       return res.status(400).json({ error: 'Invalid payment amount' })
     }
+    await assertPaymentSlotAvailable(bookingData.doctorId, bookingData.dateTime, doctorProfile.slotDuration)
 
     const invoiceId = String(Date.now())
 
@@ -859,7 +907,7 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
     })
   } catch (err) {
     console.error('[QR] create error:', err.message)
-    res.status(500).json({ error: err.message })
+    res.status(err.statusCode || 500).json({ error: err.message })
   }
 })
 
@@ -1495,8 +1543,9 @@ app.post('/api/payment/epay-token', async (req, res) => {
       return res.status(400).json({ error: bookingError })
     }
 
-    // Validate amount against canonical doctor price in Strapi
-    const actualPrice = await fetchDoctorPrice(doctorId)
+    // Validate amount and slot availability against canonical server state.
+    const doctorProfile = await fetchDoctorPaymentProfile(doctorId)
+    const actualPrice = doctorProfile.price
     const submittedAmount = Number(amount)
 
     if (!submittedAmount || submittedAmount !== actualPrice) {
@@ -1505,6 +1554,7 @@ app.post('/api/payment/epay-token', async (req, res) => {
       )
       return res.status(400).json({ error: 'Invalid payment amount' })
     }
+    await assertPaymentSlotAvailable(doctorId, dateTime, doctorProfile.slotDuration)
 
     // Bind invoiceId to this specific doctor/slot so epay-confirm can detect swaps
     pendingCardPayments.set(String(invoiceId), {
@@ -1536,7 +1586,7 @@ app.post('/api/payment/epay-token', async (req, res) => {
     res.json({ auth, terminalId: EPAY_TERMINAL_ID, widgetUrl: EPAY_WIDGET_URL })
   } catch (err) {
     console.error('ePay token error:', err.message)
-    res.status(500).json({ error: err.message })
+    res.status(err.statusCode || 500).json({ error: err.message })
   }
 })
 
