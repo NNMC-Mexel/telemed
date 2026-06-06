@@ -254,6 +254,23 @@ async function findPaymentIntent(filterName, value) {
   return json?.data?.[0] || null
 }
 
+async function findRecoverableQRPaymentIntents(limit = 25) {
+  const query =
+    `${STRAPI_API_URL}/api/payment-intents?filters[provider][$eq]=halyk_qr` +
+    '&filters[status][$in][0]=pending' +
+    '&filters[status][$in][1]=paid' +
+    '&populate[patient][fields][0]=id' +
+    '&populate[doctor][fields][0]=id' +
+    '&populate[doctor][fields][1]=documentId' +
+    '&populate[appointment][fields][0]=documentId' +
+    '&sort=createdAt:desc' +
+    `&pagination[pageSize]=${encodeURIComponent(limit)}`
+  const res = await fetch(query, { headers: strapiServerHeaders() }).catch(() => null)
+  if (!res?.ok) return []
+  const json = await res.json().catch(() => null)
+  return Array.isArray(json?.data) ? json.data : []
+}
+
 async function updatePaymentIntent(documentId, data) {
   if (!documentId) return null
   const res = await fetch(`${STRAPI_API_URL}/api/payment-intents/${documentId}`, {
@@ -285,6 +302,112 @@ function normalizePersistedIntent(intent) {
     appointmentId: intent.appointment?.documentId,
     metadata: intent.metadata || {},
   }
+}
+
+async function createPaidQRAppointmentFromIntent(intent, source, statusData = null) {
+  if (!intent?.documentId || !intent?.paymentId || !intent?.patientId || !intent?.doctorId || !intent?.dateTime) {
+    throw new Error('Payment intent is missing required appointment fields')
+  }
+
+  const paidTransactionId = extractEPayTransactionId(statusData)
+  const existing = await fetchExistingAppointmentByPaymentId(intent.paymentId, intent)
+  if (existing) {
+    await updatePaymentIntent(intent.documentId, {
+      status: 'appointment_created',
+      appointment: existing.documentId || existing.id,
+      metadata: {
+        ...(intent.metadata || {}),
+        source,
+        ...(paidTransactionId ? { epayTransactionId: paidTransactionId } : {}),
+        appointmentRecoveredAt: new Date().toISOString(),
+      },
+    })
+    return existing.documentId || existing.id
+  }
+
+  const apptRes = await fetch(`${STRAPI_API_URL}/api/appointments`, {
+    method: 'POST',
+    headers: strapiServerHeaders(),
+    body: JSON.stringify({
+      data: {
+        patient: intent.patientId,
+        doctor: intent.doctorId,
+        dateTime: intent.dateTime,
+        type: intent.type || 'video',
+        statuse: 'confirmed',
+        price: intent.price || intent.amount,
+        paymentStatus: 'paid',
+        paymentId: intent.paymentId,
+        roomId: intent.roomId,
+      },
+    }),
+  })
+  if (!apptRes.ok) {
+    const errText = await apptRes.text().catch(() => '')
+    throw new Error(`Strapi HTTP ${apptRes.status}: ${errText}`)
+  }
+
+  const apptJson = await apptRes.json().catch(() => null)
+  const appointmentId = apptJson?.data?.documentId || apptJson?.data?.id || null
+  await updatePaymentIntent(intent.documentId, {
+    status: 'appointment_created',
+    appointment: appointmentId,
+    metadata: {
+      ...(intent.metadata || {}),
+      source,
+      ...(paidTransactionId ? { epayTransactionId: paidTransactionId } : {}),
+      paidAt: new Date().toISOString(),
+    },
+  })
+  return appointmentId
+}
+
+async function checkQRStatusWithGateway(intent) {
+  const auth = await getQRAuthToken(intent.invoiceId || Date.now(), intent.amount || intent.price || 0)
+  const statusRes = await fetch(`${EPAY_QR_STATUS_URL}?billNumber=${encodeURIComponent(intent.billNumber)}`, {
+    headers: { Authorization: `${auth.token_type} ${auth.access_token}` },
+  })
+  const statusRaw = await statusRes.text()
+  let statusData = null
+  try {
+    statusData = JSON.parse(statusRaw)
+  } catch {
+    throw new Error(`Invalid QR status response: HTTP ${statusRes.status} ${statusRaw.slice(0, 300)}`)
+  }
+  if (!statusRes.ok) {
+    throw new Error(`QR status HTTP ${statusRes.status}: ${statusRaw.slice(0, 500)}`)
+  }
+  return { statusData, status: extractQRStatus(statusData) }
+}
+
+async function recoverPaidQRIntent(intent, source = 'qr-reconciler') {
+  if (!intent?.billNumber || intent.appointmentId) return null
+
+  const existing = await fetchExistingAppointmentByPaymentId(intent.paymentId, intent)
+  if (existing) {
+    await updatePaymentIntent(intent.documentId, {
+      status: 'appointment_created',
+      appointment: existing.documentId || existing.id,
+    })
+    return existing.documentId || existing.id
+  }
+
+  const { statusData, status } = await checkQRStatusWithGateway(intent)
+  if (status !== 'PAID') return null
+
+  const paidTransactionId = extractEPayTransactionId(statusData)
+  await updatePaymentIntent(intent.documentId, {
+    status: 'paid',
+    metadata: {
+      ...(intent.metadata || {}),
+      source,
+      ...(paidTransactionId ? { epayTransactionId: paidTransactionId } : {}),
+      paidStatus: status,
+      paidAt: new Date().toISOString(),
+    },
+  })
+
+  return createPaidQRAppointmentFromIntent(intent, source, statusData)
 }
 
 function validateBookingPayload(booking) {
@@ -399,6 +522,35 @@ setInterval(() => {
     if (data.createdAt < cutoff) pendingQRPayments.delete(id)
   }
 }, 5 * 60 * 1000)
+
+let qrReconcileRunning = false
+async function reconcilePendingQRPayments() {
+  if (!PAYMENTS_LIVE || qrReconcileRunning) return
+  qrReconcileRunning = true
+  try {
+    const intents = (await findRecoverableQRPaymentIntents())
+      .map(normalizePersistedIntent)
+      .filter((intent) => intent?.billNumber && !intent.appointmentId)
+
+    for (const intent of intents) {
+      try {
+        const appointmentId = await recoverPaidQRIntent(intent)
+        if (appointmentId) {
+          console.log(`[QR Reconciler] appointment created for billNumber=${intent.billNumber}`)
+          pendingQRPayments.delete(String(intent.billNumber))
+        }
+      } catch (err) {
+        console.error(`[QR Reconciler] billNumber=${intent.billNumber} error:`, err.message)
+      }
+    }
+  } catch (err) {
+    console.error('[QR Reconciler] scan error:', err.message)
+  } finally {
+    qrReconcileRunning = false
+  }
+}
+setInterval(reconcilePendingQRPayments, 60 * 1000)
+setTimeout(reconcilePendingQRPayments, 15 * 1000)
 
 // Helper: get ePay OAuth token (for card widget payments)
 async function getEPayAuthToken(invoiceId, amount, currency = 'KZT') {
@@ -777,50 +929,8 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
           })
         }
 
-        const existing = await fetchExistingAppointmentByPaymentId(pending.paymentId, pending)
-        if (existing) {
-          pending.appointmentCreated = true
-          appointmentId = existing.documentId || existing.id
-          await updatePaymentIntent(pending.documentId, {
-            status: 'appointment_created',
-            appointment: appointmentId,
-          })
-          setTimeout(() => pendingQRPayments.delete(billNumber), 60 * 1000)
-          return res.json({ status, billNumber, appointmentId })
-        }
-
-        const apptRes = await fetch(`${STRAPI_API_URL}/api/appointments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}`,
-          },
-          body: JSON.stringify({
-            data: {
-              patient: pending.patientId,
-              doctor: pending.doctorId,
-              dateTime: pending.dateTime,
-              type: pending.type,
-              statuse: 'confirmed',
-              price: pending.price,
-              paymentStatus: 'paid',
-              paymentId: pending.paymentId,
-              roomId: pending.roomId,
-            },
-          }),
-        })
-        if (!apptRes.ok) {
-          const errText = await apptRes.text().catch(() => '')
-          throw new Error(`Strapi HTTP ${apptRes.status}: ${errText}`)
-        }
-        // Only mark as created after confirmed success — allows safe retry on failure
+        appointmentId = await createPaidQRAppointmentFromIntent(pending, 'halyk-qr-status', statusData)
         pending.appointmentCreated = true
-        const apptJson = await apptRes.json().catch(() => null)
-        appointmentId = apptJson?.data?.documentId || apptJson?.data?.id || null
-        await updatePaymentIntent(pending.documentId, {
-          status: 'appointment_created',
-          appointment: appointmentId,
-        })
         console.log(`[QR] Appointment created for billNumber: ${billNumber}`)
         setTimeout(() => pendingQRPayments.delete(billNumber), 60 * 1000)
       } catch (err) {
