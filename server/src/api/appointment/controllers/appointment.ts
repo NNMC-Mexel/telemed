@@ -7,6 +7,13 @@
 import { factories } from '@strapi/strapi';
 
 const ACTIVE_SLOT_STATUSES = ['pending', 'confirmed', 'in_progress'];
+const DEFAULT_PAID_APPOINTMENT_CREATE_GRACE_MINUTES = 15;
+const PAID_APPOINTMENT_CREATE_GRACE_MINUTES = (() => {
+  const value = Number(process.env.PAID_APPOINTMENT_CREATE_GRACE_MINUTES);
+  return Number.isFinite(value) && value >= 0
+    ? value
+    : DEFAULT_PAID_APPOINTMENT_CREATE_GRACE_MINUTES;
+})();
 
 const getActiveSlotKey = (doctorDocId: string | undefined, dateTime: string | undefined, status: string) => {
   if (!doctorDocId || !dateTime || !ACTIVE_SLOT_STATUSES.includes(status)) return null;
@@ -346,7 +353,17 @@ export default factories.createCoreController('api::appointment.appointment', ()
     if (!body.dateTime) return ctx.badRequest('dateTime is required');
     const parsedDate = new Date(body.dateTime);
     if (isNaN(parsedDate.getTime())) return ctx.badRequest('dateTime must be a valid ISO 8601 date');
-    if (parsedDate <= new Date()) return ctx.badRequest('dateTime must be in the future');
+    const now = new Date();
+    const isPaidGatewayCreate = isApiToken &&
+      body.paymentStatus === 'paid' &&
+      typeof body.paymentId === 'string' &&
+      body.paymentId.length > 0;
+    const paidGatewayCreateDeadline = new Date(
+      parsedDate.getTime() + PAID_APPOINTMENT_CREATE_GRACE_MINUTES * 60 * 1000
+    );
+    if (parsedDate <= now && (!isPaidGatewayCreate || now > paidGatewayCreateDeadline)) {
+      return ctx.badRequest('dateTime must be in the future');
+    }
 
     const ALLOWED_TYPES = ['video', 'chat'];
     const appointmentType = body.type || 'video';
