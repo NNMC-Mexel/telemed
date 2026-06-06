@@ -197,6 +197,20 @@ function extractEPayTransactionId(data) {
   return candidates.map((value) => String(value || '').trim()).find(Boolean) || null
 }
 
+function extractPaymentAmount(data) {
+  return data?.amount ?? data?.transaction?.amount ?? data?.transactions?.[0]?.amount
+}
+
+function assertPaidAmountMatches(statusData, expectedAmount, context) {
+  const amount = extractPaymentAmount(statusData)
+  if (amount === undefined || amount === null) return
+  const paid = Math.round(Number(amount))
+  const expected = Math.round(Number(expectedAmount))
+  if (!expected || paid !== expected) {
+    throw new Error(`${context} amount mismatch: paid=${amount} expected=${expectedAmount}`)
+  }
+}
+
 function getIntentTransactionId(intent) {
   return extractEPayTransactionId(intent) ||
     intent?.metadata?.epayTransactionId ||
@@ -394,6 +408,20 @@ async function recoverPaidQRIntent(intent, source = 'qr-reconciler') {
 
   const { statusData, status } = await checkQRStatusWithGateway(intent)
   if (status !== 'PAID') return null
+  try {
+    assertPaidAmountMatches(statusData, intent.amount || intent.price, `QR billNumber=${intent.billNumber}`)
+  } catch (err) {
+    await updatePaymentIntent(intent.documentId, {
+      status: 'failed',
+      metadata: {
+        ...(intent.metadata || {}),
+        source,
+        failedAt: new Date().toISOString(),
+        failureReason: err.message,
+      },
+    })
+    throw err
+  }
 
   const paidTransactionId = extractEPayTransactionId(statusData)
   await updatePaymentIntent(intent.documentId, {
@@ -893,7 +921,7 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
       return res.status(502).json({ error: 'Invalid QR status response' })
     }
     const status = extractQRStatus(statusData)
-    const amount = statusData?.amount ?? statusData?.transaction?.amount ?? statusData?.transactions?.[0]?.amount
+    const amount = extractPaymentAmount(statusData)
     const retCode = statusData?.retCode || statusData?.code || ''
     const errDescription = statusData?.errDescription || statusData?.message || statusData?.error || ''
     console.log(
@@ -907,8 +935,24 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
       return res.status(502).json({ error: 'QR status check failed' })
     }
 
-    if (amount !== undefined && status === 'PAID' && Math.round(Number(amount)) !== Math.round(Number(pending.price))) {
-      console.warn(`[QR Status] amount mismatch: billNumber=${billNumber} paid=${amount} expected=${pending.price}`)
+    if (status === 'PAID') {
+      try {
+        assertPaidAmountMatches(statusData, pending.price, `QR billNumber=${billNumber}`)
+      } catch (err) {
+        console.warn(`[QR Status] ${err.message}`)
+        if (pending.documentId) {
+          await updatePaymentIntent(pending.documentId, {
+            status: 'failed',
+            metadata: {
+              ...(pending.metadata || {}),
+              source: 'halyk-qr-status',
+              failedAt: new Date().toISOString(),
+              failureReason: err.message,
+            },
+          })
+        }
+        return res.status(402).json({ error: 'Payment amount does not match booking price' })
+      }
     }
 
     // Create appointment exactly once when payment is confirmed.
@@ -1272,7 +1316,8 @@ app.post('/api/payment/epay-callback', async (req, res) => {
   const persistedIntent = normalizePersistedIntent(
     await findPaymentIntent('invoiceId', invoiceId).catch(() => null)
   )
-  const intent = pendingCardPayments.get(invoiceId) || persistedIntent
+  const memoryIntent = pendingCardPayments.get(invoiceId)
+  const intent = persistedIntent || memoryIntent
   if (!intent) {
     console.warn(`[ePay webhook] no intent for invoiceId=${invoiceId}`)
     return
@@ -1293,11 +1338,11 @@ app.post('/api/payment/epay-callback', async (req, res) => {
           patient: intent.patientId,
           doctor: intent.doctorId,
           dateTime: intent.dateTime,
-          type: intent.consultationType || 'video',
+          type: intent.type || intent.consultationType || 'video',
           statuse: 'confirmed',
           price: expectedAmount,
           paymentStatus: 'paid',
-          roomId: intent.roomId || `room-webhook-${invoiceId}`,
+          roomId: intent.roomId,
           paymentId: invoiceId,
         },
       }),
@@ -1435,8 +1480,19 @@ app.post('/api/payment/epay-token', async (req, res) => {
     }
 
     const { invoiceId, amount, doctorId, dateTime, currency = 'KZT' } = req.body
+    const consultationType = req.body.type || 'video'
+    const roomId = req.body.roomId
     if (!invoiceId || !amount || !doctorId) {
       return res.status(400).json({ error: 'invoiceId, amount and doctorId required' })
+    }
+    const bookingError = validateBookingPayload({
+      doctorId,
+      dateTime,
+      type: consultationType,
+      roomId,
+    })
+    if (bookingError) {
+      return res.status(400).json({ error: bookingError })
     }
 
     // Validate amount against canonical doctor price in Strapi
@@ -1454,7 +1510,9 @@ app.post('/api/payment/epay-token', async (req, res) => {
     pendingCardPayments.set(String(invoiceId), {
       doctorId: String(doctorId),
       patientId: String(patient.id),
-      dateTime: dateTime || null,
+      dateTime,
+      roomId,
+      type: consultationType,
       amount: actualPrice,
       createdAt: Date.now(),
     })
@@ -1467,8 +1525,8 @@ app.post('/api/payment/epay-token', async (req, res) => {
       amount: actualPrice,
       currency,
       dateTime,
-      roomId: req.body.roomId || `pending-${invoiceId}`,
-      consultationType: req.body.type || 'video',
+      roomId,
+      consultationType,
       patient: patient.id,
       doctor: doctorId,
       metadata: { source: 'epay-token' },

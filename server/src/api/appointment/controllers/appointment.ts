@@ -820,10 +820,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
    * policy). Also accepts a user JWT for direct patient calls.
    */
   async findSlotConflicts(ctx) {
-    const authState = (ctx.state as any)?.auth;
-    const isApiToken =
-      authState?.strategy?.name === 'api-token' ||
-      authState?.credentials?.type === 'api-token';
+    const isApiToken = isApiTokenRequest(ctx);
     const isInternal = isApiToken || isInternalSlotRequest(ctx);
     const user = isInternal ? null : await getUserFromJwt(ctx);
     if (!isInternal && !user) return ctx.unauthorized('Not authenticated');
