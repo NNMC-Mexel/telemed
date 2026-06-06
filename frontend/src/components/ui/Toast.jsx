@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, createContext, useContext } from 'react'
+import { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react'
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react'
 import { cn } from '../../utils/helpers'
 
@@ -39,8 +39,9 @@ function ToastItem({ toast, onRemove }) {
 
   return (
     <div
+      role={toast.type === 'error' ? 'alert' : 'status'}
       className={cn(
-        'flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg backdrop-blur-sm max-w-sm w-full transition-all duration-300',
+        'flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg backdrop-blur-sm w-full transition-all duration-300',
         styles[toast.type] || styles.info,
         isExiting ? 'opacity-0 translate-x-4' : 'opacity-100 translate-x-0'
       )}
@@ -55,6 +56,7 @@ function ToastItem({ toast, onRemove }) {
       <button
         onClick={() => { setIsExiting(true); setTimeout(() => onRemove(toast.id), 300) }}
         className="flex-shrink-0 p-0.5 rounded-lg hover:bg-black/5 transition-colors"
+        aria-label="Close notification"
       >
         <X className="w-4 h-4" />
       </button>
@@ -77,18 +79,18 @@ export function ToastProvider({ children }) {
     return id
   }, [])
 
-  const toast = useCallback({
+  const toast = useMemo(() => ({
     success: (message, options) => addToast(message, 'success', options),
     error: (message, options) => addToast(message, 'error', { duration: 5000, ...options }),
     warning: (message, options) => addToast(message, 'warning', options),
     info: (message, options) => addToast(message, 'info', options),
-  }, [addToast])
+  }), [addToast])
 
   return (
     <ToastContext.Provider value={toast}>
       {children}
       {/* Toast container */}
-      <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+      <div className="safe-toast-viewport fixed z-[9999] flex flex-col gap-2 overflow-y-auto pointer-events-none">
         {toasts.map(t => (
           <div key={t.id} className="pointer-events-auto animate-slideDown">
             <ToastItem toast={t} onRemove={removeToast} />

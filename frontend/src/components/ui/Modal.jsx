@@ -42,7 +42,7 @@ function Modal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+    <div className="safe-modal-viewport fixed inset-0 z-50 flex items-center justify-center">
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fadeIn"
@@ -53,7 +53,7 @@ function Modal({
       <div
         className={cn(
           'relative w-full bg-white rounded-2xl shadow-2xl animate-scaleIn flex flex-col',
-          'max-h-[94dvh] sm:max-h-[85vh]',
+          'safe-modal-panel',
           sizes[size],
           className
         )}
@@ -85,7 +85,7 @@ function Modal({
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl shrink-0">
+          <div className="safe-modal-footer flex items-center gap-3 px-4 sm:px-6 pt-3 sm:pt-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl shrink-0">
             {footer}
           </div>
         )}

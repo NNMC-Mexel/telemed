@@ -101,7 +101,7 @@ function PublicLayout({ children }) {
             {/* Mobile Menu Panel */}
             <div
                 className={cn(
-                    'fixed left-0 top-0 h-(--app-height) w-72 bg-white z-60 transition-transform duration-300 lg:hidden flex flex-col',
+                    'fixed left-0 top-0 h-(--app-height) w-72 bg-white z-60 transition-transform duration-300 lg:hidden flex flex-col pt-[var(--safe-top)]',
                     isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
@@ -186,7 +186,7 @@ function PublicLayout({ children }) {
             {/* Header */}
             <header
                 className={cn(
-                    "fixed top-0 left-0 right-0 z-50 transition-colors duration-300",
+                    "fixed top-0 left-0 right-0 z-50 pt-[var(--safe-top)] transition-colors duration-300",
                     isScrolled || !isDarkHeaderPage
                         ? "bg-white shadow-sm"
                         : "bg-transparent",

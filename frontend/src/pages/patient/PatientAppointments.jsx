@@ -40,8 +40,8 @@ const statusVariants = {
 const CancelResultNotification = ({ show, refundable, amount, onClose, t }) => {
   if (!show) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fadeIn">
-      <div className={`bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl ${refundable ? 'border-2 border-green-200' : 'border-2 border-rose-200'}`}>
+    <div className="safe-modal-viewport fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fadeIn">
+      <div className={`safe-modal-panel overflow-y-auto bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl ${refundable ? 'border-2 border-green-200' : 'border-2 border-rose-200'}`}>
         <div className="text-center">
           <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 ${refundable ? 'bg-green-100' : 'bg-rose-100'}`}>
             {refundable ? (

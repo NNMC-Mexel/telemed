@@ -1743,9 +1743,9 @@ function VideoConsultation() {
 
       {/* Doctor: Confirm Complete Modal */}
       {showCompleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="safe-modal-viewport fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCompleteConfirm(false)} />
-          <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 animate-scaleIn">
+          <div className="safe-modal-panel relative w-full max-w-sm overflow-y-auto bg-white rounded-2xl shadow-2xl p-6 animate-scaleIn">
             <div className="text-center mb-5">
               <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <PhoneOff className="w-7 h-7 text-amber-600" />
@@ -1782,9 +1782,9 @@ function VideoConsultation() {
 
       {/* Patient Rating Modal */}
       {showRatingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="safe-modal-viewport fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 animate-scaleIn">
+          <div className="safe-modal-panel relative w-full max-w-md overflow-y-auto bg-white rounded-2xl shadow-2xl p-8 animate-scaleIn">
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Star className="w-8 h-8 text-teal-600" />

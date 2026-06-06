@@ -53,6 +53,11 @@
     --safe-right: env(safe-area-inset-right, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
+    --safe-screen-top: max(0.75rem, calc(var(--safe-top) + 0.75rem));
+    --safe-screen-right: max(0.75rem, calc(var(--safe-right) + 0.75rem));
+    --safe-screen-bottom: max(0.75rem, calc(var(--safe-bottom) + 0.75rem));
+    --safe-screen-left: max(0.75rem, calc(var(--safe-left) + 0.75rem));
+    --safe-modal-max-height: calc(100dvh - var(--safe-screen-top) - var(--safe-screen-bottom));
   }
 
   html {
@@ -184,6 +189,50 @@
   .animate-wiggle {
     animation: wiggle 0.8s ease-in-out 1;
     transform-origin: top center;
+  }
+
+  .safe-toast-viewport {
+    top: var(--safe-screen-top);
+    right: var(--safe-screen-right);
+    left: var(--safe-screen-left);
+    max-height: var(--safe-modal-max-height);
+    width: auto;
+  }
+
+  .safe-modal-viewport {
+    padding-top: var(--safe-screen-top);
+    padding-right: var(--safe-screen-right);
+    padding-bottom: var(--safe-screen-bottom);
+    padding-left: var(--safe-screen-left);
+  }
+
+  .safe-modal-panel {
+    max-height: var(--safe-modal-max-height);
+  }
+
+  .safe-modal-footer {
+    padding-bottom: max(0.75rem, calc(var(--safe-bottom) + 0.75rem));
+  }
+
+  @media (min-width: 640px) {
+    .safe-toast-viewport {
+      top: max(1rem, calc(var(--safe-top) + 1rem));
+      right: max(1rem, calc(var(--safe-right) + 1rem));
+      left: auto;
+      width: min(24rem, calc(100vw - 2rem));
+    }
+
+    .safe-modal-viewport {
+      padding: 1rem;
+    }
+
+    .safe-modal-panel {
+      max-height: min(85vh, calc(100dvh - 2rem));
+    }
+
+    .safe-modal-footer {
+      padding-bottom: 1rem;
+    }
   }
 
   /* Stagger Children Animation */

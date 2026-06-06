@@ -45,8 +45,8 @@ function ChangePasswordModal({ onClose }) {
 
   if (success) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+      <div className="safe-modal-viewport fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="safe-modal-panel overflow-y-auto bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
           <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-teal-600" />
           </div>
@@ -59,8 +59,8 @@ function ChangePasswordModal({ onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+    <div className="safe-modal-viewport fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="safe-modal-panel overflow-y-auto bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
         <h3 className="text-lg font-semibold text-slate-900 mb-6">{t('profile.change_password')}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
