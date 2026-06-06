@@ -49,7 +49,7 @@ function AdminDashboard() {
       
       // Получаем записи
       const appointmentsRes = await api.get('/api/appointments?populate=*&sort=createdAt:desc&pagination[limit]=10')
-      const { data: appointmentsData } = normalizeResponse(appointmentsRes)
+      const { data: appointmentsData, meta: appointmentsMeta } = normalizeResponse(appointmentsRes)
       
       // Получаем все завершённые записи для подсчёта дохода
       const completedRes = await api.get('/api/appointments?filters[statuse][$eq]=completed&pagination[limit]=1000')
@@ -61,7 +61,7 @@ function AdminDashboard() {
       setStats({
         totalUsers: usersData.length,
         totalDoctors: (doctorsData || []).length,
-        totalAppointments: (appointmentsData || []).length,
+        totalAppointments: appointmentsMeta?.pagination?.total ?? (appointmentsData || []).length,
         totalRevenue,
       })
       

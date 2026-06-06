@@ -6,12 +6,76 @@
  */
 import { factories } from '@strapi/strapi';
 
+const DOCTOR_DOCUMENT_WINDOW_HOURS = 48;
+
+const isUserAdmin = (user: any) => user?.role?.type === 'admin' || user?.userRole === 'admin';
+const isUserDoctor = (user: any) => user?.role?.type === 'doctor' || user?.userRole === 'doctor';
+
+const getDoctorForUser = (userId: number | string) =>
+  strapi.query('api::doctor.doctor').findOne({ where: { users_permissions_user: userId } });
+
+const getAppointmentForDocumentWrite = async (appointmentRef: number | string) => {
+  if (typeof appointmentRef === 'number') {
+    return strapi.query('api::appointment.appointment').findOne({
+      where: { id: appointmentRef },
+      populate: { doctor: true },
+    });
+  }
+
+  return strapi.documents('api::appointment.appointment').findOne({
+    documentId: String(appointmentRef),
+    populate: { doctor: { fields: ['id', 'documentId', 'consultationDuration'] } },
+  });
+};
+
+const getDoctorAppointmentDocumentWriteViolation = (appointment: any, doctorRecord: any) => {
+  const apptDoctorDocId = appointment?.doctor?.documentId;
+  if (!doctorRecord || apptDoctorDocId !== doctorRecord.documentId) {
+    return { type: 'forbidden', message: 'You can only upload documents for your own appointments' };
+  }
+
+  if ((appointment as any).statuse !== 'completed') {
+    return { type: 'badRequest', message: 'Medical conclusion documents can only be created after a completed consultation' };
+  }
+
+  const appointmentTime = new Date((appointment as any).dateTime);
+  if (Number.isNaN(appointmentTime.getTime())) {
+    return { type: 'badRequest', message: 'Appointment has invalid dateTime' };
+  }
+
+  const durationMinutes = Number((appointment as any).doctor?.consultationDuration) || 30;
+  const consultationEnd = new Date(appointmentTime.getTime() + (durationMinutes * 60 * 1000));
+  const now = new Date();
+
+  if (now < consultationEnd) {
+    return { type: 'badRequest', message: 'Medical conclusion documents can only be created after the consultation has ended' };
+  }
+
+  const windowEnd = new Date(consultationEnd.getTime() + (DOCTOR_DOCUMENT_WINDOW_HOURS * 60 * 60 * 1000));
+
+  if (now > windowEnd) {
+    return { type: 'badRequest', message: `Medical conclusion documents can only be changed within ${DOCTOR_DOCUMENT_WINDOW_HOURS} hours after the consultation` };
+  }
+
+  return null;
+};
+
+const applyWriteViolation = (ctx: any, violation: { type: string; message: string } | null) => {
+  if (!violation) return false;
+  if (violation.type === 'forbidden') {
+    ctx.forbidden(violation.message);
+  } else {
+    ctx.badRequest(violation.message);
+  }
+  return true;
+};
+
 export default factories.createCoreController('api::medical-document.medical-document', () => ({
   async find(ctx) {
     const user = ctx.state.user;
     if (!user) return ctx.forbidden('Not authenticated');
 
-    const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
+    const isAdmin = isUserAdmin(user);
     const populate = ['file', 'user', 'doctor', 'appointment', 'sharedWithDoctors'] as any;
     const sort = (ctx.query?.sort as any) || ['createdAt:desc'];
 
@@ -25,7 +89,7 @@ export default factories.createCoreController('api::medical-document.medical-doc
     }
 
     if (!isAdmin) {
-      const isDoctor = user.role?.type === 'doctor' || user.userRole === 'doctor';
+      const isDoctor = isUserDoctor(user);
 
       if (isDoctor) {
         const doctorRecord = await strapi
@@ -120,8 +184,8 @@ export default factories.createCoreController('api::medical-document.medical-doc
 
     const body = (ctx.request.body as any)?.data || ctx.request.body || {};
 
-    const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
-    const isDoctor = user.role?.type === 'doctor' || user.userRole === 'doctor';
+    const isAdmin = isUserAdmin(user);
+    const isDoctor = isUserDoctor(user);
 
     // Resolve user (patient) documentId
     let userDocId: string | undefined;
@@ -168,13 +232,9 @@ export default factories.createCoreController('api::medical-document.medical-doc
 
       // If a doctor is uploading, verify they are the doctor in the linked appointment
       if (isDoctor && !isAdmin) {
-        const doctorRecord = await strapi
-          .query('api::doctor.doctor')
-          .findOne({ where: { users_permissions_user: user.id } });
-
-        const apptDoctorDocId = appointmentRecord.doctor?.documentId;
-        if (!doctorRecord || apptDoctorDocId !== doctorRecord.documentId) {
-          return ctx.forbidden('You can only upload documents for your own appointments');
+        const doctorRecord = await getDoctorForUser(user.id);
+        if (applyWriteViolation(ctx, getDoctorAppointmentDocumentWriteViolation(appointmentRecord, doctorRecord))) {
+          return;
         }
       }
 
@@ -222,6 +282,59 @@ export default factories.createCoreController('api::medical-document.medical-doc
     return { data: document };
   },
 
+  async update(ctx) {
+    const user = ctx.state.user;
+    if (!user) return ctx.forbidden('Not authenticated');
+
+    const isAdmin = isUserAdmin(user);
+    const isDoctor = isUserDoctor(user);
+    const body = (ctx.request.body as any)?.data || ctx.request.body || {};
+    const { id } = ctx.params;
+
+    const existing = await strapi.documents('api::medical-document.medical-document').findOne({
+      documentId: id,
+      populate: {
+        user: { fields: ['id'] },
+        doctor: { fields: ['id', 'documentId'] },
+        appointment: {
+          fields: ['id', 'documentId', 'dateTime', 'statuse'],
+          populate: { doctor: { fields: ['id', 'documentId', 'consultationDuration'] } },
+        },
+      } as any,
+    });
+
+    if (!existing) return ctx.notFound('Document not found');
+
+    if (!isAdmin && isDoctor) {
+      const doctorRecord = await getDoctorForUser(user.id);
+      const documentDoctorDocId = (existing as any).doctor?.documentId;
+      if (!doctorRecord || documentDoctorDocId !== doctorRecord.documentId) {
+        return ctx.forbidden('You can only update documents you created for your own appointments');
+      }
+
+      let appointmentRecord = (existing as any).appointment;
+      if (body.appointment) {
+        appointmentRecord = await getAppointmentForDocumentWrite(body.appointment);
+        if (!appointmentRecord) return ctx.badRequest('Appointment not found');
+      }
+
+      if (appointmentRecord) {
+        if (applyWriteViolation(ctx, getDoctorAppointmentDocumentWriteViolation(appointmentRecord, doctorRecord))) {
+          return;
+        }
+      }
+    }
+
+    const updated = await strapi.documents('api::medical-document.medical-document').update({
+      documentId: id,
+      data: body,
+      status: 'published',
+      populate: ['file', 'user', 'doctor', 'appointment', 'sharedWithDoctors'],
+    });
+
+    return { data: updated };
+  },
+
   /**
    * Share a document with specific doctors.
    * PUT /api/medical-documents/:id/share
@@ -244,7 +357,7 @@ export default factories.createCoreController('api::medical-document.medical-doc
     if (!doc) return ctx.notFound('Document not found');
 
     // Only the document owner (patient) or admin can share
-    const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
+    const isAdmin = isUserAdmin(user);
     if (!isAdmin && (doc as any).user?.id !== user.id) {
       return ctx.forbidden('Only the document owner can manage sharing');
     }

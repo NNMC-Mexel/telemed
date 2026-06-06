@@ -578,9 +578,13 @@ export const conversationsAPI = {
             `/api/conversations/${id}?populate[users_permissions_users][populate]=*&populate[messages][populate]=*`
         ),
 
-    create: (participantIds) =>
+    create: (participantIds, appointmentId) =>
         api.post("/api/conversations", {
-            data: { users_permissions_users: participantIds },
+            data: {
+                users_permissions_users: participantIds,
+                participants: participantIds,
+                ...(appointmentId ? { appointment: appointmentId } : {}),
+            },
         }),
 
     update: (id, data) => api.put(`/api/conversations/${id}`, { data }),

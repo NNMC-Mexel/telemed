@@ -56,6 +56,8 @@ const TYPE_ICONS = {
   chat:  MessageCircle,
 }
 
+const getAppointmentDocumentId = (appointment) => appointment?.documentId || appointment?.id
+
 function StatCard({ icon: Icon, label, value, color }) {
   return (
     <Card>
@@ -384,12 +386,16 @@ function AdminAppointments() {
     if (!appointment || !newStatus) return
     setIsSaving(true)
     try {
-      await api.put(`/api/appointments/${appointment.id}`, { data: { statuse: newStatus } })
+      const appointmentDocumentId = getAppointmentDocumentId(appointment)
+      const response = await api.put(`/api/appointments/${appointmentDocumentId}`, { data: { statuse: newStatus } })
+      const updated = response?.data?.data
+      if (!updated) throw new Error('Appointment update returned empty response')
+
       setAppointments(prev =>
-        prev.map(a => a.id === appointment.id ? { ...a, status: newStatus, statuse: newStatus } : a)
+        prev.map(a => a.id === appointment.id ? { ...a, ...updated, status: updated.statuse || newStatus } : a)
       )
       if (detailAppointment?.id === appointment.id) {
-        setDetailAppointment(prev => ({ ...prev, status: newStatus }))
+        setDetailAppointment(prev => ({ ...prev, ...updated, status: updated.statuse || newStatus }))
       }
       toast.success(`→ ${newStatus}`)
       setStatusModal({ open: false, appointment: null, newStatus: null })
@@ -403,10 +409,14 @@ function AdminAppointments() {
 
   const handlePaymentStatusChange = async (apt, newPaymentStatus) => {
     try {
-      await api.put(`/api/appointments/${apt.id}`, { data: { paymentStatus: newPaymentStatus } })
-      setAppointments(prev => prev.map(a => a.id === apt.id ? { ...a, paymentStatus: newPaymentStatus } : a))
+      const appointmentDocumentId = getAppointmentDocumentId(apt)
+      const response = await api.put(`/api/appointments/${appointmentDocumentId}`, { data: { paymentStatus: newPaymentStatus } })
+      const updated = response?.data?.data
+      if (!updated) throw new Error('Appointment payment update returned empty response')
+
+      setAppointments(prev => prev.map(a => a.id === apt.id ? { ...a, ...updated, status: updated.statuse || a.status } : a))
       if (detailAppointment?.id === apt.id) {
-        setDetailAppointment(prev => ({ ...prev, paymentStatus: newPaymentStatus }))
+        setDetailAppointment(prev => ({ ...prev, ...updated, status: updated.statuse || prev.status }))
       }
       toast.success(t('admin_apt.success_payment'))
     } catch (err) {

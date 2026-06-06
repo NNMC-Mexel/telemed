@@ -74,7 +74,7 @@ const useChatStore = create((set, get) => ({
   },
 
   // Create or get conversation with user (no duplicates)
-  getOrCreateConversation: async (participantIds, currentUserId) => {
+  getOrCreateConversation: async (participantIds, currentUserId, appointmentId = null) => {
     set({ isLoading: true })
     try {
       // Ищем существующий диалог с этим участником
@@ -82,7 +82,11 @@ const useChatStore = create((set, get) => ({
       const otherIds = participantIds.filter(id => id !== currentUserId)
       const existing = conversations.find(conv => {
         const members = (conv.participants || conv.users_permissions_users || []).map(p => p.id)
-        return otherIds.every(id => members.includes(id))
+        const appointmentRef = conv.appointment?.documentId || conv.appointment?.id
+        const matchesAppointment = appointmentId
+          ? String(appointmentRef || '') === String(appointmentId)
+          : true
+        return matchesAppointment && otherIds.every(id => members.includes(id))
       })
 
       if (existing) {
@@ -90,8 +94,12 @@ const useChatStore = create((set, get) => ({
         return existing
       }
 
+      if (!appointmentId) {
+        throw new Error('appointment is required to create a conversation')
+      }
+
       // Создаём новую беседу только если не нашли существующую
-      const response = await conversationsAPI.create(participantIds)
+      const response = await conversationsAPI.create(participantIds, appointmentId)
       const { data } = normalizeResponse(response)
 
       set((state) => ({
