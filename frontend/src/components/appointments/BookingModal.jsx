@@ -200,7 +200,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
     // Halyk QR flow state
     const [halykQR, setHalykQR] = useState(null); // { qrcode, homebankLink, billNumber }
-    const [halykQRStatus, setHalykQRStatus] = useState("pending"); // pending | paid | paid_pending | appointment_error | rejected | expired
+    const [halykQRStatus, setHalykQRStatus] = useState("pending"); // pending | paid | paid_pending | appointment_error | refunded | rejected | expired
 
     // Real-time slot reservations: Map<time, expiresAt>
     const [reservedByOthers, setReservedByOthers] = useState(new Map())
@@ -759,6 +759,11 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             clearInterval(pollInterval);
                             setHalykQRStatus("appointment_error");
                         }
+                    } else if (status === "REFUNDED") {
+                        // Slot was taken after payment; the patient was refunded
+                        // automatically (QA BUG-05).
+                        clearInterval(pollInterval);
+                        setHalykQRStatus("refunded");
                     } else if (status === "REJECTED" || status === "CLOSED" || status === "RETURN") {
                         clearInterval(pollInterval);
                         setHalykQRStatus("rejected");
@@ -929,6 +934,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
         const isPaid = halykQRStatus === "paid";
         const isPaidPending = halykQRStatus === "paid_pending";
         const isAppointmentError = halykQRStatus === "appointment_error";
+        const isRefunded = halykQRStatus === "refunded";
         const isRejected = halykQRStatus === "rejected";
         const isExpired = halykQRStatus === "expired";
         const mobile = isMobileDevice();
@@ -996,6 +1002,23 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                     {t('booking.halyk_contact_support')}
                                 </Button>
                             </div>
+                        </>
+                    ) : isRefunded ? (
+                        <>
+                            <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center">
+                                <AlertCircle className="w-10 h-10 text-amber-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-semibold text-slate-900 mb-1">
+                                    {t('booking.halyk_refunded_title')}
+                                </h3>
+                                <p className="text-slate-500 text-sm">
+                                    {t('booking.halyk_refunded_desc')}
+                                </p>
+                            </div>
+                            <Button onClick={() => { setHalykQR(null); setHalykQRStatus("pending"); setSelectedTime(null); setStep(1); }}>
+                                {t('booking.halyk_pick_another')}
+                            </Button>
                         </>
                     ) : isRejected ? (
                         <>

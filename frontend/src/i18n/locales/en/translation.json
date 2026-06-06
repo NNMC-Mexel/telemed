@@ -466,6 +466,9 @@
     "halyk_appointment_error_title": "Payment received, appointment is being checked",
     "halyk_appointment_error_desc": "The payment was charged, but the appointment was not created automatically. Check your account or contact support with the receipt.",
     "halyk_contact_support": "Contact support",
+    "halyk_refunded_title": "Slot already taken — payment refunded",
+    "halyk_refunded_desc": "While you were paying, another patient booked this time. Your payment has been refunded automatically — the money will return to your account within a few days. Please choose another time.",
+    "halyk_pick_another": "Choose another time",
     "halyk_rejected_title": "Payment rejected",
     "halyk_rejected_desc": "Please try again or choose another method.",
     "halyk_retry": "Try again",
@@ -795,6 +798,9 @@
     "halyk_appointment_error_title": "Payment received, appointment is being checked",
     "halyk_appointment_error_desc": "The payment was charged, but the appointment was not created automatically. Check your account or contact support with the receipt.",
     "halyk_contact_support": "Contact support",
+    "halyk_refunded_title": "Slot already taken — payment refunded",
+    "halyk_refunded_desc": "While you were paying, another patient booked this time. Your payment has been refunded automatically — the money will return to your account within a few days. Please choose another time.",
+    "halyk_pick_another": "Choose another time",
     "halyk_rejected_title": "Payment rejected",
     "halyk_rejected_desc": "Please try again or choose another method.",
     "halyk_try_again": "Try again",
@@ -959,7 +965,8 @@
     "link_note": "🔗 Video consultation link will appear in your account",
     "home_btn": "Go home",
     "error_create": "Appointment creation error",
-    "error_fallback": "An error occurred. Please contact support."
+    "error_fallback": "An error occurred. Please contact support.",
+    "error_slot_conflict_refunded": "While the payment was processing, another patient booked this time. Your payment has been refunded automatically — the money will return to your account within a few days. Please choose another time."
   },
   "video": {
     "doctor": "Doctor",

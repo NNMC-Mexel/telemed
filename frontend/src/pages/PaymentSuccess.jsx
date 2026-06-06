@@ -58,9 +58,9 @@ function PaymentSuccess() {
                     body: JSON.stringify({ booking }),
                 }
             );
-            const result = await response.json();
+            const result = await response.json().catch(() => ({}));
 
-            if (response.ok && result.success) {
+            const markSuccess = () => {
                 sessionStorage.removeItem("pendingBooking");
                 broadcastSlotConfirmed(booking);
                 setAppointmentInfo({
@@ -70,17 +70,40 @@ function PaymentSuccess() {
                     price: booking.price,
                 });
                 setStatus("success");
+            };
+
+            if (response.ok && result.success) {
+                markSuccess();
+                return;
+            }
+
+            // The ePay webhook already created the appointment before this redirect
+            // handler ran. The server returns 409 ("already processed") — that's a
+            // success for the user, not an error (QA BUG-03).
+            if (response.status === 409 && result?.code !== "SLOT_CONFLICT_REFUNDED") {
+                markSuccess();
+                return;
+            }
+
+            // The slot was booked by someone else after the card was charged. The
+            // payment has been refunded automatically (QA BUG-05) — show a clear
+            // message and do not retry.
+            if (response.status === 409 && result?.code === "SLOT_CONFLICT_REFUNDED") {
+                sessionStorage.removeItem("pendingBooking");
+                setErrorMessage(t('payment.error_slot_conflict_refunded'));
+                setStatus("error");
+                return;
+            }
+
+            if (attempt < MAX_ATTEMPTS) {
+                setTimeout(
+                    () => createBookingAfterPayment(booking, userToken, attempt + 1),
+                    RETRY_DELAY_MS
+                );
             } else {
-                if (attempt < MAX_ATTEMPTS) {
-                    setTimeout(
-                        () => createBookingAfterPayment(booking, userToken, attempt + 1),
-                        RETRY_DELAY_MS
-                    );
-                } else {
-                    sessionStorage.removeItem("pendingBooking");
-                    setErrorMessage(result.error || t('payment.error_create'));
-                    setStatus("error");
-                }
+                sessionStorage.removeItem("pendingBooking");
+                setErrorMessage(result.error || t('payment.error_create'));
+                setStatus("error");
             }
         } catch (err) {
             if (attempt < MAX_ATTEMPTS) {

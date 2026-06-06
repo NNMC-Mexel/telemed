@@ -202,12 +202,85 @@ function extractPaymentAmount(data) {
 }
 
 function assertPaidAmountMatches(statusData, expectedAmount, context) {
-  const amount = extractPaymentAmount(statusData)
-  if (amount === undefined || amount === null) return
-  const paid = Math.round(Number(amount))
   const expected = Math.round(Number(expectedAmount))
-  if (!expected || paid !== expected) {
+  if (!expected) {
+    throw new Error(`${context} amount check failed: missing expected amount`)
+  }
+  const amount = extractPaymentAmount(statusData)
+  // Fail closed: if the gateway response omits the amount we cannot prove the
+  // payment matches the booking price, so we must NOT accept it. (Previously this
+  // returned early and accepted unverified payments — see QA BUG-04.)
+  if (amount === undefined || amount === null) {
+    throw new Error(`${context} amount missing in gateway response — cannot verify payment`)
+  }
+  const paid = Math.round(Number(amount))
+  if (paid !== expected) {
     throw new Error(`${context} amount mismatch: paid=${amount} expected=${expectedAmount}`)
+  }
+}
+
+// Detects the Strapi "slot already booked" 400 response so the gateway can tell
+// a permanent slot conflict apart from a transient backend error.
+function isSlotConflictResponse(status, bodyText) {
+  if (status !== 400) return false
+  try {
+    const j = JSON.parse(bodyText)
+    if (j?.error?.details?.code === 'SLOT_CONFLICT') return true
+    return /заброниров/i.test(j?.error?.message || '')
+  } catch {
+    return /заброниров/i.test(String(bodyText || ''))
+  }
+}
+
+// Auto-refunds a captured payment whose appointment could not be created
+// (e.g. the slot was booked by someone else between payment start and capture).
+// Returns { refunded: boolean, ... } and persists the resulting intent status.
+async function refundIntentForFailedAppointment(intent, transactionId, reason) {
+  const tid = transactionId || getIntentTransactionId(intent)
+  const amount = intent.amount || intent.price
+  const externalId = String(`refund-${reason}-${intent.paymentId}`)
+    .replace(/[^a-zA-Z0-9_-]/g, '-')
+    .slice(0, 80)
+  if (!tid) {
+    await updatePaymentIntent(intent.documentId, {
+      status: 'refund_failed',
+      metadata: {
+        ...(intent.metadata || {}),
+        refund: { failedAt: new Date().toISOString(), error: 'no transaction id', reason },
+      },
+    })
+    console.error(`[Refund] paymentId=${intent.paymentId} reason=${reason}: no transaction id`)
+    return { refunded: false, error: 'no transaction id' }
+  }
+  try {
+    const result = await requestEPayRefund({ provider: intent.provider, transactionId: tid, amount, externalId })
+    await updatePaymentIntent(intent.documentId, {
+      status: 'refunded',
+      metadata: {
+        ...(intent.metadata || {}),
+        epayTransactionId: tid,
+        refund: {
+          externalId,
+          amount: Math.round(Number(amount || 0)),
+          reason,
+          refundedAt: new Date().toISOString(),
+          result,
+        },
+      },
+    })
+    console.log(`[Refund] auto-refunded paymentId=${intent.paymentId} reason=${reason} tx=${tid}`)
+    return { refunded: true, result }
+  } catch (err) {
+    await updatePaymentIntent(intent.documentId, {
+      status: 'refund_failed',
+      metadata: {
+        ...(intent.metadata || {}),
+        epayTransactionId: tid,
+        refund: { externalId, reason, failedAt: new Date().toISOString(), error: err.message },
+      },
+    })
+    console.error(`[Refund] FAILED paymentId=${intent.paymentId} reason=${reason}: ${err.message}`)
+    return { refunded: false, error: err.message }
   }
 }
 
@@ -315,6 +388,7 @@ function normalizePersistedIntent(intent) {
     amount: Number(intent.amount),
     appointmentId: intent.appointment?.documentId,
     metadata: intent.metadata || {},
+    createdAt: intent.createdAt,
   }
 }
 
@@ -358,6 +432,20 @@ async function createPaidQRAppointmentFromIntent(intent, source, statusData = nu
   })
   if (!apptRes.ok) {
     const errText = await apptRes.text().catch(() => '')
+    // Slot was booked by someone else after the payment was captured: there is
+    // no way to honour this booking, so refund the patient automatically rather
+    // than retrying forever (QA BUG-05).
+    if (isSlotConflictResponse(apptRes.status, errText)) {
+      const refund = await refundIntentForFailedAppointment(
+        intent,
+        paidTransactionId || getIntentTransactionId(intent),
+        'slot_conflict'
+      )
+      const conflictErr = new Error(`Slot already booked after payment — refund ${refund.refunded ? 'issued' : 'failed'}`)
+      conflictErr.slotConflict = true
+      conflictErr.refund = refund
+      throw conflictErr
+    }
     throw new Error(`Strapi HTTP ${apptRes.status}: ${errText}`)
   }
 
@@ -576,6 +664,7 @@ setInterval(() => {
 // =====================================================
 const pendingSlotReservations = new Map()
 const SLOT_RESERVATION_TTL = 5 * 60 * 1000 // 5 minutes
+const MAX_RESERVATIONS_PER_USER = 3 // QA BUG-10: cap concurrent slot holds per user
 
 function releaseSlotBySocket(socketId) {
   for (const [key, val] of pendingSlotReservations) {
@@ -625,6 +714,145 @@ async function reconcilePendingQRPayments() {
 }
 setInterval(reconcilePendingQRPayments, 60 * 1000)
 setTimeout(reconcilePendingQRPayments, 15 * 1000)
+
+// =====================================================
+// Card (ePay widget) payment reconciler — QA BUG-01.
+// The browser redirect (epay-confirm) and the postLink webhook can both be lost
+// (user closes the tab + transient webhook failure). Unlike QR, card payments
+// had no durable recovery, so a captured card payment could end up with no
+// appointment and nothing retrying. This scans recent card intents that are
+// still pending/paid and reconciles them against ePay's transaction status.
+// =====================================================
+async function findRecoverableCardPaymentIntents(limit = 25) {
+  // Only scan recent intents to avoid hammering ePay for ancient abandoned sessions.
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const query =
+    `${STRAPI_API_URL}/api/payment-intents?filters[provider][$eq]=epay_card` +
+    '&filters[status][$in][0]=pending' +
+    '&filters[status][$in][1]=paid' +
+    `&filters[createdAt][$gte]=${encodeURIComponent(since)}` +
+    '&populate[patient][fields][0]=id' +
+    '&populate[doctor][fields][0]=id' +
+    '&populate[doctor][fields][1]=documentId' +
+    '&populate[appointment][fields][0]=documentId' +
+    '&sort=createdAt:desc' +
+    `&pagination[pageSize]=${encodeURIComponent(limit)}`
+  const res = await fetch(query, { headers: strapiServerHeaders() }).catch(() => null)
+  if (!res?.ok) return []
+  const json = await res.json().catch(() => null)
+  return Array.isArray(json?.data) ? json.data : []
+}
+
+async function checkCardStatusWithGateway(intent) {
+  const auth = await getEPayAuthToken(intent.invoiceId, intent.amount || intent.price || 0)
+  const statusRes = await fetch(
+    `${EPAY_TRANSACTION_STATUS_URL}?invoiceId=${encodeURIComponent(intent.invoiceId)}`,
+    { headers: { Authorization: `${auth.token_type} ${auth.access_token}` } }
+  )
+  const raw = await statusRes.text()
+  let statusData = null
+  try {
+    statusData = JSON.parse(raw)
+  } catch {
+    throw new Error(`Invalid card status response: HTTP ${statusRes.status} ${raw.slice(0, 300)}`)
+  }
+  if (!statusRes.ok) {
+    throw new Error(`Card status HTTP ${statusRes.status}: ${raw.slice(0, 500)}`)
+  }
+  const transactions = Array.isArray(statusData)
+    ? statusData
+    : (statusData?.transactions || [statusData])
+  const paidTx = transactions.find((t) => normalizeStatusValue(t?.status) === 'PAID')
+  return { statusData, transactions, paidTx }
+}
+
+async function recoverPaidCardIntent(intent, source = 'card-reconciler') {
+  if (!intent?.invoiceId || intent.appointmentId) return null
+
+  const existing = await fetchExistingAppointmentByPaymentId(intent.paymentId, intent)
+  if (existing) {
+    await updatePaymentIntent(intent.documentId, {
+      status: 'appointment_created',
+      appointment: existing.documentId || existing.id,
+    })
+    return existing.documentId || existing.id
+  }
+
+  const { paidTx } = await checkCardStatusWithGateway(intent)
+  if (!paidTx) {
+    // Expire stale unpaid sessions so they stop being rescanned (QA BUG-06).
+    const ageMs = Date.now() - new Date(intent.createdAt || 0).getTime()
+    if (intent.status === 'pending' && Number.isFinite(ageMs) && ageMs > 60 * 60 * 1000) {
+      await updatePaymentIntent(intent.documentId, {
+        status: 'expired',
+        metadata: { ...(intent.metadata || {}), source, expiredAt: new Date().toISOString() },
+      })
+    }
+    return null
+  }
+
+  // Verify amount + ownership before honouring the payment.
+  try {
+    assertPaidAmountMatches(paidTx, intent.amount || intent.price, `card invoiceId=${intent.invoiceId}`)
+  } catch (err) {
+    await updatePaymentIntent(intent.documentId, {
+      status: 'failed',
+      metadata: { ...(intent.metadata || {}), source, failedAt: new Date().toISOString(), failureReason: err.message },
+    })
+    throw err
+  }
+  if (intent.patientId && paidTx.accountId && String(paidTx.accountId) !== String(intent.patientId)) {
+    console.warn(`[Card Reconciler] accountId mismatch invoiceId=${intent.invoiceId}`)
+    return null
+  }
+
+  const paidTransactionId = extractEPayTransactionId(paidTx)
+  await updatePaymentIntent(intent.documentId, {
+    status: 'paid',
+    metadata: {
+      ...(intent.metadata || {}),
+      source,
+      ...(paidTransactionId ? { epayTransactionId: paidTransactionId } : {}),
+      paidAt: new Date().toISOString(),
+    },
+  })
+
+  return createPaidQRAppointmentFromIntent(intent, source, paidTx)
+}
+
+let cardReconcileRunning = false
+async function reconcilePendingCardPayments() {
+  if (!PAYMENTS_LIVE || cardReconcileRunning) return
+  cardReconcileRunning = true
+  try {
+    const intents = (await findRecoverableCardPaymentIntents())
+      .map(normalizePersistedIntent)
+      .filter((intent) => intent?.invoiceId && !intent.appointmentId)
+
+    for (const intent of intents) {
+      try {
+        const appointmentId = await recoverPaidCardIntent(intent)
+        if (appointmentId) {
+          console.log(`[Card Reconciler] appointment created for invoiceId=${intent.invoiceId}`)
+          confirmedInvoices.set(String(intent.invoiceId), { createdAt: Date.now() })
+          pendingCardPayments.delete(String(intent.invoiceId))
+        }
+      } catch (err) {
+        if (err.slotConflict) {
+          console.warn(`[Card Reconciler] invoiceId=${intent.invoiceId} slot conflict — refund ${err.refund?.refunded ? 'issued' : 'failed'}`)
+        } else {
+          console.error(`[Card Reconciler] invoiceId=${intent.invoiceId} error:`, err.message)
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Card Reconciler] scan error:', err.message)
+  } finally {
+    cardReconcileRunning = false
+  }
+}
+setInterval(reconcilePendingCardPayments, 60 * 1000)
+setTimeout(reconcilePendingCardPayments, 20 * 1000)
 
 // Helper: get ePay OAuth token (for card widget payments)
 async function getEPayAuthToken(invoiceId, amount, currency = 'KZT') {
@@ -787,7 +1015,8 @@ async function resolvePaidTransactionForRefund(intent) {
 // Step 1+2 of ePay QR by API: get token, generate QR, return qrcode + homebankLink
 app.post('/api/payment/create-halyk-qr', async (req, res) => {
   const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'
-  if (isRateLimited(clientIp, 'create-halyk-qr', 10, 60 * 60 * 1000)) {
+  // QA BUG-09: looser per-IP guard (NAT-safe), stricter per-user limit below.
+  if (isRateLimited(clientIp, 'create-halyk-qr-ip', 40, 60 * 60 * 1000)) {
     return res.status(429).json({ error: 'Too many payment requests. Please try again later.' })
   }
   try {
@@ -800,6 +1029,9 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
     const patient = await verifyHttpUserToken(userToken)
     if (!bookingData || !patient?.id) {
       return res.status(401).json({ error: 'Authenticated bookingData required' })
+    }
+    if (isRateLimited(`user:${patient.id}`, 'create-halyk-qr', 12, 60 * 60 * 1000)) {
+      return res.status(429).json({ error: 'Too many payment requests. Please try again later.' })
     }
 
     const bookingError = validateBookingPayload(bookingData)
@@ -1026,6 +1258,19 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
         console.log(`[QR] Appointment created for billNumber: ${billNumber}`)
         setTimeout(() => pendingQRPayments.delete(billNumber), 60 * 1000)
       } catch (err) {
+        if (err.slotConflict) {
+          // Slot was taken after payment; the patient has been refunded.
+          // Stop retrying and tell the client to show the refund message.
+          pending.appointmentCreated = true
+          setTimeout(() => pendingQRPayments.delete(billNumber), 60 * 1000)
+          console.warn(`[QR] slot conflict after payment billNumber=${billNumber} — refund ${err.refund?.refunded ? 'issued' : 'failed'}`)
+          return res.json({
+            status: 'REFUNDED',
+            reason: 'slot_conflict',
+            refunded: err.refund?.refunded !== false,
+            billNumber,
+          })
+        }
         console.error('[QR] appointment creation error:', err.message)
         // appointmentCreated stays false — next poll will retry
         return res.status(202).json({ status: 'PAID_PENDING_APPOINTMENT', billNumber })
@@ -1277,6 +1522,22 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
     if (!apptRes.ok) {
       const errText = await apptRes.text().catch(() => '')
       console.error('[epay-confirm] Strapi error:', apptRes.status, errText)
+      // Slot taken after the card was charged → refund automatically (QA BUG-05).
+      if (isSlotConflictResponse(apptRes.status, errText) && process.env.PAYMENTS_LIVE === 'true') {
+        const refundIntent =
+          (verifiedPaymentIntent?.documentId ? verifiedPaymentIntent : null) ||
+          normalizePersistedIntent(await findPaymentIntent('invoiceId', invoiceId).catch(() => null))
+        if (refundIntent?.documentId) {
+          const refund = await refundIntentForFailedAppointment(refundIntent, paidTransactionId, 'slot_conflict')
+          if (invoiceId) confirmedInvoices.set(invoiceId, { createdAt: Date.now() })
+          return res.status(409).json({
+            error: 'slot_conflict',
+            code: 'SLOT_CONFLICT_REFUNDED',
+            refunded: refund.refunded,
+          })
+        }
+        return res.status(409).json({ error: 'slot_conflict', code: 'SLOT_CONFLICT' })
+      }
       return res.status(502).json({ error: `Appointment creation failed: HTTP ${apptRes.status}` })
     }
 
@@ -1514,7 +1775,9 @@ app.post('/api/payment/refund-appointment', async (req, res) => {
 // Generates ePay OAuth token server-side (keeps ClientSecret secure)
 app.post('/api/payment/epay-token', async (req, res) => {
   const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'
-  if (isRateLimited(clientIp, 'epay-token', 10, 60 * 60 * 1000)) {
+  // QA BUG-09: a looser per-IP cap stops floods without blocking legitimate
+  // users who share an IP behind NAT; the tighter limit is per-user below.
+  if (isRateLimited(clientIp, 'epay-token-ip', 40, 60 * 60 * 1000)) {
     return res.status(429).json({ error: 'Too many payment requests. Please try again later.' })
   }
   try {
@@ -1525,6 +1788,9 @@ app.post('/api/payment/epay-token', async (req, res) => {
     const patient = await verifyHttpUserToken(getBearerToken(req))
     if (!patient?.id) {
       return res.status(401).json({ error: 'Authentication required' })
+    }
+    if (isRateLimited(`user:${patient.id}`, 'epay-token', 12, 60 * 60 * 1000)) {
+      return res.status(429).json({ error: 'Too many payment requests. Please try again later.' })
     }
 
     const { invoiceId, amount, doctorId, dateTime, currency = 'KZT' } = req.body
@@ -1936,6 +2202,26 @@ io.on('connection', (socket) => {
       })
       console.log(`[Slots] REJECTED ${key} — already held by socket ${existing.socketId}`)
       return
+    }
+
+    // QA BUG-10: cap how many slots one user can squat across tabs/sockets.
+    // Holds on this same socket are released below, so only count other sockets.
+    if (userId) {
+      let heldByUserElsewhere = 0
+      for (const [, v] of pendingSlotReservations) {
+        if (v.userId === userId && v.socketId !== socket.id && v.expiresAt > Date.now()) {
+          heldByUserElsewhere++
+        }
+      }
+      if (heldByUserElsewhere >= MAX_RESERVATIONS_PER_USER) {
+        socket.emit('reserve-slot-result', {
+          success: false,
+          time,
+          reason: 'Слишком много одновременно выбранных слотов. Завершите текущую бронь.',
+        })
+        console.log(`[Slots] REJECTED ${key} — user ${userId} holds ${heldByUserElsewhere} slots`)
+        return
+      }
     }
 
     // Release any previously held slot by this socket

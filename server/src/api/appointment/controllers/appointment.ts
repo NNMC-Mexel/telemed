@@ -180,6 +180,29 @@ const requestAutomaticRefund = async (appointment: any, amount: number) => {
   return data;
 };
 
+// QA BUG-07: when an automatic refund fails the money is still with the gateway
+// and a human must act. Notify every admin so it isn't lost in the logs.
+const notifyAdminsRefundFailure = async (details: any) => {
+  try {
+    const admins = await strapi.query('plugin::users-permissions.user').findMany({
+      where: { role: { type: 'admin' } },
+      limit: 50,
+    });
+    const svc = strapi.service('api::notification.notification');
+    for (const admin of admins) {
+      await svc.notifyUser(admin.id, {
+        title: 'Сбой автоматического возврата',
+        message: `Не удалось вернуть оплату по записи ${details.documentId}. Требуется ручной возврат через кабинет ePay.`,
+        type: 'system',
+        link: '/admin/appointments',
+        metadata: details,
+      });
+    }
+  } catch (err) {
+    strapi.log.error('notifyAdminsRefundFailure error:', err);
+  }
+};
+
 // ── Slot mutex: prevents two concurrent creates for the same doctor+time ──
 const slotLocks = new Map<string, Promise<void>>();
 
@@ -468,9 +491,15 @@ export default factories.createCoreController('api::appointment.appointment', ()
     }
     const actualPrice = Number(doctorRecord.price);
     const submittedPrice = Number(body.price);
-    if (!submittedPrice || submittedPrice !== actualPrice) {
+    // For a paid gateway create the price was locked when the payment intent was
+    // created and the patient has already been charged that amount. If the doctor
+    // changed their price mid-flow, re-validating against the *current* price would
+    // reject the booking and strand a captured payment (QA BUG-05), so we trust the
+    // locked, already-paid amount here and only require it to be a positive number.
+    if (!submittedPrice || (!isPaidGatewayCreate && submittedPrice !== actualPrice)) {
       return ctx.badRequest('Invalid appointment price');
     }
+    const priceToStore = isPaidGatewayCreate ? submittedPrice : actualPrice;
 
     // --- Restrict paymentStatus: only signaling server / admin may mark as paid ---
     const ALLOWED_STATUSES = ['pending', 'confirmed', 'cancelled', 'completed', 'in_progress'];
@@ -551,7 +580,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
           dateTime: body.dateTime,
           type: body.type || 'video',
           statuse: requestedStatus,
-          price: actualPrice,
+          price: priceToStore,
           roomId: body.roomId,
           paymentStatus: requestedPaymentStatus,
           ...(body.paymentId ? { paymentId: body.paymentId } : {}),
@@ -570,7 +599,12 @@ export default factories.createCoreController('api::appointment.appointment', ()
     });
 
     if (result.conflict) {
-      return ctx.badRequest('К сожалению, это время уже было забронировано другим пациентом. Пожалуйста, выберите другое свободное время.');
+      // Tag the response so the payment gateway can reliably tell a slot conflict
+      // apart from other 400s and trigger an automatic refund (QA BUG-05).
+      return ctx.badRequest(
+        'К сожалению, это время уже было забронировано другим пациентом. Пожалуйста, выберите другое свободное время.',
+        { code: 'SLOT_CONFLICT' }
+      );
     }
 
     // Audit log — structured so it can be filtered/exported
@@ -580,7 +614,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
       patientId: patientDocId,
       doctorId: doctorDocId,
       dateTime: body.dateTime,
-      price: actualPrice,
+      price: priceToStore,
       paymentStatus: requestedPaymentStatus,
       createdBy: user?.id ?? 'api-token',
       ip: ctx.request.ip,
@@ -605,6 +639,45 @@ export default factories.createCoreController('api::appointment.appointment', ()
     const { id: documentId } = ctx.params;
     const body = (ctx.request.body as any)?.data || ctx.request.body || {};
 
+    // Shared refund path used by patient, doctor AND admin cancellations.
+    // Issues the gateway refund, flips paymentStatus to 'refunded', and on
+    // failure alerts admins (QA BUG-02 / BUG-07). Returns the refreshed doc or null.
+    const performRefundForCancellation = async (appt: any, docId: string, amount: number) => {
+      try {
+        const refund = await requestAutomaticRefund({ ...appt, documentId: docId }, amount);
+        const refreshed = await strapi.documents('api::appointment.appointment').update({
+          documentId: docId,
+          data: { paymentStatus: 'refunded' },
+          status: 'published',
+        });
+        strapi.log.info(JSON.stringify({
+          audit: 'APPOINTMENT_REFUNDED',
+          documentId: docId,
+          paymentId: appt.paymentId,
+          amount,
+          refund,
+          ts: new Date().toISOString(),
+        }));
+        return refreshed;
+      } catch (err: any) {
+        strapi.log.error(JSON.stringify({
+          audit: 'APPOINTMENT_REFUND_FAILED',
+          documentId: docId,
+          paymentId: appt.paymentId,
+          amount,
+          error: err?.message || String(err),
+          ts: new Date().toISOString(),
+        }));
+        await notifyAdminsRefundFailure({
+          documentId: docId,
+          paymentId: appt.paymentId,
+          amount,
+          error: err?.message || String(err),
+        });
+        return null;
+      }
+    };
+
     // Admins bypass field restrictions
     if (isAdmin) {
       const current = await strapi.documents('api::appointment.appointment').findOne({
@@ -628,6 +701,24 @@ export default factories.createCoreController('api::appointment.appointment', ()
         data,
         status: 'published',
       });
+
+      // Admin-initiated cancellation of a paid appointment must refund the
+      // patient in full (QA BUG-02), unless the admin set the status manually.
+      const wasPaid = (current as any)?.paymentStatus === 'paid';
+      if (
+        process.env.PAYMENTS_LIVE === 'true' &&
+        wasPaid &&
+        nextStatus === 'cancelled' &&
+        body.paymentStatus !== 'refunded'
+      ) {
+        const refreshed = await performRefundForCancellation(
+          { ...(current as any), documentId },
+          documentId,
+          Number((current as any)?.price || 0),
+        );
+        return { data: refreshed || updated };
+      }
+
       return { data: updated };
     }
 
@@ -667,7 +758,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
         allowed.statuse = 'cancelled';
 
         // Refund only if cancelled more than CANCEL_REFUND_CUTOFF_HOURS before appointment
-        if ((appointment as any).paymentStatus === 'paid') {
+        if (process.env.PAYMENTS_LIVE === 'true' && (appointment as any).paymentStatus === 'paid') {
           const hoursUntil = (appointmentTime.getTime() - Date.now()) / (1000 * 60 * 60);
           if (hoursUntil >= CANCEL_REFUND_CUTOFF_HOURS) {
             shouldRequestRefund = true;
@@ -691,6 +782,17 @@ export default factories.createCoreController('api::appointment.appointment', ()
           return ctx.badRequest('Invalid status transition');
         }
         allowed.statuse = body.statuse;
+
+        // Doctor/clinic-initiated cancellation always refunds the patient in full,
+        // regardless of the 24h cutoff — it isn't the patient's fault (QA BUG-02).
+        if (
+          body.statuse === 'cancelled' &&
+          process.env.PAYMENTS_LIVE === 'true' &&
+          (appointment as any).paymentStatus === 'paid'
+        ) {
+          shouldRequestRefund = true;
+          refundAmount = Number((appointment as any).price || 0);
+        }
       }
       if (body.chatLog !== undefined) allowed.chatLog = body.chatLog;
     }
@@ -717,34 +819,12 @@ export default factories.createCoreController('api::appointment.appointment', ()
     });
 
     if (shouldRequestRefund) {
-      try {
-        const refund = await requestAutomaticRefund(
-          { ...(appointment as any), documentId },
-          refundAmount,
-        );
-        updated = await strapi.documents('api::appointment.appointment').update({
-          documentId,
-          data: { paymentStatus: 'refunded' },
-          status: 'published',
-        });
-        strapi.log.info(JSON.stringify({
-          audit: 'APPOINTMENT_REFUNDED',
-          documentId,
-          paymentId: (appointment as any).paymentId,
-          amount: refundAmount,
-          refund,
-          ts: new Date().toISOString(),
-        }));
-      } catch (err: any) {
-        strapi.log.error(JSON.stringify({
-          audit: 'APPOINTMENT_REFUND_FAILED',
-          documentId,
-          paymentId: (appointment as any).paymentId,
-          amount: refundAmount,
-          error: err?.message || String(err),
-          ts: new Date().toISOString(),
-        }));
-      }
+      const refreshed = await performRefundForCancellation(
+        { ...(appointment as any), documentId },
+        documentId,
+        refundAmount,
+      );
+      if (refreshed) updated = refreshed;
     }
 
     strapi.log.info(JSON.stringify({
