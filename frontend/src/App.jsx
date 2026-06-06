@@ -49,6 +49,7 @@ import TermsPage from './pages/TermsPage'
 
 // Stores
 import useAuthStore from './stores/authStore'
+import { initPushNotifications } from './services/pushNotifications'
 
 // Utils
 import { PATIENT_NAV_ITEMS, DOCTOR_NAV_ITEMS, ADMIN_NAV_ITEMS } from './utils/constants'
@@ -140,13 +141,21 @@ function AppHomeRoute() {
 }
 
 function App() {
-  const { fetchUser, token, _hasHydrated } = useAuthStore()
+  const { fetchUser, token, isAuthenticated, _hasHydrated } = useAuthStore()
 
   useEffect(() => {
     if (_hasHydrated && token) {
       fetchUser()
     }
   }, [token, fetchUser, _hasHydrated])
+
+  useEffect(() => {
+    if (_hasHydrated && isAuthenticated && token) {
+      initPushNotifications().catch((error) => {
+        console.error('push notifications init failed:', error)
+      })
+    }
+  }, [_hasHydrated, isAuthenticated, token])
 
   return (
     <ToastProvider>

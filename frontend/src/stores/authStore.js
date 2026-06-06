@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import api, { authAPI } from '../services/api'
+import { unregisterCurrentPushToken } from '../services/pushNotifications'
 
 // Decode JWT expiry without external library (no signature verification — just expiry)
 function getJwtExpiry(token) {
@@ -100,6 +101,7 @@ const useAuthStore = create(
 
       // Logout
       logout: () => {
+        unregisterCurrentPushToken()
         set({
           user: null,
           token: null,

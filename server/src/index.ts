@@ -63,6 +63,8 @@ const roleDefinitions = {
       'api::notification.notification.delete',
       'api::notification.notification.unreadCount',
       'api::notification.notification.markAllAsRead',
+      'api::notification.notification.registerPushToken',
+      'api::notification.notification.unregisterPushToken',
       // Upload
       'plugin::upload.content-api.upload',
       'plugin::upload.content-api.find',
@@ -117,6 +119,8 @@ const roleDefinitions = {
       'api::notification.notification.delete',
       'api::notification.notification.unreadCount',
       'api::notification.notification.markAllAsRead',
+      'api::notification.notification.registerPushToken',
+      'api::notification.notification.unregisterPushToken',
       // Upload
       'plugin::upload.content-api.upload',
       'plugin::upload.content-api.find',
@@ -187,6 +191,8 @@ const roleDefinitions = {
       'api::notification.notification.delete',
       'api::notification.notification.unreadCount',
       'api::notification.notification.markAllAsRead',
+      'api::notification.notification.registerPushToken',
+      'api::notification.notification.unregisterPushToken',
       // Articles — полный CRUD
       'api::article.article.find',
       'api::article.article.findOne',

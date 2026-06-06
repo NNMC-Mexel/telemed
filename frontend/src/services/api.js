@@ -710,4 +710,13 @@ export const notificationsAPI = {
         if (!documentId) return { data: { data: null } };
         return api.delete(`/api/notifications/${documentId}`);
     },
+
+    registerPushToken: async (data) => {
+        return api.post("/api/notifications/push-token", { data });
+    },
+
+    unregisterPushToken: async (token) => {
+        if (!token) return { data: { data: null } };
+        return api.delete("/api/notifications/push-token", { data: { token } });
+    },
 };

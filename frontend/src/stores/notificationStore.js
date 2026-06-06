@@ -52,6 +52,7 @@ const useNotificationStore = create((set, get) => ({
   error: null,
   pollTimer: null,
   visibilityBound: false,
+  pushEventBound: false,
   hasFetchedOnce: false,
 
   fetch: async ({ silent = false } = {}) => {
@@ -113,6 +114,13 @@ const useNotificationStore = create((set, get) => ({
       }
       document.addEventListener('visibilitychange', onVisibility)
       set({ visibilityBound: true })
+    }
+
+    if (!get().pushEventBound) {
+      window.addEventListener('medconnect:push-notification-received', () => {
+        get().fetch({ silent: true })
+      })
+      set({ pushEventBound: true })
     }
   },
 

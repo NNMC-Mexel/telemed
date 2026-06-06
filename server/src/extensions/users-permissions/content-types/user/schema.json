@@ -146,6 +146,10 @@
     },
     "i18n": {
       "type": "json"
+    },
+    "pushTokens": {
+      "type": "json",
+      "private": true
     }
   }
 }

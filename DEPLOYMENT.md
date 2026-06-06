@@ -41,6 +41,11 @@ SERVER_URL=https://medconnectserver.nnmc.kz
 SIGNALING_SERVER_URL=https://medconnectrtc.nnmc.kz
 SIGNALING_INTERNAL_SECRET=replace-with-shared-secret
 
+# Native mobile push notifications (choose one credential source)
+FIREBASE_SERVICE_ACCOUNT_BASE64=base64-encoded-service-account-json
+# or FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
+# or GOOGLE_APPLICATION_CREDENTIALS=/secure/path/firebase-service-account.json
+
 # Database: production uses PostgreSQL only
 DATABASE_CLIENT=postgres
 DATABASE_HOST=postgres
@@ -80,6 +85,12 @@ VITE_APP_NAME=MedConnect
 VITE_APP_VERSION=1.0.0
 VITE_PAYMENTS_LIVE=true
 ```
+
+### Mobile Push Credentials
+
+Для Android скачайте `google-services.json` из Firebase Console и положите его в `frontend/android/app/google-services.json`.
+
+Для iOS скачайте `GoogleService-Info.plist` из Firebase Console, добавьте его в `frontend/ios/App/App` через Xcode, включите Push Notifications capability и настройте APNs key/certificate в Firebase.
 
 ## Установка coturn (TURN relay)
 
