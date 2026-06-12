@@ -61,7 +61,8 @@
     "login_as_patient": "Sign in as Patient",
     "login_as_doctor": "Sign in as Doctor",
     "patient_cabinet": "Patient Dashboard",
-    "doctor_cabinet": "Doctor Dashboard"
+    "doctor_cabinet": "Doctor Dashboard",
+    "support": "Support"
   },
   "bottom_nav": {
     "book": "Book"
@@ -149,7 +150,7 @@
         "email": "Enter a valid email",
         "phone": "Enter a valid phone number",
         "iin": "IIN must be 12 digits",
-        "password": "Password must be at least 6 characters",
+        "password": "Password: at least 8 characters, with uppercase, lowercase, a digit and a special character",
         "confirm_password": "Passwords do not match",
         "terms": "You must accept the terms",
         "consents": "You must accept all required consents",
@@ -159,7 +160,14 @@
         "education": "Enter education",
         "phone_taken": "This phone number is already registered",
         "iin_taken": "This IIN is already registered",
-        "email_taken": "This email is already registered"
+        "email_taken": "This email is already registered",
+        "password_required": "Enter a password",
+        "password_too_short": "Password must be at least 8 characters long",
+        "password_whitespace_edges": "Password must not start or end with a space",
+        "password_needs_uppercase": "Add at least one uppercase letter",
+        "password_needs_lowercase": "Add at least one lowercase letter",
+        "password_needs_digit": "Add at least one digit",
+        "password_needs_special": "Add at least one special character (e.g. ! @ # $ %)"
       }
     },
     "forgot_password": {
@@ -337,7 +345,11 @@
       "/admin/specializations_sub": "Doctor directions",
       "/admin/settings": "Settings",
       "/admin/settings_sub": "System settings",
-      "default": "Page"
+      "default": "Page",
+      "/manager": "Support",
+      "/manager_sub": "Patient requests",
+      "/admin/support": "Support",
+      "/admin/support_sub": "Patient requests"
     }
   },
   "patient": {
@@ -544,7 +556,7 @@
     "invalid_email": "Invalid email format",
     "invalid_phone": "Invalid phone format",
     "invalid_iin": "IIN must be 12 digits",
-    "password_too_short": "Password must be at least 6 characters",
+    "password_too_short": "Password must be at least 8 characters long",
     "passwords_not_match": "Passwords do not match",
     "network_error": "Network error. Check your internet connection",
     "server_error": "Server error. Please try again later"
@@ -1526,5 +1538,28 @@
     "message_placeholder": "Write a message...",
     "select_dialog": "Select a conversation",
     "select_dialog_hint": "Select a conversation from the list to start chatting"
+  },
+  "support": {
+    "title": "Support",
+    "subtitle_online": "We're here 24/7",
+    "agent_replying": "{{name}} is replying to you",
+    "status_open": "Open",
+    "status_in_progress": "In progress",
+    "status_resolved": "Resolved",
+    "placeholder": "Type your question...",
+    "reply_placeholder": "Write a reply...",
+    "empty": "Message us — we'll help",
+    "empty_hint": "Describe your question and a manager will reply in this chat",
+    "resolved_notice": "This request is resolved. Send a message to reopen it.",
+    "attachment_sent": "📎 Attachment",
+    "attach": "Attach file",
+    "upload_error": "Failed to upload file",
+    "filter_all": "All",
+    "inbox_empty": "No requests yet",
+    "patient_fallback": "Patient",
+    "staff_label": "support",
+    "select_ticket": "Select a request",
+    "select_ticket_hint": "Choose a request from the list on the left",
+    "pinned_subtitle": "Service, booking and payment questions"
   }
 }

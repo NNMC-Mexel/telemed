@@ -722,6 +722,12 @@ export interface ApiConversationConversation
       Schema.Attribute.Private;
     messages: Schema.Attribute.Relation<'oneToMany', 'api::message.message'>;
     publishedAt: Schema.Attribute.DateTime;
+    supportStatus: Schema.Attribute.Enumeration<
+      ['open', 'in_progress', 'resolved']
+    > &
+      Schema.Attribute.DefaultTo<'open'>;
+    type: Schema.Attribute.Enumeration<['appointment', 'support']> &
+      Schema.Attribute.DefaultTo<'appointment'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1694,7 +1700,9 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 3;
       }>;
-    userRole: Schema.Attribute.Enumeration<['patient', 'doctor', 'admin']> &
+    userRole: Schema.Attribute.Enumeration<
+      ['patient', 'doctor', 'admin', 'manager']
+    > &
       Schema.Attribute.DefaultTo<'patient'>;
   };
 }

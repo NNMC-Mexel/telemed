@@ -11,6 +11,23 @@
   },
   "pluginOptions": {},
   "attributes": {
+    "type": {
+      "type": "enumeration",
+      "default": "appointment",
+      "enum": [
+        "appointment",
+        "support"
+      ]
+    },
+    "supportStatus": {
+      "type": "enumeration",
+      "default": "open",
+      "enum": [
+        "open",
+        "in_progress",
+        "resolved"
+      ]
+    },
     "users_permissions_users": {
       "type": "relation",
       "relation": "manyToMany",

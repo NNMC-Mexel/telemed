@@ -64,6 +64,8 @@ export default ({ env }) => {
     'strapi::poweredBy',
     'strapi::query',
     'strapi::body',
+    // После strapi::body: проверяет файлы из multipart до контроллера upload
+    { name: 'global::upload-guard', config: {} },
     'strapi::session',
     'strapi::favicon',
     'strapi::public',

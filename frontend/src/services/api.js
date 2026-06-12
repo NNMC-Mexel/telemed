@@ -113,6 +113,8 @@ if (typeof window !== 'undefined') {
   }
 }
 
+export const getApiBaseUrl = () => API_URL;
+
 const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -609,6 +611,35 @@ export const messagesAPI = {
     markAsRead: (id) =>
         api.put(`/api/messages/${id}`, {
             data: { isRead: true, readAt: new Date().toISOString() },
+        }),
+};
+
+// ===========================================
+// API для чата службы поддержки
+// ===========================================
+
+export const supportAPI = {
+    // Get-or-create: единственный support-тред текущего пользователя
+    getOrCreateConversation: () => api.post("/api/conversations/support"),
+
+    // Инбокс поддержки для менеджера/админа (все support-чаты)
+    getInbox: () => {
+        const query = new URLSearchParams();
+        query.append("filters[type][$eq]", "support");
+        query.append("sort", "lastMessageAt:desc");
+        return api.get(`/api/conversations?${query}`);
+    },
+
+    // Смена статуса обращения (staff)
+    setStatus: (documentId, supportStatus) =>
+        api.put(`/api/conversations/${documentId}/support-status`, {
+            data: { supportStatus },
+        }),
+
+    // Отметить чужие сообщения беседы прочитанными
+    markConversationRead: (conversationDocumentId) =>
+        api.post("/api/messages/mark-read", {
+            data: { conversation: conversationDocumentId },
         }),
 };
 

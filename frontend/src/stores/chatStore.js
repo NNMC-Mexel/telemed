@@ -1,8 +1,9 @@
 import { create } from 'zustand'
-import { 
-  conversationsAPI, 
-  messagesAPI, 
-  normalizeResponse 
+import {
+  conversationsAPI,
+  messagesAPI,
+  supportAPI,
+  normalizeResponse
 } from '../services/api'
 
 const useChatStore = create((set, get) => ({
@@ -52,10 +53,10 @@ const useChatStore = create((set, get) => ({
       })
       
       const { data } = normalizeResponse(response)
-      
-      set((state) => ({
-        messages: [...state.messages, data],
-      }))
+
+      // Через addMessage: socket-событие о своём же сообщении может прийти
+      // раньше REST-ответа — дедупликация защищает от дублей
+      get().addMessage(data)
       
       // Обновляем lastMessage в conversation
       try {
@@ -121,11 +122,39 @@ const useChatStore = create((set, get) => ({
     set({ currentConversation: conversation })
   },
 
-  // Add message to local state (for real-time updates)
+  // Add message to local state (for real-time updates), с дедупликацией
   addMessage: (message) => {
-    set((state) => ({
-      messages: [...state.messages, message],
-    }))
+    if (!message) return
+    set((state) => {
+      const exists = state.messages.some(
+        (m) =>
+          (message.documentId && m.documentId === message.documentId) ||
+          (message.id && m.id === message.id)
+      )
+      return exists ? {} : { messages: [...state.messages, message] }
+    })
+  },
+
+  // Открыть (или создать) тред службы поддержки текущего пользователя
+  openSupport: async () => {
+    const { conversations } = get()
+    const existing = conversations.find((c) => c.type === 'support')
+    if (existing) {
+      set({ currentConversation: existing })
+      return existing
+    }
+    try {
+      const response = await supportAPI.getOrCreateConversation()
+      const { data } = normalizeResponse(response)
+      set((state) => ({
+        currentConversation: data,
+        conversations: [data, ...state.conversations],
+      }))
+      return data
+    } catch (error) {
+      console.error('Error opening support conversation:', error)
+      return null
+    }
   },
 
   // Mark messages as read

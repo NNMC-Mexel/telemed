@@ -127,7 +127,8 @@
       "enum": [
         "patient",
         "doctor",
-        "admin"
+        "admin",
+        "manager"
       ]
     },
     "avatar": {

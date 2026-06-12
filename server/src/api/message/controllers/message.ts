@@ -4,6 +4,11 @@
  * При создании — автоматически sender = текущий user.
  */
 import { factories } from '@strapi/strapi';
+import { emitToConversation } from '../../../utils/realtime';
+
+const isAdminUser = (user: any) => user?.role?.type === 'admin' || user?.userRole === 'admin';
+const isManagerUser = (user: any) => user?.role?.type === 'manager' || user?.userRole === 'manager';
+const isStaffUser = (user: any) => isAdminUser(user) || isManagerUser(user);
 
 export default factories.createCoreController('api::message.message', ({ strapi }) => ({
   async findOne(ctx) {
@@ -61,6 +66,7 @@ export default factories.createCoreController('api::message.message', ({ strapi 
         return strapi.documents('api::conversation.conversation').findOne({
           documentId: String(documentId),
           status: 'published',
+          fields: ['id', 'documentId', 'type'],
           populate: { users_permissions_users: { fields: ['id'] } },
         });
       }
@@ -68,6 +74,7 @@ export default factories.createCoreController('api::message.message', ({ strapi 
       if (numericId) {
         return strapi.query('api::conversation.conversation').findOne({
           where: { id: Number(numericId) },
+          select: ['id', 'documentId', 'type'],
           populate: { users_permissions_users: { select: ['id'] } },
         });
       }
@@ -85,7 +92,9 @@ export default factories.createCoreController('api::message.message', ({ strapi 
 
       const members: any[] = (requestedConversation as any).users_permissions_users || [];
       const isMember = members.some((m) => m.id === user.id);
-      if (!isMember) return ctx.forbidden('Access denied');
+      const isSupportStaff =
+        isManagerUser(user) && (requestedConversation as any).type === 'support';
+      if (!isMember && !isSupportStaff) return ctx.forbidden('Access denied');
 
       conversationDocIds = [(requestedConversation as any).documentId].filter(Boolean);
     } else {
@@ -141,20 +150,24 @@ export default factories.createCoreController('api::message.message', ({ strapi 
     const conversation = typeof conversationRef === 'number'
       ? await strapi.query('api::conversation.conversation').findOne({
           where: { id: conversationRef },
+          select: ['id', 'documentId', 'type', 'supportStatus'],
           populate: { users_permissions_users: { select: ['id'] } },
         })
       : await strapi.documents('api::conversation.conversation').findOne({
           documentId: conversationRef,
           status: 'published',
+          fields: ['id', 'documentId', 'type', 'supportStatus'],
           populate: { users_permissions_users: { fields: ['id'] } },
         });
 
     if (!conversation) return ctx.badRequest('Conversation not found');
 
-    const isAdmin = user.role?.type === 'admin' || user.userRole === 'admin';
+    const isAdmin = isAdminUser(user);
+    const isSupport = (conversation as any).type === 'support';
+    const isSupportStaff = isManagerUser(user) && isSupport;
     const members: any[] = (conversation as any).users_permissions_users || [];
     const isMember = members.some((m) => m.id === user.id);
-    if (!isAdmin && !isMember) return ctx.forbidden('Access denied');
+    if (!isAdmin && !isMember && !isSupportStaff) return ctx.forbidden('Access denied');
 
     // Принудительно устанавливаем sender = текущий user. Используем document
     // service, потому что REST validation Strapi v5 отклоняет sender, если он
@@ -172,11 +185,93 @@ export default factories.createCoreController('api::message.message', ({ strapi 
       data: messageData as any,
       status: 'published',
       populate: {
-        sender: { fields: ['id', 'fullName', 'email'] },
+        sender: { fields: ['id', 'fullName', 'email', 'userRole'] },
         conversation: { fields: ['id', 'documentId'] },
       },
     });
 
+    // Поддерживаем lastMessage/lastMessageAt на беседе (обе версии: draft + published)
+    const convDocId = (conversation as any).documentId;
+    try {
+      const convUpdate: Record<string, any> = {
+        lastMessage: String(body.content || '').slice(0, 255),
+        lastMessageAt: new Date(),
+      };
+
+      // Авто-статусы support-обращения:
+      // менеджер ответил на открытое → «в работе»; пациент написал в решённое → снова «открыто»
+      if (isSupport) {
+        const currentStatus = (conversation as any).supportStatus;
+        if (isStaffUser(user) && currentStatus === 'open') {
+          convUpdate.supportStatus = 'in_progress';
+        } else if (!isStaffUser(user) && currentStatus === 'resolved') {
+          convUpdate.supportStatus = 'open';
+        }
+      }
+
+      await strapi.db.query('api::conversation.conversation').updateMany({
+        where: { documentId: convDocId },
+        data: convUpdate,
+      });
+
+      if (convUpdate.supportStatus) {
+        emitToConversation(convDocId, 'conversation:status', {
+          conversation: convDocId,
+          supportStatus: convUpdate.supportStatus,
+        });
+      }
+    } catch (error) {
+      strapi.log.error('message create: failed to update conversation metadata:', error);
+    }
+
     return { data: created };
+  },
+
+  /**
+   * POST /messages/mark-read
+   * Помечает прочитанными все чужие сообщения в беседе для текущего пользователя.
+   */
+  async markConversationRead(ctx) {
+    const user = ctx.state.user;
+    if (!user) return ctx.forbidden('Not authenticated');
+
+    const body = (ctx.request.body as any)?.data || ctx.request.body || {};
+    const conversationRef = body.conversation;
+    if (!conversationRef) return ctx.badRequest('conversation is required');
+
+    const conversation = await strapi.documents('api::conversation.conversation').findOne({
+      documentId: String(conversationRef),
+      status: 'published',
+      fields: ['id', 'documentId', 'type'],
+      populate: { users_permissions_users: { fields: ['id'] } },
+    });
+
+    if (!conversation) return ctx.notFound('Conversation not found');
+
+    const isSupportStaff = isStaffUser(user) && (conversation as any).type === 'support';
+    const members: any[] = (conversation as any).users_permissions_users || [];
+    const isMember = members.some((m) => m.id === user.id);
+    if (!isAdminUser(user) && !isMember && !isSupportStaff) {
+      return ctx.forbidden('Access denied');
+    }
+
+    const unread = await strapi.db.query('api::message.message').findMany({
+      where: {
+        conversation: { documentId: (conversation as any).documentId },
+        isRead: false,
+        sender: { id: { $ne: user.id } },
+      },
+      select: ['id', 'documentId'],
+    });
+
+    if (unread.length > 0) {
+      const docIds = [...new Set(unread.map((m: any) => m.documentId).filter(Boolean))];
+      await strapi.db.query('api::message.message').updateMany({
+        where: { documentId: { $in: docIds } },
+        data: { isRead: true, readAt: new Date() },
+      });
+    }
+
+    return { data: { marked: unread.length } };
   },
 }));

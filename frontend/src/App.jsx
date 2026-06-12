@@ -39,6 +39,9 @@ import AdminAppointments from './pages/admin/AdminAppointments'
 import AdminSpecializations from './pages/admin/AdminSpecializations'
 import AdminContent from './pages/admin/AdminContent'
 
+// Support Pages
+import SupportInbox from './pages/support/SupportInbox'
+
 // Other Pages
 import VideoConsultation from './pages/VideoConsultation'
 import NotificationsPage from './pages/NotificationsPage'
@@ -50,9 +53,10 @@ import TermsPage from './pages/TermsPage'
 // Stores
 import useAuthStore from './stores/authStore'
 import { initPushNotifications } from './services/pushNotifications'
+import { SplashScreen } from '@capacitor/splash-screen'
 
 // Utils
-import { PATIENT_NAV_ITEMS, DOCTOR_NAV_ITEMS, ADMIN_NAV_ITEMS } from './utils/constants'
+import { PATIENT_NAV_ITEMS, DOCTOR_NAV_ITEMS, ADMIN_NAV_ITEMS, MANAGER_NAV_ITEMS } from './utils/constants'
 import { isNativeMobileApp } from './utils/platform'
 
 // Loading component
@@ -88,6 +92,7 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
     // Redirect to appropriate dashboard based on role
     if (userRole === 'doctor') return <Navigate to="/doctor" replace />
     if (userRole === 'admin') return <Navigate to="/admin" replace />
+    if (userRole === 'manager') return <Navigate to="/manager" replace />
     return <Navigate to="/patient" replace />
   }
 
@@ -109,6 +114,7 @@ function PublicRoute({ children }) {
   if (isAuthenticated) {
     if (userRole === 'doctor') return <Navigate to="/doctor" replace />
     if (userRole === 'admin') return <Navigate to="/admin" replace />
+    if (userRole === 'manager') return <Navigate to="/manager" replace />
     return <Navigate to="/patient" replace />
   }
 
@@ -119,6 +125,7 @@ function getDashboardPath(user) {
   const userRole = user?.userRole || 'patient'
   if (userRole === 'doctor') return '/doctor'
   if (userRole === 'admin') return '/admin'
+  if (userRole === 'manager') return '/manager'
   return '/patient'
 }
 
@@ -142,6 +149,20 @@ function AppHomeRoute() {
 
 function App() {
   const { fetchUser, token, isAuthenticated, _hasHydrated } = useAuthStore()
+
+  useEffect(() => {
+    // Приложение готово: даём лого один цикл пульсации, затем плавно убираем
+    // нативный splash и веб-оверлей из index.html
+    const timer = setTimeout(() => {
+      SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {})
+      const overlay = document.getElementById('splash-screen')
+      if (overlay) {
+        overlay.classList.add('splash-screen--hide')
+        setTimeout(() => overlay.remove(), 500)
+      }
+    }, 1300)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     if (_hasHydrated && token) {
@@ -248,6 +269,20 @@ function App() {
           <Route path="appointments" element={<AdminAppointments />} />
           <Route path="specializations" element={<AdminSpecializations />} />
           <Route path="settings" element={<AdminContent />} />
+          <Route path="support" element={<SupportInbox />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+        </Route>
+
+        {/* Manager Routes */}
+        <Route
+          path="/manager"
+          element={
+            <ProtectedRoute allowedRoles={['manager']}>
+              <DashboardLayout navItems={MANAGER_NAV_ITEMS} />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<SupportInbox />} />
           <Route path="notifications" element={<NotificationsPage />} />
         </Route>
 

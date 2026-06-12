@@ -1,4 +1,5 @@
 import type { Core } from '@strapi/strapi';
+import { initRealtime } from './utils/realtime';
 
 const defaultSpecializations = [
   { name: 'Терапевт', description: 'Врач общей практики', icon: 'stethoscope', sortOrder: 1 },
@@ -49,9 +50,11 @@ const roleDefinitions = {
       'api::message.message.find',
       'api::message.message.findOne',
       'api::message.message.create',
+      'api::message.message.markConversationRead',
       'api::conversation.conversation.find',
       'api::conversation.conversation.findOne',
       'api::conversation.conversation.create',
+      'api::conversation.conversation.support',
       // Medical documents — чтение + создание
       'api::medical-document.medical-document.find',
       'api::medical-document.medical-document.findOne',
@@ -104,6 +107,7 @@ const roleDefinitions = {
       'api::message.message.find',
       'api::message.message.findOne',
       'api::message.message.create',
+      'api::message.message.markConversationRead',
       'api::conversation.conversation.find',
       'api::conversation.conversation.findOne',
       'api::conversation.conversation.create',
@@ -172,11 +176,14 @@ const roleDefinitions = {
       'api::message.message.create',
       'api::message.message.update',
       'api::message.message.delete',
+      'api::message.message.markConversationRead',
       'api::conversation.conversation.find',
       'api::conversation.conversation.findOne',
       'api::conversation.conversation.create',
       'api::conversation.conversation.update',
       'api::conversation.conversation.delete',
+      'api::conversation.conversation.support',
+      'api::conversation.conversation.setSupportStatus',
       // Medical documents — полный CRUD
       'api::medical-document.medical-document.find',
       'api::medical-document.medical-document.findOne',
@@ -217,6 +224,35 @@ const roleDefinitions = {
       'plugin::users-permissions.user.create',
       'plugin::users-permissions.user.update',
       'plugin::users-permissions.user.destroy',
+      'plugin::users-permissions.user.me',
+    ],
+  },
+  manager: {
+    name: 'Manager',
+    description: 'Менеджер службы поддержки — отвечает в чатах поддержки пациентов',
+    permissions: [
+      // Support conversations (доступ ограничен контроллером: только type=support)
+      'api::conversation.conversation.find',
+      'api::conversation.conversation.findOne',
+      'api::conversation.conversation.setSupportStatus',
+      'api::message.message.find',
+      'api::message.message.findOne',
+      'api::message.message.create',
+      'api::message.message.markConversationRead',
+      // Notifications — свои
+      'api::notification.notification.find',
+      'api::notification.notification.findOne',
+      'api::notification.notification.update',
+      'api::notification.notification.delete',
+      'api::notification.notification.unreadCount',
+      'api::notification.notification.markAllAsRead',
+      'api::notification.notification.registerPushToken',
+      'api::notification.notification.unregisterPushToken',
+      // Upload — для вложений в чате поддержки
+      'plugin::upload.content-api.upload',
+      'plugin::upload.content-api.find',
+      'plugin::upload.content-api.findOne',
+      // Users-permissions — профиль
       'plugin::users-permissions.user.me',
     ],
   },
@@ -371,5 +407,6 @@ export default {
     validatePaymentRefundConfig(strapi);
     await seedSpecializations(strapi);
     await seedRolesAndPermissions(strapi);
+    initRealtime(strapi);
   },
 };

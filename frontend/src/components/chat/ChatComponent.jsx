@@ -1,12 +1,20 @@
-import { useState, useRef, useEffect } from 'react'
-import { Send, Paperclip, Image, Smile, MoreVertical, Phone, Video, Search, Loader2 } from 'lucide-react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { Send, Paperclip, Image, Smile, MoreVertical, Phone, Video, Search, Loader2, LifeBuoy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Avatar from '../ui/Avatar'
 import Button from '../ui/Button'
 import { cn, formatTimeAgo, getSpecName } from '../../utils/helpers'
 import useChatStore from '../../stores/chatStore'
 import useAuthStore from '../../stores/authStore'
-import { getMediaUrl, appointmentsAPI } from '../../services/api'
+import { isStaffMessage } from '../../stores/supportStore'
+import { getMediaUrl, appointmentsAPI, supportAPI } from '../../services/api'
+import { subscribeToConversation } from '../../services/realtime'
+
+const SUPPORT_STATUS_STYLES = {
+  open: 'bg-amber-100 text-amber-700',
+  in_progress: 'bg-sky-100 text-sky-700',
+  resolved: 'bg-emerald-100 text-emerald-700',
+}
 
 function ChatComponent({ userRole = 'patient' }) {
   const { t, i18n } = useTranslation()
@@ -18,10 +26,12 @@ function ChatComponent({ userRole = 'patient' }) {
     messages, 
     currentConversation,
     isLoading,
-    fetchConversations, 
-    fetchMessages, 
+    fetchConversations,
+    fetchMessages,
     sendMessage,
     setCurrentConversation,
+    addMessage,
+    openSupport,
   } = useChatStore()
   
   const [newMessage, setNewMessage] = useState('')
@@ -42,8 +52,28 @@ function ChatComponent({ userRole = 'patient' }) {
   useEffect(() => {
     if (currentConversation?.id) {
       fetchMessages(currentConversation.id)
+      // Открыли тред поддержки — помечаем ответы прочитанными
+      if (currentConversation.type === 'support' && currentConversation.documentId) {
+        supportAPI.markConversationRead(currentConversation.documentId).catch(() => {})
+      }
     }
   }, [currentConversation?.id])
+
+  // Realtime: новые сообщения и статус открытой беседы приходят по сокету
+  useEffect(() => {
+    if (!currentConversation?.documentId) return
+    return subscribeToConversation(currentConversation.documentId, {
+      onMessage: (msg) => {
+        addMessage(msg)
+        if (currentConversation.type === 'support') {
+          supportAPI.markConversationRead(currentConversation.documentId).catch(() => {})
+        }
+      },
+      onStatus: ({ supportStatus }) => {
+        setCurrentConversation({ ...currentConversation, supportStatus })
+      },
+    })
+  }, [currentConversation?.documentId])
 
   useEffect(() => {
     if (userRole === 'patient' && user?.id) {
@@ -91,6 +121,8 @@ function ChatComponent({ userRole = 'patient' }) {
   }
 
   const filteredConversations = conversations.filter(conv => {
+    // Тред службы поддержки живёт в отдельном виджете, не в списке диалогов
+    if (conv.type === 'support') return false
     const participant = conv.participants?.find(p => p.id !== user?.id) || {}
     const name = participant.fullName || participant.username || ''
     return name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -99,6 +131,32 @@ function ChatComponent({ userRole = 'patient' }) {
   const getParticipant = (conv) => {
     return conv.participants?.find(p => p.id !== user?.id) || {}
   }
+
+  // Тред службы поддержки — закреплён над списком диалогов у пациента
+  const supportConversation = conversations.find(c => c.type === 'support')
+  const isSupportConv = currentConversation?.type === 'support'
+  const supportStatus = currentConversation?.supportStatus || supportConversation?.supportStatus || 'open'
+
+  const supportAgentName = useMemo(() => {
+    if (!isSupportConv) return null
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (isStaffMessage(messages[i])) {
+        return messages[i].sender?.fullName || null
+      }
+    }
+    return null
+  }, [messages, isSupportConv])
+
+  const handleOpenSupport = async () => {
+    setSelectedConsultation(null)
+    await openSupport()
+  }
+
+  const supportLastMessage = supportConversation
+    ? (typeof supportConversation.lastMessage === 'string'
+        ? supportConversation.lastMessage
+        : supportConversation.lastMessage?.content)
+    : null
 
   return (
     <div className="h-full min-h-0 max-w-full flex bg-white border-y border-slate-200 sm:border sm:rounded-2xl overflow-hidden">
@@ -123,6 +181,37 @@ function ChatComponent({ userRole = 'patient' }) {
 
         {/* Conversations */}
         <div className="flex-1 min-h-0 overflow-y-auto">
+          {/* Закреплённый тред службы поддержки — вся история обращений */}
+          {userRole === 'patient' && (
+            <button
+              onClick={handleOpenSupport}
+              className={cn(
+                'w-full p-4 flex items-start gap-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-100',
+                isSupportConv && !selectedConsultation && 'bg-teal-50'
+              )}
+            >
+              <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center shrink-0">
+                <LifeBuoy className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="font-medium text-slate-900 truncate">{t('support.title')}</h4>
+                  {supportConversation && (
+                    <span className={cn(
+                      'text-xs px-2 py-0.5 rounded-md shrink-0',
+                      SUPPORT_STATUS_STYLES[supportConversation.supportStatus || 'open']
+                    )}>
+                      {t(`support.status_${supportConversation.supportStatus || 'open'}`)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-slate-500 truncate">
+                  {supportLastMessage || t('support.pinned_subtitle')}
+                </p>
+              </div>
+            </button>
+          )}
+
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
@@ -311,7 +400,21 @@ function ChatComponent({ userRole = 'patient' }) {
               >
                 ←
               </button>
-              {(() => {
+              {isSupportConv ? (
+                <>
+                  <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center shrink-0">
+                    <LifeBuoy className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-slate-900 truncate">{t('support.title')}</h3>
+                    <p className="text-sm text-slate-500 truncate">
+                      {supportAgentName
+                        ? t('support.agent_replying', { name: supportAgentName })
+                        : t('support.subtitle_online')}
+                    </p>
+                  </div>
+                </>
+              ) : (() => {
                 const participant = getParticipant(currentConversation)
                 const participantName = participant.fullName || participant.username || t('chat.interlocutor')
                 const isOnline = participant.isOnline || false
@@ -342,15 +445,23 @@ function ChatComponent({ userRole = 'patient' }) {
               })()}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-600">
-                <Phone className="w-5 h-5" />
-              </button>
-              <button className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-600">
-                <Video className="w-5 h-5" />
-              </button>
-              <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
-                <MoreVertical className="w-5 h-5" />
-              </button>
+              {isSupportConv ? (
+                <span className={cn('text-xs px-2.5 py-1 rounded-lg', SUPPORT_STATUS_STYLES[supportStatus])}>
+                  {t(`support.status_${supportStatus}`)}
+                </span>
+              ) : (
+                <>
+                  <button className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+                    <Phone className="w-5 h-5" />
+                  </button>
+                  <button className="hidden sm:inline-flex p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+                    <Video className="w-5 h-5" />
+                  </button>
+                  <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -369,12 +480,19 @@ function ChatComponent({ userRole = 'patient' }) {
               messages.map((message) => {
                 const isMe = message.sender?.id === user?.id || message.senderId === user?.id
                 const time = new Date(message.createdAt || message.time)
+                const showSenderName = isSupportConv && !isMe && isStaffMessage(message)
+                const attachments = message.attachments || []
 
                 return (
                   <div
-                    key={message.id}
-                    className={cn('flex max-w-full', isMe ? 'justify-end' : 'justify-start')}
+                    key={message.documentId || message.id}
+                    className={cn('flex max-w-full flex-col', isMe ? 'items-end' : 'items-start')}
                   >
+                    {showSenderName && (
+                      <span className="text-xs text-slate-500 mb-1 px-1 truncate max-w-[70vw] sm:max-w-72">
+                        {message.sender?.fullName || t('support.title')}
+                      </span>
+                    )}
                     <div className={cn(
                       'max-w-[min(78vw,22rem)] rounded-2xl px-4 py-3 break-words',
                       isMe
@@ -382,6 +500,20 @@ function ChatComponent({ userRole = 'patient' }) {
                         : 'bg-slate-100 text-slate-900 rounded-bl-md'
                     )}>
                       <p className="text-sm break-words">{message.content}</p>
+                      {attachments.map((att) => {
+                        const url = getMediaUrl(att)
+                        if (!url) return null
+                        const isImage = (att.mime || '').startsWith('image/')
+                        return isImage ? (
+                          <a key={att.id} href={url} target="_blank" rel="noopener noreferrer" className="block mt-2">
+                            <img src={url} alt={att.name || 'attachment'} className="max-h-40 rounded-lg object-cover" />
+                          </a>
+                        ) : (
+                          <a key={att.id} href={url} target="_blank" rel="noopener noreferrer" className="mt-2 block text-sm underline break-all">
+                            {att.name || 'file'}
+                          </a>
+                        )
+                      })}
                       <p className={cn(
                         'text-xs mt-1',
                         isMe ? 'text-teal-100' : 'text-slate-400'

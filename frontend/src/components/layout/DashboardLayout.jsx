@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import MobileBottomNav from './MobileBottomNav'
+import SupportChatWidget from '../support/SupportChatWidget'
 import { cn } from '../../utils/helpers'
 
 function DashboardLayout({ navItems }) {
@@ -78,6 +79,8 @@ function DashboardLayout({ navItems }) {
         </main>
       </div>
       <MobileBottomNav />
+      {/* Виджет чата поддержки — только в кабинете пациента, не на странице чата */}
+      {path.startsWith('/patient') && !path.startsWith('/patient/chat') && <SupportChatWidget />}
     </div>
   )
 }

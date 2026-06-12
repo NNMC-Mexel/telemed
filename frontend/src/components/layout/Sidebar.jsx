@@ -13,6 +13,7 @@ import {
   Stethoscope,
   Tags,
   Activity,
+  LifeBuoy,
   X,
 } from 'lucide-react'
 import { cn } from '../../utils/helpers'
@@ -34,6 +35,7 @@ const iconMap = {
   stethoscope: Stethoscope,
   tags: Tags,
   activity: Activity,
+  'life-buoy': LifeBuoy,
 }
 
 function Sidebar({ navItems, onNavClick }) {

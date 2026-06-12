@@ -68,7 +68,12 @@ export const ADMIN_NAV_ITEMS = [
   { path: '/admin/doctors', label: 'nav.doctors', icon: 'stethoscope' },
   { path: '/admin/appointments', label: 'nav.admin_appointments', icon: 'calendar' },
   { path: '/admin/specializations', label: 'nav.admin_specializations', icon: 'tags' },
+  { path: '/admin/support', label: 'nav.support', icon: 'life-buoy' },
   { path: '/admin/settings', label: 'nav.admin_settings', icon: 'settings' },
+]
+
+export const MANAGER_NAV_ITEMS = [
+  { path: '/manager', label: 'nav.support', icon: 'life-buoy' },
 ]
 
 // API Endpoints
