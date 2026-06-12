@@ -7,7 +7,7 @@ import Input from '../../components/ui/Input'
 import Avatar from '../../components/ui/Avatar'
 import useAuthStore from '../../stores/authStore'
 import api from '../../services/api'
-import { formatDate, cn } from '../../utils/helpers'
+import { formatDate, cn, getPasswordError } from '../../utils/helpers'
 
 function ChangePasswordModal({ onClose }) {
   const { t } = useTranslation()
@@ -22,6 +22,11 @@ function ChangePasswordModal({ onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const passwordErrorKey = getPasswordError(form.password)
+    if (passwordErrorKey) {
+      setError(t(passwordErrorKey))
+      return
+    }
     if (form.password !== form.passwordConfirmation) {
       setError(t('auth.register.validation.confirm_password'))
       return

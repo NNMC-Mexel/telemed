@@ -183,6 +183,26 @@ export const isValidIIN = (iin) => {
   return /^\d{12}$/.test(iin)
 }
 
+// Password policy — MUST mirror the server source of truth
+// (server/src/extensions/users-permissions/password-policy.ts).
+// The client check is for UX only; the server enforces it authoritatively.
+export const PASSWORD_MIN_LENGTH = 8
+
+// Returns an i18n key for the first violated rule, or null if the password is valid.
+export const getPasswordError = (password) => {
+  const value = String(password || '')
+  if (!value) return 'auth.register.validation.password_required'
+  if (value.length < PASSWORD_MIN_LENGTH) return 'auth.register.validation.password_too_short'
+  if (value !== value.trim()) return 'auth.register.validation.password_whitespace_edges'
+  if (!/[A-ZА-ЯЁ]/.test(value)) return 'auth.register.validation.password_needs_uppercase'
+  if (!/[a-zа-яё]/.test(value)) return 'auth.register.validation.password_needs_lowercase'
+  if (!/\d/.test(value)) return 'auth.register.validation.password_needs_digit'
+  if (!/[^\p{L}\p{N}]/u.test(value)) return 'auth.register.validation.password_needs_special'
+  return null
+}
+
+export const isValidPassword = (password) => getPasswordError(password) === null
+
 // Check if doctor is currently within working hours
 export const isDoctorOnline = (doctor) => {
   if (doctor.isActive === false) return false

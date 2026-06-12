@@ -6,6 +6,7 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Card, CardContent } from '../components/ui/Card'
 import api from '../services/api'
+import { getPasswordError } from '../utils/helpers'
 
 function ResetPasswordPage() {
   const { t } = useTranslation()
@@ -23,8 +24,9 @@ function ResetPasswordPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (password.length < 6) {
-      setError(t('auth_flow.reset_min_error'))
+    const passwordErrorKey = getPasswordError(password)
+    if (passwordErrorKey) {
+      setError(t(passwordErrorKey))
       return
     }
     if (password !== passwordConfirmation) {

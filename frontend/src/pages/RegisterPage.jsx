@@ -11,7 +11,7 @@ import Input from '../components/ui/Input'
 import LanguageSwitcher from '../components/ui/LanguageSwitcher'
 import { Card, CardContent } from '../components/ui/Card'
 import useAuthStore from '../stores/authStore'
-import { formatKazakhstanPhoneInput, isValidEmail, isValidPhone, isValidIIN } from '../utils/helpers'
+import { formatKazakhstanPhoneInput, isValidEmail, isValidPhone, isValidIIN, getPasswordError } from '../utils/helpers'
 import { specializationsAPI, normalizeResponse, authAPI } from '../services/api'
 
 const REQUIRED_CONSENTS = [
@@ -85,8 +85,9 @@ function RegisterPage() {
     const errors = {}
     if (!formData.iin || !isValidIIN(formData.iin))
       errors.iin = t('auth.register.validation.iin')
-    if (!formData.password || formData.password.length < 6)
-      errors.password = t('auth.register.validation.password')
+    const passwordErrorKey = getPasswordError(formData.password)
+    if (passwordErrorKey)
+      errors.password = t(passwordErrorKey)
     if (formData.password !== formData.confirmPassword)
       errors.confirmPassword = t('auth.register.validation.confirm_password')
     if (REQUIRED_CONSENTS.some((key) => consents[key] !== true))

@@ -17,6 +17,7 @@
  * В B2B-модели врачи создаются только администратором клиники через админ-панель.
  */
 import crypto from 'crypto';
+import { validatePassword } from './password-policy';
 
 const sendConfirmationEmail = async (strapi: any, email: string, token: string) => {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:1342';
@@ -183,6 +184,8 @@ export default (plugin) => {
     const originalRegister = originalController.register;
     const originalCallback = originalController.callback;
     const originalForgotPassword = originalController.forgotPassword;
+    const originalResetPassword = originalController.resetPassword;
+    const originalChangePassword = originalController.changePassword;
 
     return {
       ...originalController,
@@ -352,6 +355,39 @@ export default (plugin) => {
         return originalForgotPassword(ctx);
       },
 
+      // Reset via emailed token — enforce the password policy before Strapi
+      // hashes and stores the new password (QA BUG-01).
+      async resetPassword(ctx) {
+        const requestBody = ctx.request?.body || {};
+        const sourceBody =
+          requestBody?.data && typeof requestBody.data === 'object'
+            ? requestBody.data
+            : requestBody;
+
+        const passwordCheck = validatePassword(sourceBody?.password);
+        if (!passwordCheck.valid) {
+          return ctx.badRequest(passwordCheck.message, { code: passwordCheck.code });
+        }
+
+        return originalResetPassword(ctx);
+      },
+
+      // Change password for an authenticated user — same policy applies.
+      async changePassword(ctx) {
+        const requestBody = ctx.request?.body || {};
+        const sourceBody =
+          requestBody?.data && typeof requestBody.data === 'object'
+            ? requestBody.data
+            : requestBody;
+
+        const passwordCheck = validatePassword(sourceBody?.password);
+        if (!passwordCheck.valid) {
+          return ctx.badRequest(passwordCheck.message, { code: passwordCheck.code });
+        }
+
+        return originalChangePassword(ctx);
+      },
+
       async register(ctx) {
         console.log('[auth.register] Custom registration handler started');
 
@@ -374,6 +410,14 @@ export default (plugin) => {
         if (!hasRequiredConsents(consents)) {
           return ctx.badRequest('All required medical and personal data consents must be accepted.');
         }
+
+        // Server-side password policy — the client check can be bypassed by
+        // calling the API directly (QA BUG-01).
+        const passwordCheck = validatePassword(cleanBody.password);
+        if (!passwordCheck.valid) {
+          return ctx.badRequest(passwordCheck.message, { code: passwordCheck.code });
+        }
+
         const normalizedPhone = normalizeKazakhstanPhone(phone);
         if (!normalizedPhone) {
           return ctx.badRequest('Phone must be a valid Kazakhstan number in +7 format.');

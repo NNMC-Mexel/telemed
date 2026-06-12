@@ -116,8 +116,63 @@
     <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://medconnectserver.nnmc.kz" />
     <link rel="dns-prefetch" href="https://medconnectserver.nnmc.kz" />
+
+    <!-- Splash overlay (native app only): seamlessly continues the native splash with a pulsing logo -->
+    <style>
+      #splash-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #ffffff;
+        transition: opacity 0.45s ease;
+      }
+      /* 49vmin of the full SVG canvas ≈ the 42vmin logo on the native splash */
+      #splash-screen img {
+        width: 49vmin;
+        height: 49vmin;
+        animation: splash-pulse 1.3s ease-in-out infinite;
+      }
+      #splash-screen p {
+        margin-top: 0.5rem;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: #0d9488;
+        animation: splash-fade-in 0.8s ease 0.2s both;
+      }
+      #splash-screen.splash-screen--hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      html.web-no-splash #splash-screen {
+        display: none;
+      }
+      @keyframes splash-pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.07); }
+      }
+      @keyframes splash-fade-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
+    <script>
+      // The Capacitor bridge is injected before page scripts on native platforms only
+      if (!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+        document.documentElement.classList.add('web-no-splash')
+      }
+    </script>
   </head>
   <body>
+    <div id="splash-screen" aria-hidden="true">
+      <img src="/splash-logo.svg" alt="" />
+      <p>MedConnect</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
