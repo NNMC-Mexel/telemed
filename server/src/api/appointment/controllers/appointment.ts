@@ -5,6 +5,7 @@
  * - Admin видит всё
  */
 import { factories } from '@strapi/strapi';
+import { randomUUID } from 'crypto';
 
 const ACTIVE_SLOT_STATUSES = ['pending', 'confirmed', 'in_progress'];
 const DEFAULT_PAID_APPOINTMENT_CREATE_GRACE_MINUTES = 15;
@@ -21,6 +22,123 @@ const PAYMENT_SLOT_HOLD_MINUTES = (() => {
     ? value
     : DEFAULT_PAYMENT_SLOT_HOLD_MINUTES;
 })();
+
+const getFrontendUrl = () => (process.env.FRONTEND_URL || 'http://localhost:1342').replace(/\/+$/, '');
+
+const generateRoomId = () => `room-${randomUUID()}`;
+
+const escapeHtml = (value: unknown) => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
+const formatAppointmentDateTime = (value: unknown) => {
+  const date = new Date(String(value || ''));
+  if (Number.isNaN(date.getTime())) return 'указанное время';
+
+  return new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Asia/Almaty',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+};
+
+const getDoctorUserForEmail = async (doctorDocId?: string) => {
+  if (!doctorDocId) return null;
+
+  const doctor = await strapi.query('api::doctor.doctor').findOne({
+    where: { documentId: doctorDocId },
+    populate: { users_permissions_user: true },
+  });
+
+  if (doctor?.users_permissions_user?.email) {
+    return doctor.users_permissions_user;
+  }
+
+  if (doctor?.userId) {
+    return strapi.query('plugin::users-permissions.user').findOne({
+      where: { id: doctor.userId },
+    });
+  }
+
+  return null;
+};
+
+const sendConsultationLinkEmails = async (appointment: any, doctorDocId?: string) => {
+  if (!appointment || appointment.type !== 'video' || !appointment.roomId) return;
+
+  try {
+    const consultationUrl = `${getFrontendUrl()}/consultation/${encodeURIComponent(appointment.roomId)}`;
+    const appointmentTime = formatAppointmentDateTime(appointment.dateTime);
+    const doctorUser = await getDoctorUserForEmail(doctorDocId);
+    const recipients = new Map<string, { name: string; role: 'patient' | 'doctor' }>();
+
+    if (appointment.patient?.email) {
+      recipients.set(String(appointment.patient.email).toLowerCase(), {
+        name: appointment.patient.fullName || 'пациент',
+        role: 'patient',
+      });
+    }
+
+    if (doctorUser?.email) {
+      recipients.set(String(doctorUser.email).toLowerCase(), {
+        name: doctorUser.fullName || appointment.doctor?.fullName || 'доктор',
+        role: 'doctor',
+      });
+    }
+
+    for (const [email, recipient] of recipients) {
+      const safeName = escapeHtml(recipient.name);
+      const safeUrl = escapeHtml(consultationUrl);
+      const roleText = recipient.role === 'doctor' ? 'доктора' : 'пациента';
+
+      try {
+        await strapi.plugin('email').service('email').send({
+          to: email,
+          subject: 'Ссылка на видеоконсультацию — MedConnect',
+          text: [
+            `Здравствуйте, ${recipient.name}!`,
+            '',
+            `Ваша видеоконсультация запланирована на ${appointmentTime}.`,
+            `Ссылка для подключения: ${consultationUrl}`,
+            '',
+            'Если вы не авторизованы, сначала войдите в аккаунт. После входа вы автоматически вернетесь в консультацию.',
+          ].join('\n'),
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+              <div style="background:#0d9488;padding:24px;text-align:center;border-radius:8px 8px 0 0;">
+                <h1 style="color:white;margin:0;font-size:24px;">MedConnect</h1>
+              </div>
+              <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
+                <p style="color:#475569;margin-top:0;">Здравствуйте, ${safeName}!</p>
+                <h2 style="color:#1e293b;margin:0 0 12px;">Видеоконсультация</h2>
+                <p style="color:#475569;">Консультация для ${roleText} запланирована на <b>${escapeHtml(appointmentTime)}</b>.</p>
+                <div style="text-align:center;margin:32px 0;">
+                  <a href="${safeUrl}"
+                     style="background:#0d9488;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
+                    Подключиться к консультации
+                  </a>
+                </div>
+                <p style="color:#64748b;font-size:14px;">
+                  Если вы не авторизованы, платформа сначала попросит войти в аккаунт, а затем автоматически вернет вас в консультацию.
+                </p>
+              </div>
+            </div>
+          `,
+        });
+      } catch (err) {
+        strapi.log.error(`sendConsultationLinkEmail error for ${email}:`, err);
+      }
+    }
+  } catch (err) {
+    strapi.log.error('sendConsultationLinkEmails error:', err);
+  }
+};
 
 const getActiveSlotKey = (doctorDocId: string | undefined, dateTime: string | undefined, status: string) => {
   if (!doctorDocId || !dateTime || !ACTIVE_SLOT_STATUSES.includes(status)) return null;
@@ -410,8 +528,15 @@ export default factories.createCoreController('api::appointment.appointment', ()
     if (!ALLOWED_TYPES.includes(appointmentType)) return ctx.badRequest('type must be video or chat');
 
     if (!body.doctor) return ctx.badRequest('doctor is required');
-    if (!body.roomId || typeof body.roomId !== 'string' || body.roomId.length > 128) {
-      return ctx.badRequest('roomId is required and must be a valid string');
+
+    let roomId: string | undefined;
+    if (body.roomId !== undefined) {
+      if (typeof body.roomId !== 'string' || body.roomId.trim().length === 0 || body.roomId.length > 128) {
+        return ctx.badRequest('roomId must be a valid string');
+      }
+      roomId = body.roomId;
+    } else if (appointmentType === 'video') {
+      roomId = generateRoomId();
     }
 
     // --- Working hours validation (skip for admin) ---
@@ -581,7 +706,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
           type: body.type || 'video',
           statuse: requestedStatus,
           price: priceToStore,
-          roomId: body.roomId,
+          ...(roomId ? { roomId } : {}),
           paymentStatus: requestedPaymentStatus,
           ...(body.paymentId ? { paymentId: body.paymentId } : {}),
           ...(activeSlotKey ? { activeSlotKey } : {}),
@@ -620,6 +745,8 @@ export default factories.createCoreController('api::appointment.appointment', ()
       ip: ctx.request.ip,
       ts: new Date().toISOString(),
     }));
+
+    await sendConsultationLinkEmails(result.appointment, doctorDocId);
 
     return { data: result.appointment };
   },

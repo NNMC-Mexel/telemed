@@ -72,6 +72,11 @@ function LoginPage() {
 
     const result = await login(formData.identifier, formData.password)
     if (result.success) {
+      const redirect = searchParams.get('redirect')
+      if (redirect?.startsWith('/') && !redirect.startsWith('//')) {
+        navigate(redirect, { replace: true })
+        return
+      }
       const role = result.user?.userRole || result.user?.role?.type || result.user?.role
       if (role === 'admin') navigate('/admin')
       else if (role === 'doctor') navigate('/doctor')

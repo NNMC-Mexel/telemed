@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ToastProvider } from './components/ui/Toast'
@@ -52,6 +52,7 @@ import TermsPage from './pages/TermsPage'
 
 // Stores
 import useAuthStore from './stores/authStore'
+import useConsultationStore from './stores/consultationStore'
 import { initPushNotifications } from './services/pushNotifications'
 import { SplashScreen } from '@capacitor/splash-screen'
 
@@ -75,6 +76,7 @@ function LoadingScreen() {
 // Protected Route Component
 function ProtectedRoute({ children, allowedRoles = [] }) {
   const { isAuthenticated, user, _hasHydrated } = useAuthStore()
+  const location = useLocation()
   
   // Ждём пока zustand загрузит данные из localStorage
   if (!_hasHydrated) {
@@ -85,7 +87,8 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
   const userRole = user?.userRole || 'patient'
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
+    const redirect = `${location.pathname}${location.search}${location.hash}`
+    return <Navigate to={`/login?redirect=${encodeURIComponent(redirect)}`} replace />
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
@@ -102,6 +105,7 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
 // Public Route (redirect if authenticated)
 function PublicRoute({ children }) {
   const { isAuthenticated, user, _hasHydrated } = useAuthStore()
+  const location = useLocation()
   
   // Ждём пока zustand загрузит данные из localStorage
   if (!_hasHydrated) {
@@ -112,6 +116,10 @@ function PublicRoute({ children }) {
   const userRole = user?.userRole || 'patient'
 
   if (isAuthenticated) {
+    const redirect = new URLSearchParams(location.search).get('redirect')
+    if (redirect?.startsWith('/') && !redirect.startsWith('//')) {
+      return <Navigate to={redirect} replace />
+    }
     if (userRole === 'doctor') return <Navigate to="/doctor" replace />
     if (userRole === 'admin') return <Navigate to="/admin" replace />
     if (userRole === 'manager') return <Navigate to="/manager" replace />
@@ -145,6 +153,66 @@ function AppHomeRoute() {
   }
 
   return <Navigate to={isAuthenticated ? getDashboardPath(user) : '/login'} replace />
+}
+
+function ConsultationLauncher() {
+  const { roomId } = useParams()
+  const { openConsultation } = useConsultationStore()
+
+  useEffect(() => {
+    if (roomId) openConsultation(roomId)
+  }, [roomId, openConsultation])
+
+  return null
+}
+
+function ActiveConsultation() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { user, isAuthenticated } = useAuthStore()
+  const {
+    activeRoomId,
+    isMinimized,
+    minimizeConsultation,
+    restoreConsultation,
+    closeConsultation,
+  } = useConsultationStore()
+
+  useEffect(() => {
+    if (!isAuthenticated && activeRoomId) {
+      closeConsultation()
+    }
+  }, [activeRoomId, closeConsultation, isAuthenticated])
+
+  if (!activeRoomId || !isAuthenticated) return null
+
+  const consultationPath = `/consultation/${activeRoomId}`
+  const isOnConsultationRoute = location.pathname === consultationPath
+  const shouldShowMinimized = isMinimized || !isOnConsultationRoute
+
+  const handleMinimize = () => {
+    minimizeConsultation()
+    if (location.pathname === consultationPath) {
+      const userRole = user?.userRole || 'patient'
+      navigate(userRole === 'doctor' ? '/doctor' : '/patient')
+    }
+  }
+
+  const handleRestore = () => {
+    restoreConsultation()
+    navigate(consultationPath)
+  }
+
+  return (
+    <VideoConsultation
+      key={activeRoomId}
+      roomId={activeRoomId}
+      isMinimized={shouldShowMinimized}
+      onMinimize={handleMinimize}
+      onRestore={handleRestore}
+      onClose={closeConsultation}
+    />
+  )
 }
 
 function App() {
@@ -291,7 +359,7 @@ function App() {
           path="/consultation/:roomId"
           element={
             <ProtectedRoute>
-              <VideoConsultation />
+              <ConsultationLauncher />
             </ProtectedRoute>
           }
         />
@@ -310,6 +378,7 @@ function App() {
         {/* 404 */}
         <Route path="*" element={<Navigate to={isNativeMobileApp() ? '/login' : '/'} replace />} />
       </Routes>
+      <ActiveConsultation />
     </BrowserRouter>
     </ToastProvider>
   )
