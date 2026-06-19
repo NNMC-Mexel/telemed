@@ -34,7 +34,8 @@ const getDoctorAppointmentDocumentWriteViolation = (appointment: any, doctorReco
     return { type: 'forbidden', message: 'You can only upload documents for your own appointments' };
   }
 
-  if ((appointment as any).statuse !== 'completed') {
+  const appointmentStatus = (appointment as any).statuse;
+  if (!['completed', 'in_progress'].includes(appointmentStatus)) {
     return { type: 'badRequest', message: 'Medical conclusion documents can only be created after a completed consultation' };
   }
 
