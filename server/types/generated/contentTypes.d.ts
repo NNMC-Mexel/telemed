@@ -489,6 +489,8 @@ export interface ApiAppointmentAppointment extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     dateTime: Schema.Attribute.DateTime;
     doctor: Schema.Attribute.Relation<'manyToOne', 'api::doctor.doctor'>;
+    doctorAccessGranted: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -503,11 +505,19 @@ export interface ApiAppointmentAppointment extends Struct.CollectionTypeSchema {
       'manyToOne',
       'plugin::users-permissions.user'
     >;
+    patientDocumentsStatus: Schema.Attribute.Enumeration<
+      ['not_provided', 'will_upload_later', 'no_documents', 'uploaded']
+    > &
+      Schema.Attribute.DefaultTo<'not_provided'>;
     paymentId: Schema.Attribute.String & Schema.Attribute.Unique;
     paymentStatus: Schema.Attribute.Enumeration<
       ['pending', 'paid', 'refunded', 'failed']
     > &
       Schema.Attribute.DefaultTo<'pending'>;
+    preparationChecklist: Schema.Attribute.JSON;
+    preparationReminder24hSentAt: Schema.Attribute.DateTime;
+    preparationReminder2hSentAt: Schema.Attribute.DateTime;
+    preparationUpdatedAt: Schema.Attribute.DateTime;
     price: Schema.Attribute.Integer & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     rating: Schema.Attribute.Integer &

@@ -321,29 +321,53 @@ function BookingModal({ isOpen, onClose, doctor }) {
         setConsultationLanguage(getPreferredLanguageCode(availableLanguageCodes, i18n.language));
     }, [availableLanguageCodes, consultationLanguage, i18n.language]);
 
+    const activeDoctorId = activeDoctor?.id;
+    const activeDoctorRef = useRef(activeDoctor);
+
     useEffect(() => {
+        activeDoctorRef.current = activeDoctor;
+    }, [activeDoctor]);
+
+    useEffect(() => {
+        let isCurrentRequest = true;
+
         const loadSlots = async () => {
-        if (selectedDate && activeDoctor?.id) {
-                setIsLoadingSlots(true);
-                try {
-                    const freshDoctor = await refreshDoctorProfile();
-                    const slotDoctor = freshDoctor || activeDoctor;
-            const dateStr = format(selectedDate, "yyyy-MM-dd");
-                    // Загружаем временные слоты из базы (если есть)
-            fetchTimeSlots(slotDoctor.id, dateStr);
-                    // Загружаем уже занятые слоты из записей
-                    const booked = await getBookedSlots(slotDoctor.id, dateStr);
+            if (!isOpen || !selectedDate || !activeDoctorId) return;
+
+            setIsLoadingSlots(true);
+            try {
+                const freshDoctor = await refreshDoctorProfile();
+                const slotDoctor = freshDoctor || activeDoctorRef.current;
+                const dateStr = format(selectedDate, "yyyy-MM-dd");
+                const slotDoctorId = slotDoctor?.id || activeDoctorId;
+
+                // Загружаем слоты из базы и уже занятые времена одним циклом.
+                // fetchTimeSlots раньше запускался без await, а обновление
+                // liveDoctor перезапускало этот эффект по ссылке activeDoctor.
+                const [, booked] = await Promise.all([
+                    fetchTimeSlots(slotDoctorId, dateStr),
+                    getBookedSlots(slotDoctorId, dateStr),
+                ]);
+                if (isCurrentRequest) {
                     setBookedSlots(booked);
-                } catch (err) {
-                    console.error("Error loading slots:", err);
+                }
+            } catch (err) {
+                console.error("Error loading slots:", err);
+                if (isCurrentRequest) {
                     setBookedSlots([]);
-                } finally {
+                }
+            } finally {
+                if (isCurrentRequest) {
                     setIsLoadingSlots(false);
                 }
             }
         };
+
         loadSlots();
-    }, [selectedDate, activeDoctor, activeDoctor?.id, fetchTimeSlots, refreshDoctorProfile]);
+        return () => {
+            isCurrentRequest = false;
+        };
+    }, [isOpen, selectedDate, activeDoctorId, fetchTimeSlots, refreshDoctorProfile]);
 
     useEffect(() => {
         if (!isOpen || step !== 1 || !selectedDate) return;
