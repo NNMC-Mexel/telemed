@@ -81,6 +81,32 @@
         "failed"
       ]
     },
+    "patientDocumentsStatus": {
+      "type": "enumeration",
+      "default": "not_provided",
+      "enum": [
+        "not_provided",
+        "will_upload_later",
+        "no_documents",
+        "uploaded"
+      ]
+    },
+    "doctorAccessGranted": {
+      "type": "boolean",
+      "default": false
+    },
+    "preparationChecklist": {
+      "type": "json"
+    },
+    "preparationUpdatedAt": {
+      "type": "datetime"
+    },
+    "preparationReminder24hSentAt": {
+      "type": "datetime"
+    },
+    "preparationReminder2hSentAt": {
+      "type": "datetime"
+    },
     "medical_documents": {
       "type": "relation",
       "relation": "oneToMany",

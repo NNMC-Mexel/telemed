@@ -8,7 +8,7 @@ import { io } from "socket.io-client";
 import Button from "../components/ui/Button";
 import useAuthStore from "../stores/authStore";
 import { formatPrice } from "../utils/helpers";
-import { getSignalingUrl } from "../services/api";
+import { documentsAPI, getSignalingUrl } from "../services/api";
 
 function PaymentSuccess() {
     const navigate = useNavigate();
@@ -46,6 +46,22 @@ function PaymentSuccess() {
         const MAX_ATTEMPTS = 3;
         const RETRY_DELAY_MS = 1500;
 
+        const finalizePreparation = async (appointment) => {
+            const appointmentId = appointment?.documentId || appointment?.id;
+            const preparation = booking?.preparation;
+            const documentIds = Array.isArray(preparation?.documentIds)
+                ? preparation.documentIds
+                : [];
+
+            if (!appointmentId) return;
+
+            await Promise.all(
+                documentIds.map((documentId) =>
+                    documentsAPI.update(documentId, { appointment: appointmentId }).catch(() => null)
+                )
+            );
+        };
+
         try {
             const response = await fetch(
                 `${getSignalingUrl()}/api/payment/epay-confirm`,
@@ -73,6 +89,7 @@ function PaymentSuccess() {
             };
 
             if (response.ok && result.success) {
+                await finalizePreparation(result.data);
                 markSuccess();
                 return;
             }

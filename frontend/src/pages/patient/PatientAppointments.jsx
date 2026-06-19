@@ -13,6 +13,8 @@ import {
   Loader2,
   AlertCircle,
   FileText,
+  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -23,6 +25,7 @@ import useAuthStore from '../../stores/authStore'
 import useAppointmentStore from '../../stores/appointmentStore'
 import { formatPrice, formatDate, getSpecName } from '../../utils/helpers'
 import { getMediaUrl, getServerNow } from '../../services/api'
+import { DOCUMENT_STATUS, getAppointmentPreparation } from '../../utils/appointmentPreparation'
 
 const ITEMS_PER_PAGE = 10
 const REFUND_CUTOFF_HOURS = 24
@@ -35,6 +38,14 @@ const statusVariants = {
   completed: 'success',
   cancelled: 'danger',
   no_show: 'warning',
+}
+
+const getPreparationLabel = (preparation, t) => {
+  if (preparation.status === 'ready') return t('appointments.prep_ready')
+  if (preparation.status === 'no_documents') return t('appointments.prep_no_documents')
+  if (preparation.status === 'access_missing') return t('appointments.prep_access_missing')
+  if (preparation.status === 'will_upload_later') return t('appointments.prep_later')
+  return t('appointments.prep_not_ready')
 }
 
 const CancelResultNotification = ({ show, refundable, amount, onClose, t }) => {
@@ -360,6 +371,7 @@ function PatientAppointments() {
               const canJoin = JOINABLE_APPOINTMENT_STATUSES.includes(appointment.status) &&
                              now >= fifteenMinBefore &&
                              now <= consultationEnd
+              const preparation = getAppointmentPreparation(appointment)
 
               return (
                 <Card key={appointment.id} hover>
@@ -439,6 +451,45 @@ function PatientAppointments() {
                         <p className="text-sm text-slate-600">
                           <span className="font-medium">{t('appointments.symptoms_label')}:</span> {appointment.symptoms}
                         </p>
+                      </div>
+                    )}
+
+                    {isUpcoming && (
+                      <div className="mt-4 pt-4 border-t border-slate-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">
+                              {t('appointments.prep_title')}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {getPreparationLabel(preparation, t)}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${
+                              preparation.documentsReady ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                            }`}>
+                              <FileText className="w-3.5 h-3.5" />
+                              {preparation.documentsStatus === DOCUMENT_STATUS.NO_DOCUMENTS
+                                ? t('appointments.prep_docs_none')
+                                : preparation.documentsReady
+                                ? t('appointments.prep_docs_ready')
+                                : t('appointments.prep_docs_waiting')}
+                            </span>
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${
+                              preparation.accessReady ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {preparation.accessReady ? (
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              ) : (
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              )}
+                              {preparation.accessReady
+                                ? t('appointments.prep_access_ready')
+                                : t('appointments.prep_access_waiting')}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </CardContent>

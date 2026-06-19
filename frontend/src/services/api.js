@@ -496,6 +496,9 @@ export const appointmentsAPI = {
             price: data.price,
             paymentStatus: data.paymentStatus || "paid",
             roomId: data.roomId,
+            ...(data.patientDocumentsStatus ? { patientDocumentsStatus: data.patientDocumentsStatus } : {}),
+            ...(data.doctorAccessGranted !== undefined ? { doctorAccessGranted: data.doctorAccessGranted } : {}),
+            ...(data.preparationChecklist ? { preparationChecklist: data.preparationChecklist } : {}),
             // Strapi v5 - пробуем разные форматы связей
             patient: patientId,
             doctor: doctorId,

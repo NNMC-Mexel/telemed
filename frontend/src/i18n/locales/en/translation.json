@@ -538,7 +538,26 @@
     "select_language": "Consultation language",
     "lang_ru": "Русский",
     "lang_kk": "Қазақша",
-    "lang_en": "English"
+    "lang_en": "English",
+    "step_prepare": "Prepare",
+    "prepare_title": "Prepare for the consultation",
+    "prepare_desc": "Upload lab results, reports, or images and allow Dr. {{name}} access.",
+    "prepare_documents_label": "Medical documents",
+    "prepare_upload": "Upload results or report",
+    "prepare_uploading": "Uploading...",
+    "prepare_existing_docs": "Your documents",
+    "prepare_document": "Document",
+    "prepare_document_type": "File",
+    "prepare_later": "I will upload later",
+    "prepare_no_documents": "I have no documents",
+    "prepare_access_title": "Allow doctor access",
+    "prepare_access_desc": "Dr. {{name}} can review the selected documents before this consultation.",
+    "prepare_check_documents": "Documents uploaded or marked as unavailable",
+    "prepare_check_access": "Doctor access granted",
+    "field_preparation": "Preparation",
+    "prepare_status_uploaded": "Documents uploaded: {{count}}",
+    "prepare_status_no_documents": "Patient has no documents",
+    "prepare_status_later": "Patient will upload later"
   },
   "appointment": {
     "status_pending": "Pending",
@@ -591,7 +610,11 @@
     "start_appointment": "Start appointment",
     "connect": "Join",
     "details": "Details",
-    "status_completed": "Completed"
+    "status_completed": "Completed",
+    "prep_ready": "Documents available",
+    "prep_no_documents": "No documents",
+    "prep_access_missing": "No access",
+    "prep_waiting": "Documents pending"
   },
   "doctor_profile": {
     "title": "Doctor Profile",
@@ -656,7 +679,18 @@
     "reset_dates": "Reset dates",
     "showing": "Showing {{from}}–{{to}} of {{total}}",
     "page_prev": "Previous",
-    "page_next": "Next"
+    "page_next": "Next",
+    "prep_title": "Consultation preparation",
+    "prep_ready": "Documents and access are ready",
+    "prep_no_documents": "You marked that there are no documents",
+    "prep_access_missing": "Documents selected, but doctor access is not granted",
+    "prep_later": "Documents can be uploaded before the consultation",
+    "prep_not_ready": "Documents are not uploaded yet",
+    "prep_docs_none": "No documents",
+    "prep_docs_ready": "Documents ready",
+    "prep_docs_waiting": "Documents pending",
+    "prep_access_ready": "Access granted",
+    "prep_access_waiting": "Access not granted"
   },
   "profile": {
     "patient_since": "Patient since {{date}}",
@@ -915,7 +949,11 @@
     "err_interval_empty": "Add at least one working interval",
     "err_interval_invalid": "Check interval start and end times",
     "err_interval_overlap": "Intervals must not overlap or be adjacent",
-    "err_interval_no_space": "Not enough time for a new interval"
+    "err_interval_no_space": "Not enough time for a new interval",
+    "prep_ready": "Documents available",
+    "prep_no_documents": "No documents",
+    "prep_access_missing": "No access",
+    "prep_waiting": "Documents pending"
   },
   "patients": {
     "title": "My Patients",

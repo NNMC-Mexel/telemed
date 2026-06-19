@@ -10,6 +10,7 @@ import {
     Star,
     ChevronRight,
     Loader2,
+    FileText,
 } from "lucide-react";
 import {
     Card,
@@ -28,6 +29,7 @@ import {
     formatDate,
     getLocalizedField,
 } from "../../utils/helpers";
+import { getAppointmentPreparation } from "../../utils/appointmentPreparation";
 
 const ACTIVE_APPOINTMENT_STATUSES = ["pending", "confirmed", "in_progress"];
 
@@ -138,6 +140,20 @@ function DoctorDashboard() {
             default:
                 return null;
         }
+    };
+
+    const getPreparationBadge = (appointment) => {
+        const preparation = getAppointmentPreparation(appointment);
+        if (preparation.status === 'ready') {
+            return <Badge variant='success'>{t('doctor.prep_ready')}</Badge>;
+        }
+        if (preparation.status === 'no_documents') {
+            return <Badge variant='default'>{t('doctor.prep_no_documents')}</Badge>;
+        }
+        if (preparation.status === 'access_missing') {
+            return <Badge variant='warning'>{t('doctor.prep_access_missing')}</Badge>;
+        }
+        return <Badge variant='warning'>{t('doctor.prep_waiting')}</Badge>;
     };
 
     const todayAppointments = appointments.filter((a) => {
@@ -336,6 +352,12 @@ function DoctorDashboard() {
                                                         )}
                                                     </div>
                                                 </div>
+                                                {!isPastConsultation && (
+                                                    <div className='mt-2 flex items-center gap-2'>
+                                                        <FileText className='w-4 h-4 text-slate-400' />
+                                                        {getPreparationBadge(appointment)}
+                                                    </div>
+                                                )}
                                                 {canJoin && appointment.roomId && (
                                                     <Link to={`/consultation/${appointment.roomId}`} className='block mt-2'>
                                                         <Button size='sm' className='w-full' leftIcon={<Video className='w-4 h-4' />}>
@@ -384,6 +406,7 @@ function DoctorDashboard() {
                                                     ) : (
                                                         getStatusBadge(appointment.statuse || appointment.status)
                                                     )}
+                                                    {!isPastConsultation && getPreparationBadge(appointment)}
                                                     {canJoin && appointment.roomId ? (
                                                         <Link to={`/consultation/${appointment.roomId}`}>
                                                             <Button size='sm' leftIcon={<Video className='w-4 h-4' />}>

@@ -8,6 +8,7 @@ import { factories } from '@strapi/strapi';
 import { randomUUID } from 'crypto';
 
 const ACTIVE_SLOT_STATUSES = ['pending', 'confirmed', 'in_progress'];
+const ALLOWED_PATIENT_DOCUMENT_STATUSES = ['not_provided', 'will_upload_later', 'no_documents', 'uploaded'];
 const DEFAULT_PAID_APPOINTMENT_CREATE_GRACE_MINUTES = 15;
 const PAID_APPOINTMENT_CREATE_GRACE_MINUTES = (() => {
   const value = Number(process.env.PAID_APPOINTMENT_CREATE_GRACE_MINUTES);
@@ -143,6 +144,37 @@ const sendConsultationLinkEmails = async (appointment: any, doctorDocId?: string
 const getActiveSlotKey = (doctorDocId: string | undefined, dateTime: string | undefined, status: string) => {
   if (!doctorDocId || !dateTime || !ACTIVE_SLOT_STATUSES.includes(status)) return null;
   return `${doctorDocId}:${new Date(dateTime).toISOString()}`;
+};
+
+const getPreparationData = (body: any) => {
+  const data: Record<string, any> = {};
+
+  if (body.patientDocumentsStatus !== undefined) {
+    if (!ALLOWED_PATIENT_DOCUMENT_STATUSES.includes(body.patientDocumentsStatus)) {
+      return { error: 'Invalid patientDocumentsStatus value' };
+    }
+    data.patientDocumentsStatus = body.patientDocumentsStatus;
+  }
+
+  if (body.doctorAccessGranted !== undefined) {
+    data.doctorAccessGranted = Boolean(body.doctorAccessGranted);
+  }
+
+  if (body.preparationChecklist !== undefined) {
+    if (
+      body.preparationChecklist !== null &&
+      (typeof body.preparationChecklist !== 'object' || Array.isArray(body.preparationChecklist))
+    ) {
+      return { error: 'preparationChecklist must be an object' };
+    }
+    data.preparationChecklist = body.preparationChecklist;
+  }
+
+  if (Object.keys(data).length > 0) {
+    data.preparationUpdatedAt = new Date().toISOString();
+  }
+
+  return { data };
 };
 
 const isApiTokenRequest = (ctx: any) => {
@@ -700,6 +732,8 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
       // Create appointment inside the lock — no one else can create for same slot
       const activeSlotKey = getActiveSlotKey(doctorDocId, body.dateTime, requestedStatus);
+      const preparation = getPreparationData(body);
+      if (preparation.error) return { validationError: preparation.error };
       const appointment = await strapi.documents('api::appointment.appointment').create({
         data: {
           dateTime: body.dateTime,
@@ -710,6 +744,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
           paymentStatus: requestedPaymentStatus,
           ...(body.paymentId ? { paymentId: body.paymentId } : {}),
           ...(activeSlotKey ? { activeSlotKey } : {}),
+          ...(preparation.data || {}),
           patient: patientDocId,
           doctor: doctorDocId,
         },
@@ -722,6 +757,10 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
       return { conflict: false, appointment };
     });
+
+    if ((result as any).validationError) {
+      return ctx.badRequest((result as any).validationError);
+    }
 
     if (result.conflict) {
       // Tag the response so the payment gateway can reliably tell a slot conflict
@@ -901,6 +940,13 @@ export default factories.createCoreController('api::appointment.appointment', ()
         if (body.rating !== undefined) allowed.rating = body.rating;
         if (body.review !== undefined) allowed.review = body.review;
       }
+
+      const preparation = getPreparationData(body);
+      if (preparation.error) return ctx.badRequest(preparation.error);
+      allowed = {
+        ...allowed,
+        ...(preparation.data || {}),
+      };
     } else if (isDoctorParticipant || isDoctor) {
       // Doctors may advance/update status and write chatLog
       const DOCTOR_ALLOWED_STATUSES = ['confirmed', 'in_progress', 'completed', 'cancelled'];

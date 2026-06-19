@@ -538,7 +538,26 @@
     "select_language": "Язык консультации",
     "lang_ru": "Русский",
     "lang_kk": "Қазақша",
-    "lang_en": "English"
+    "lang_en": "English",
+    "step_prepare": "Подготовка",
+    "prepare_title": "Подготовка к консультации",
+    "prepare_desc": "Загрузите анализы, выписки или снимки и разрешите доступ врачу {{name}}.",
+    "prepare_documents_label": "Медицинские документы",
+    "prepare_upload": "Загрузить анализы или выписку",
+    "prepare_uploading": "Загрузка...",
+    "prepare_existing_docs": "Ваши документы",
+    "prepare_document": "Документ",
+    "prepare_document_type": "Файл",
+    "prepare_later": "Загружу позже",
+    "prepare_no_documents": "У меня нет документов",
+    "prepare_access_title": "Разрешить врачу доступ",
+    "prepare_access_desc": "Врач {{name}} сможет заранее посмотреть выбранные документы для этой консультации.",
+    "prepare_check_documents": "Документы загружены или отмечено, что их нет",
+    "prepare_check_access": "Доступ врачу выдан",
+    "field_preparation": "Подготовка",
+    "prepare_status_uploaded": "Загружено документов: {{count}}",
+    "prepare_status_no_documents": "Пациент указал, что документов нет",
+    "prepare_status_later": "Пациент загрузит позже"
   },
   "appointment": {
     "status_pending": "Ожидает",
@@ -591,7 +610,11 @@
     "start_appointment": "Начать приём",
     "connect": "Подключиться",
     "details": "Детали",
-    "status_completed": "Завершён"
+    "status_completed": "Завершён",
+    "prep_ready": "Документы доступны",
+    "prep_no_documents": "Документов нет",
+    "prep_access_missing": "Нет доступа",
+    "prep_waiting": "Документы ожидаются"
   },
   "doctor_profile": {
     "title": "Профиль врача",
@@ -656,7 +679,18 @@
     "reset_dates": "Сбросить даты",
     "showing": "Показано {{from}}–{{to}} из {{total}}",
     "page_prev": "Назад",
-    "page_next": "Далее"
+    "page_next": "Далее",
+    "prep_title": "Подготовка к консультации",
+    "prep_ready": "Документы и доступ готовы",
+    "prep_no_documents": "Вы указали, что документов нет",
+    "prep_access_missing": "Документы выбраны, но доступ врачу не выдан",
+    "prep_later": "Документы можно загрузить до консультации",
+    "prep_not_ready": "Документы пока не загружены",
+    "prep_docs_none": "Документов нет",
+    "prep_docs_ready": "Документы готовы",
+    "prep_docs_waiting": "Документы ожидаются",
+    "prep_access_ready": "Доступ выдан",
+    "prep_access_waiting": "Доступ не выдан"
   },
   "profile": {
     "patient_since": "Пациент с {{date}}",
@@ -915,7 +949,11 @@
     "err_interval_empty": "Добавьте хотя бы один рабочий интервал",
     "err_interval_invalid": "Проверьте время начала и конца интервалов",
     "err_interval_overlap": "Интервалы не должны пересекаться или идти подряд",
-    "err_interval_no_space": "Недостаточно времени для нового интервала"
+    "err_interval_no_space": "Недостаточно времени для нового интервала",
+    "prep_ready": "Документы доступны",
+    "prep_no_documents": "Документов нет",
+    "prep_access_missing": "Нет доступа",
+    "prep_waiting": "Документы ожидаются"
   },
   "patients": {
     "title": "Мои пациенты",

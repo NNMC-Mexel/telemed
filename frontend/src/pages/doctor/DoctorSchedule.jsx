@@ -13,6 +13,7 @@ import {
     Calendar,
     Plus,
     Trash2,
+    FileText,
 } from "lucide-react";
 import {
     Card,
@@ -37,6 +38,7 @@ import {
     timeToMinutes,
     validateWorkingIntervals,
 } from "../../utils/schedule";
+import { getAppointmentPreparation } from "../../utils/appointmentPreparation";
 
 // Генерируем все возможные временные слоты для выбора в настройках (каждые 30 минут)
 const generateAllTimeOptions = () => {
@@ -562,6 +564,14 @@ function DoctorSchedule() {
                                                                     variant: 'default',
                                                                     label: appointmentStatus || t('schedule.status_pending'),
                                                                 };
+                                                                const preparation = getAppointmentPreparation(appointment);
+                                                                const preparationBadge = preparation.status === 'ready'
+                                                                    ? { variant: 'success', label: t('schedule.prep_ready') }
+                                                                    : preparation.status === 'no_documents'
+                                                                    ? { variant: 'default', label: t('schedule.prep_no_documents') }
+                                                                    : preparation.status === 'access_missing'
+                                                                    ? { variant: 'warning', label: t('schedule.prep_access_missing') }
+                                                                    : { variant: 'warning', label: t('schedule.prep_waiting') };
 
                                                                 return (
                                                                     <>
@@ -570,6 +580,12 @@ function DoctorSchedule() {
                                                                         ) : (
                                                                             <Badge variant={statusBadge.variant}>
                                                                                 {statusBadge.label}
+                                                                            </Badge>
+                                                                        )}
+                                                                        {!isPast && appointmentStatus !== 'cancelled' && (
+                                                                            <Badge variant={preparationBadge.variant}>
+                                                                                <FileText className='w-3 h-3 mr-1' />
+                                                                                {preparationBadge.label}
                                                                             </Badge>
                                                                         )}
                                                                         {canJoin && appointment.roomId && (

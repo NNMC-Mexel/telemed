@@ -538,7 +538,26 @@
     "select_language": "Консультация тілі",
     "lang_ru": "Русский",
     "lang_kk": "Қазақша",
-    "lang_en": "English"
+    "lang_en": "English",
+    "step_prepare": "Дайындық",
+    "prepare_title": "Кеңеске дайындық",
+    "prepare_desc": "Талдауларды, анықтамаларды немесе суреттерді жүктеп, {{name}} дәрігеріне рұқсат беріңіз.",
+    "prepare_documents_label": "Медициналық құжаттар",
+    "prepare_upload": "Талдау немесе анықтама жүктеу",
+    "prepare_uploading": "Жүктелуде...",
+    "prepare_existing_docs": "Құжаттарыңыз",
+    "prepare_document": "Құжат",
+    "prepare_document_type": "Файл",
+    "prepare_later": "Кейін жүктеймін",
+    "prepare_no_documents": "Құжаттарым жоқ",
+    "prepare_access_title": "Дәрігерге қолжетімділік беру",
+    "prepare_access_desc": "{{name}} дәрігері осы кеңеске дейін таңдалған құжаттарды көре алады.",
+    "prepare_check_documents": "Құжаттар жүктелді немесе жоқ деп белгіленді",
+    "prepare_check_access": "Дәрігерге қолжетімділік берілді",
+    "field_preparation": "Дайындық",
+    "prepare_status_uploaded": "Жүктелген құжаттар: {{count}}",
+    "prepare_status_no_documents": "Пациент құжаттар жоқ деп көрсетті",
+    "prepare_status_later": "Пациент кейін жүктейді"
   },
   "appointment": {
     "status_pending": "Күтуде",
@@ -591,7 +610,11 @@
     "start_appointment": "Қабылдауды бастау",
     "connect": "Қосылу",
     "details": "Толығырақ",
-    "status_completed": "Аяқталды"
+    "status_completed": "Аяқталды",
+    "prep_ready": "Құжаттар қолжетімді",
+    "prep_no_documents": "Құжаттар жоқ",
+    "prep_access_missing": "Қолжетімділік жоқ",
+    "prep_waiting": "Құжаттар күтілуде"
   },
   "doctor_profile": {
     "title": "Дәрігер профилі",
@@ -656,7 +679,18 @@
     "reset_dates": "Күндерді тазалау",
     "showing": "Көрсетілуде {{from}}–{{to}} / {{total}}",
     "page_prev": "Алдыңғы",
-    "page_next": "Келесі"
+    "page_next": "Келесі",
+    "prep_title": "Кеңеске дайындық",
+    "prep_ready": "Құжаттар және қолжетімділік дайын",
+    "prep_no_documents": "Құжаттар жоқ деп белгіледіңіз",
+    "prep_access_missing": "Құжаттар таңдалды, бірақ дәрігерге рұқсат берілмеді",
+    "prep_later": "Құжаттарды кеңеске дейін жүктеуге болады",
+    "prep_not_ready": "Құжаттар әлі жүктелмеген",
+    "prep_docs_none": "Құжаттар жоқ",
+    "prep_docs_ready": "Құжаттар дайын",
+    "prep_docs_waiting": "Құжаттар күтілуде",
+    "prep_access_ready": "Рұқсат берілді",
+    "prep_access_waiting": "Рұқсат берілмеді"
   },
   "profile": {
     "patient_since": "{{date}} бастап пациент",
@@ -915,7 +949,11 @@
     "err_interval_empty": "Кемінде бір жұмыс интервалын қосыңыз",
     "err_interval_invalid": "Интервалдың басталу және аяқталу уақытын тексеріңіз",
     "err_interval_overlap": "Интервалдар қиылыспауы немесе қатар келмеуі керек",
-    "err_interval_no_space": "Жаңа интервал үшін уақыт жеткіліксіз"
+    "err_interval_no_space": "Жаңа интервал үшін уақыт жеткіліксіз",
+    "prep_ready": "Құжаттар қолжетімді",
+    "prep_no_documents": "Құжаттар жоқ",
+    "prep_access_missing": "Қолжетімділік жоқ",
+    "prep_waiting": "Құжаттар күтілуде"
   },
   "patients": {
     "title": "Менің науқастарым",

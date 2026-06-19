@@ -155,6 +155,34 @@ function appointmentMatchesPaymentIntent(appointment, paymentId, expected = {}) 
   return true
 }
 
+const ALLOWED_PATIENT_DOCUMENT_STATUSES = new Set([
+  'not_provided',
+  'will_upload_later',
+  'no_documents',
+  'uploaded',
+])
+
+function buildPreparationFields(source = {}) {
+  const preparation = source.preparation || source.metadata?.preparation || source
+  const data = {}
+
+  if (ALLOWED_PATIENT_DOCUMENT_STATUSES.has(preparation?.patientDocumentsStatus)) {
+    data.patientDocumentsStatus = preparation.patientDocumentsStatus
+  }
+  if (preparation?.doctorAccessGranted !== undefined) {
+    data.doctorAccessGranted = Boolean(preparation.doctorAccessGranted)
+  }
+  if (
+    preparation?.preparationChecklist &&
+    typeof preparation.preparationChecklist === 'object' &&
+    !Array.isArray(preparation.preparationChecklist)
+  ) {
+    data.preparationChecklist = preparation.preparationChecklist
+  }
+
+  return data
+}
+
 function normalizeStatusValue(value) {
   return String(value || '').trim().toUpperCase()
 }
@@ -427,6 +455,7 @@ async function createPaidQRAppointmentFromIntent(intent, source, statusData = nu
         paymentStatus: 'paid',
         paymentId: intent.paymentId,
         roomId: intent.roomId,
+        ...buildPreparationFields(intent),
       },
     }),
   })
@@ -1108,7 +1137,10 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
       language: bookingData.language || null,
       patient: patient.id,
       doctor: bookingData.doctorId,
-      metadata: { source: 'create-halyk-qr' },
+      metadata: {
+        source: 'create-halyk-qr',
+        preparation: buildPreparationFields(bookingData),
+      },
     })
 
     // Store pending payment for status polling — always use server-verified price
@@ -1515,6 +1547,7 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
           paymentStatus: 'paid',
           roomId: booking.roomId,
           ...(invoiceId ? { paymentId: invoiceId } : {}),
+          ...buildPreparationFields(booking),
         },
       }),
     })
@@ -1653,6 +1686,7 @@ app.post('/api/payment/epay-callback', async (req, res) => {
           paymentStatus: 'paid',
           roomId: intent.roomId,
           paymentId: invoiceId,
+          ...buildPreparationFields(intent),
         },
       }),
     })
@@ -1796,6 +1830,7 @@ app.post('/api/payment/epay-token', async (req, res) => {
     const { invoiceId, amount, doctorId, dateTime, currency = 'KZT' } = req.body
     const consultationType = req.body.type || 'video'
     const roomId = req.body.roomId
+    const preparation = buildPreparationFields(req.body)
     if (!invoiceId || !amount || !doctorId) {
       return res.status(400).json({ error: 'invoiceId, amount and doctorId required' })
     }
@@ -1830,6 +1865,7 @@ app.post('/api/payment/epay-token', async (req, res) => {
       roomId,
       type: consultationType,
       amount: actualPrice,
+      preparation,
       createdAt: Date.now(),
     })
 
@@ -1845,7 +1881,7 @@ app.post('/api/payment/epay-token', async (req, res) => {
       consultationType,
       patient: patient.id,
       doctor: doctorId,
-      metadata: { source: 'epay-token' },
+      metadata: { source: 'epay-token', preparation },
     })
 
     const auth = await getEPayAuthToken(invoiceId, actualPrice, currency)

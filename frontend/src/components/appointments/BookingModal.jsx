@@ -21,6 +21,10 @@ import {
     MessageCircle,
     X,
     Lock,
+    UploadCloud,
+    FileText,
+    ShieldCheck,
+    CheckCircle2,
 } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
@@ -28,9 +32,11 @@ import Avatar from "../ui/Avatar";
 import Badge from "../ui/Badge";
 import { cn, formatPrice, getSpecName, getDoctorField } from "../../utils/helpers";
 import { generateSlotsFromIntervals, getDoctorWorkingIntervals } from "../../utils/schedule";
-import { getMediaUrl, getBookedSlots, getSignalingUrl } from "../../services/api";
+import { documentsAPI, getMediaUrl, getBookedSlots, getSignalingUrl } from "../../services/api";
 import useAppointmentStore from "../../stores/appointmentStore";
 import useAuthStore from "../../stores/authStore";
+import useDocumentStore from "../../stores/documentStore";
+import { buildPreparationPayload, DOCUMENT_STATUS } from "../../utils/appointmentPreparation";
 import { useToast } from "../ui/Toast";
 
 // Функция генерации временных слотов на основе настроек врача
@@ -152,8 +158,15 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const { t, i18n } = useTranslation();
     const dateLocale = i18n.language === 'kk' ? kk : i18n.language === 'en' ? enUS : ru;
     const { user, token } = useAuthStore();
-    const { createAppointment, fetchTimeSlots, timeSlots } =
+    const { createAppointment, updateAppointment, fetchTimeSlots, timeSlots } =
         useAppointmentStore();
+    const {
+        documents,
+        fetchDocuments,
+        uploadDocument,
+        shareDocument,
+        isUploading,
+    } = useDocumentStore();
     const toast = useToast();
 
     const paymentMethods = IS_PAYMENTS_LIVE
@@ -188,6 +201,11 @@ function BookingModal({ isOpen, onClose, doctor }) {
         getPreferredLanguageCode(availableLanguageCodes, i18n.language)
     );
     const [paymentMethod, setPaymentMethod] = useState(null);
+    const [patientDocumentsStatus, setPatientDocumentsStatus] = useState(DOCUMENT_STATUS.WILL_UPLOAD_LATER);
+    const [doctorAccessGranted, setDoctorAccessGranted] = useState(true);
+    const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
+    const [uploadedPreparationDocs, setUploadedPreparationDocs] = useState([]);
+    const [preparationError, setPreparationError] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
     const [error, setError] = useState(null);
@@ -196,6 +214,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const timeSectionRef = useRef(null);
     const typeSectionRef = useRef(null);
     const paymentSectionRef = useRef(null);
+    const preparationSectionRef = useRef(null);
     const confirmSectionRef = useRef(null);
 
     // Halyk QR flow state
@@ -307,14 +326,20 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
         const activeSection = {
             2: typeSectionRef,
-            3: paymentSectionRef,
-            4: confirmSectionRef,
+            3: preparationSectionRef,
+            4: paymentSectionRef,
+            5: confirmSectionRef,
         }[step];
 
         if (activeSection) {
             scrollToMobileSection(activeSection);
         }
     }, [isComplete, isOpen, scrollToMobileSection, step]);
+
+    useEffect(() => {
+        if (!isOpen || !user?.id) return;
+        fetchDocuments();
+    }, [fetchDocuments, isOpen, user?.id]);
 
     // Socket: join slot-watch room when doctor + date are known, leave on cleanup
     useEffect(() => {
@@ -449,8 +474,31 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
     const availableSlots = getAvailableSlots();
 
-    const handleNext = () => {
-        if (step < 4) setStep(step + 1);
+    const doctorShareRef = doctor?.documentId || doctor?.id;
+    const doctorShareDocumentId = doctor?.documentId;
+    const preparationDocumentIds = useMemo(() => {
+        const ids = new Set(selectedDocumentIds);
+        uploadedPreparationDocs.forEach((doc) => {
+            const ref = doc?.documentId || doc?.id;
+            if (ref) ids.add(String(ref));
+        });
+        return Array.from(ids);
+    }, [selectedDocumentIds, uploadedPreparationDocs]);
+    const preparationPayload = useMemo(
+        () =>
+            buildPreparationPayload({
+                selectedDocumentCount: preparationDocumentIds.length,
+                patientDocumentsStatus,
+                doctorAccessGranted,
+            }),
+        [doctorAccessGranted, patientDocumentsStatus, preparationDocumentIds.length]
+    );
+
+    const handleNext = async () => {
+        if (step === 3) {
+            await persistPreparationSharing();
+        }
+        if (step < 5) setStep(step + 1);
     };
 
     const handleBack = () => {
@@ -523,6 +571,74 @@ function BookingModal({ isOpen, onClose, doctor }) {
         });
     };
 
+    const togglePreparationDocument = (doc) => {
+        const ref = doc?.documentId || doc?.id;
+        if (!ref) return;
+        const normalizedRef = String(ref);
+        setSelectedDocumentIds((prev) =>
+            prev.includes(normalizedRef)
+                ? prev.filter((id) => id !== normalizedRef)
+                : [...prev, normalizedRef]
+        );
+        setPatientDocumentsStatus(DOCUMENT_STATUS.UPLOADED);
+    };
+
+    const handlePreparationFileUpload = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+
+        setPreparationError(null);
+        const result = await uploadDocument(file, {
+            title: file.name,
+            type: "analysis",
+            userId: user.id,
+            sharedWithDoctors: doctorAccessGranted && doctorShareRef ? [doctorShareRef] : [],
+        });
+
+        if (!result.success) {
+            setPreparationError(result.error);
+            toast.error(result.error);
+            return;
+        }
+
+        const ref = result.data?.documentId || result.data?.id;
+        setUploadedPreparationDocs((prev) => [result.data, ...prev]);
+        if (ref) {
+            setSelectedDocumentIds((prev) =>
+                prev.includes(String(ref)) ? prev : [String(ref), ...prev]
+            );
+        }
+        setPatientDocumentsStatus(DOCUMENT_STATUS.UPLOADED);
+    };
+
+    const persistPreparationSharing = async () => {
+        if (!doctorAccessGranted || !doctorShareDocumentId || preparationDocumentIds.length === 0) return;
+
+        await Promise.all(
+            preparationDocumentIds.map((documentId) =>
+                shareDocument(documentId, [doctorShareDocumentId]).catch(() => null)
+            )
+        );
+    };
+
+    const finalizePreparationForAppointment = async (appointment) => {
+        const appointmentId = appointment?.documentId || appointment?.id;
+        await persistPreparationSharing();
+
+        await Promise.all(
+            preparationDocumentIds.map((documentId) =>
+                appointmentId
+                    ? documentsAPI.update(documentId, { appointment: appointmentId }).catch(() => null)
+                    : Promise.resolve(null)
+            )
+        );
+
+        if (appointmentId) {
+            await updateAppointment(appointmentId, preparationPayload).catch(() => null);
+        }
+    };
+
     // Kaspi: create appointment immediately, show instructions in success screen
     const handleKaspiPayment = async () => {
         setIsProcessing(true);
@@ -543,9 +659,11 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 roomId: `room-${Date.now()}-${Math.random()
                     .toString(36)
                     .substr(2, 9)}`,
+                ...preparationPayload,
             });
 
             if (result.success) {
+                await finalizePreparationForAppointment(result.data);
                 setBookedSlots((prev) => [...prev, selectedTime]);
                 broadcastSlotConfirmed();
                 setIsComplete(true);
@@ -601,6 +719,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     language: consultationLanguage,
                     price: doctorPrice,
                     paymentMethod,
+                    preparation: {
+                        ...preparationPayload,
+                        documentIds: preparationDocumentIds,
+                    },
                 })
             );
 
@@ -620,6 +742,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         dateTime: dateTime.toISOString(),
                         roomId,
                         type: consultationType,
+                        preparation: preparationPayload,
                     }),
                 }
             );
@@ -692,6 +815,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 type: consultationType,
                 language: consultationLanguage,
                 price: doctorPrice,
+                preparation: preparationPayload,
             };
 
             // Call server: get OAuth token + generate QR via ePay QR API
@@ -736,11 +860,12 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         return;
                     }
                     consecutivePollErrors = 0;
-                    const { status } = await statusRes.json();
+                    const statusData = await statusRes.json().catch(() => ({}));
 
-                    if (status === "PAID") {
+                    if (statusData.status === "PAID") {
                         clearInterval(pollInterval);
                         setHalykQRStatus("paid");
+                        await finalizePreparationForAppointment({ documentId: statusData.appointmentId });
                         setBookedSlots((prev) =>
                             prev.includes(selectedTime)
                                 ? prev
@@ -752,19 +877,19 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             setHalykQR(null);
                             setIsComplete(true);
                         }, 1500);
-                    } else if (status === "PAID_PENDING_APPOINTMENT") {
+                    } else if (statusData.status === "PAID_PENDING_APPOINTMENT") {
                         paidPendingSince = paidPendingSince || Date.now();
                         setHalykQRStatus("paid_pending");
                         if (Date.now() - paidPendingSince >= PAID_PENDING_TIMEOUT_MS) {
                             clearInterval(pollInterval);
                             setHalykQRStatus("appointment_error");
                         }
-                    } else if (status === "REFUNDED") {
+                    } else if (statusData.status === "REFUNDED") {
                         // Slot was taken after payment; the patient was refunded
                         // automatically (QA BUG-05).
                         clearInterval(pollInterval);
                         setHalykQRStatus("refunded");
-                    } else if (status === "REJECTED" || status === "CLOSED" || status === "RETURN") {
+                    } else if (statusData.status === "REJECTED" || statusData.status === "CLOSED" || statusData.status === "RETURN") {
                         clearInterval(pollInterval);
                         setHalykQRStatus("rejected");
                     }
@@ -813,9 +938,11 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 roomId: `room-${Date.now()}-${Math.random()
                     .toString(36)
                     .substr(2, 9)}`,
+                ...preparationPayload,
             });
 
             if (result.success) {
+                await finalizePreparationForAppointment(result.data);
                 setBookedSlots((prev) => [...prev, selectedTime]);
                 broadcastSlotConfirmed();
                 setIsComplete(true);
@@ -867,6 +994,11 @@ function BookingModal({ isOpen, onClose, doctor }) {
             getPreferredLanguageCode(availableLanguageCodes, i18n.language)
         );
         setPaymentMethod(null);
+        setPatientDocumentsStatus(DOCUMENT_STATUS.WILL_UPLOAD_LATER);
+        setDoctorAccessGranted(true);
+        setSelectedDocumentIds([]);
+        setUploadedPreparationDocs([]);
+        setPreparationError(null);
         setIsComplete(false);
         setError(null);
         setHalykQR(null);
@@ -881,6 +1013,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
             case 2:
                 return consultationType;
             case 3:
+                return true;
+            case 4:
                 return paymentMethod;
             default:
                 return true;
@@ -905,7 +1039,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 {step === 1 ? t('common.cancel') : t('booking.back')}
             </Button>
 
-            {step < 4 ? (
+            {step < 5 ? (
                 <Button
                     onClick={handleNext}
                     disabled={!canProceed()}
@@ -1194,8 +1328,9 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         {[
                             { num: 1, label: t('booking.step_date') },
                             { num: 2, label: t('booking.step_type') },
-                            { num: 3, label: t('booking.step_payment') },
-                            { num: 4, label: t('booking.step_done') },
+                            { num: 3, label: t('booking.step_prepare') },
+                            { num: 4, label: t('booking.step_payment') },
+                            { num: 5, label: t('booking.step_done') },
                         ].flatMap((s, i) => {
                             const items = [
                                 <div key={s.num} className='flex flex-col items-center gap-1 shrink-0'>
@@ -1215,7 +1350,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                     </span>
                                 </div>
                             ];
-                            if (i < 3) {
+                            if (i < 4) {
                                 items.push(
                                     <div key={`line-${i}`} className={cn(
                                         "flex-1 h-0.5 mb-4 transition-colors",
@@ -1464,8 +1599,174 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         </div>
                     )}
 
-                    {/* Step 3: Payment */}
+                    {/* Step 3: Preparation */}
                     {step === 3 && (
+                        <div ref={preparationSectionRef} className='space-y-5 scroll-mt-4'>
+                            <div className='rounded-xl border border-teal-100 bg-teal-50 p-4'>
+                                <div className='flex items-start gap-3'>
+                                    <div className='w-10 h-10 rounded-xl bg-white text-teal-700 flex items-center justify-center shrink-0'>
+                                        <FileText className='w-5 h-5' />
+                                    </div>
+                                    <div className='min-w-0'>
+                                        <h3 className='font-semibold text-slate-900'>
+                                            {t('booking.prepare_title')}
+                                        </h3>
+                                        <p className='text-sm text-slate-600 mt-1'>
+                                            {t('booking.prepare_desc', { name: doctorName })}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {preparationError && (
+                                <div className='p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm'>
+                                    {preparationError}
+                                </div>
+                            )}
+
+                            <div className='space-y-3'>
+                                <label className='block text-sm font-medium text-slate-700'>
+                                    {t('booking.prepare_documents_label')}
+                                </label>
+
+                                <label className='flex items-center justify-center gap-2 w-full p-4 rounded-xl border-2 border-dashed border-slate-300 bg-white hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors'>
+                                    <UploadCloud className='w-5 h-5 text-teal-600' />
+                                    <span className='text-sm font-medium text-slate-700'>
+                                        {isUploading ? t('booking.prepare_uploading') : t('booking.prepare_upload')}
+                                    </span>
+                                    <input
+                                        type='file'
+                                        className='hidden'
+                                        accept='.pdf,image/jpeg,image/png,image/webp'
+                                        disabled={isUploading}
+                                        onChange={handlePreparationFileUpload}
+                                    />
+                                </label>
+
+                                {documents.length > 0 && (
+                                    <div className='space-y-2'>
+                                        <p className='text-xs font-medium text-slate-500 uppercase'>
+                                            {t('booking.prepare_existing_docs')}
+                                        </p>
+                                        <div className='max-h-44 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100'>
+                                            {documents.slice(0, 8).map((doc) => {
+                                                const ref = String(doc.documentId || doc.id);
+                                                const checked = selectedDocumentIds.includes(ref);
+                                                return (
+                                                    <button
+                                                        key={ref}
+                                                        type='button'
+                                                        onClick={() => togglePreparationDocument(doc)}
+                                                        className={cn(
+                                                            'w-full p-3 flex items-center gap-3 text-left transition-colors',
+                                                            checked ? 'bg-teal-50' : 'bg-white hover:bg-slate-50'
+                                                        )}
+                                                    >
+                                                        <div className={cn(
+                                                            'w-5 h-5 rounded border flex items-center justify-center shrink-0',
+                                                            checked ? 'bg-teal-600 border-teal-600 text-white' : 'border-slate-300'
+                                                        )}>
+                                                            {checked && <Check className='w-3 h-3' />}
+                                                        </div>
+                                                        <FileText className='w-4 h-4 text-slate-400 shrink-0' />
+                                                        <div className='min-w-0 flex-1'>
+                                                            <p className='text-sm font-medium text-slate-900 truncate'>
+                                                                {doc.title || doc.file?.name || t('booking.prepare_document')}
+                                                            </p>
+                                                            <p className='text-xs text-slate-500'>
+                                                                {doc.type || t('booking.prepare_document_type')}
+                                                            </p>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className='grid sm:grid-cols-2 gap-2'>
+                                    <button
+                                        type='button'
+                                        onClick={() => {
+                                            setPatientDocumentsStatus(DOCUMENT_STATUS.WILL_UPLOAD_LATER);
+                                            setSelectedDocumentIds([]);
+                                            setUploadedPreparationDocs([]);
+                                        }}
+                                        className={cn(
+                                            'p-3 rounded-xl border text-left text-sm transition-colors',
+                                            preparationDocumentIds.length === 0 && patientDocumentsStatus === DOCUMENT_STATUS.WILL_UPLOAD_LATER
+                                                ? 'border-teal-500 bg-teal-50 text-teal-700'
+                                                : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                                        )}
+                                    >
+                                        {t('booking.prepare_later')}
+                                    </button>
+                                    <button
+                                        type='button'
+                                        onClick={() => {
+                                            setPatientDocumentsStatus(DOCUMENT_STATUS.NO_DOCUMENTS);
+                                            setSelectedDocumentIds([]);
+                                            setUploadedPreparationDocs([]);
+                                        }}
+                                        className={cn(
+                                            'p-3 rounded-xl border text-left text-sm transition-colors',
+                                            patientDocumentsStatus === DOCUMENT_STATUS.NO_DOCUMENTS
+                                                ? 'border-teal-500 bg-teal-50 text-teal-700'
+                                                : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                                        )}
+                                    >
+                                        {t('booking.prepare_no_documents')}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <label className={cn(
+                                'flex items-start gap-3 p-4 rounded-xl border transition-colors',
+                                doctorAccessGranted ? 'border-teal-200 bg-teal-50' : 'border-slate-200 bg-white'
+                            )}>
+                                <input
+                                    type='checkbox'
+                                    checked={doctorAccessGranted}
+                                    disabled={patientDocumentsStatus === DOCUMENT_STATUS.NO_DOCUMENTS}
+                                    onChange={(event) => setDoctorAccessGranted(event.target.checked)}
+                                    className='mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500'
+                                />
+                                <span className='min-w-0'>
+                                    <span className='flex items-center gap-2 font-medium text-slate-900'>
+                                        <ShieldCheck className='w-4 h-4 text-teal-600' />
+                                        {t('booking.prepare_access_title')}
+                                    </span>
+                                    <span className='block text-sm text-slate-600 mt-1'>
+                                        {t('booking.prepare_access_desc', { name: doctorName })}
+                                    </span>
+                                </span>
+                            </label>
+
+                            <div className='rounded-xl bg-slate-50 p-4 space-y-2'>
+                                <div className='flex items-center gap-2 text-sm'>
+                                    <CheckCircle2 className={cn(
+                                        'w-4 h-4',
+                                        preparationPayload.preparationChecklist.documentsReady
+                                            ? 'text-emerald-600'
+                                            : 'text-slate-300'
+                                    )} />
+                                    <span className='text-slate-700'>{t('booking.prepare_check_documents')}</span>
+                                </div>
+                                <div className='flex items-center gap-2 text-sm'>
+                                    <CheckCircle2 className={cn(
+                                        'w-4 h-4',
+                                        preparationPayload.preparationChecklist.doctorAccessGranted
+                                            ? 'text-emerald-600'
+                                            : 'text-slate-300'
+                                    )} />
+                                    <span className='text-slate-700'>{t('booking.prepare_check_access')}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step 4: Payment */}
+                    {step === 4 && (
                         <div ref={paymentSectionRef} className='space-y-4 scroll-mt-4'>
                             <label className='block text-sm font-medium text-slate-700 mb-3'>
                                 {t('booking.payment_method_label')}
@@ -1562,8 +1863,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         </div>
                     )}
 
-                    {/* Step 4: Confirmation */}
-                    {step === 4 && (
+                    {/* Step 5: Confirmation */}
+                    {step === 5 && (
                         <div ref={confirmSectionRef} className='space-y-4 scroll-mt-4'>
                             <h3 className='font-semibold text-slate-900 mb-4'>
                                 {t('booking.confirm_title')}
@@ -1627,6 +1928,18 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                                 (m) => m.id === paymentMethod
                                             )?.name
                                         }
+                                    </span>
+                                </div>
+                                <div className={confirmationRowClass}>
+                                    <span className={confirmationLabelClass}>
+                                        {t('booking.field_preparation')}
+                                    </span>
+                                    <span className={confirmationValueClass}>
+                                        {preparationPayload.patientDocumentsStatus === DOCUMENT_STATUS.UPLOADED
+                                            ? t('booking.prepare_status_uploaded', { count: preparationDocumentIds.length })
+                                            : preparationPayload.patientDocumentsStatus === DOCUMENT_STATUS.NO_DOCUMENTS
+                                            ? t('booking.prepare_status_no_documents')
+                                            : t('booking.prepare_status_later')}
                                     </span>
                                 </div>
                                 <div className='p-4 flex justify-between bg-teal-50'>
