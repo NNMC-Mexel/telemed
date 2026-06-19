@@ -192,6 +192,13 @@ const normalizeFilterList = (value: any) => {
   return value ? [value] : [];
 };
 
+const combineFilters = (...filters: any[]) => {
+  const activeFilters = filters.filter((filter) => filter && Object.keys(filter).length > 0);
+  if (activeFilters.length === 0) return {};
+  if (activeFilters.length === 1) return activeFilters[0];
+  return { $and: activeFilters };
+};
+
 const timeToMinutes = (value: any) => {
   if (typeof value !== 'string' || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(value)) return null;
   const [hours, minutes] = value.split(':').map(Number);
@@ -438,6 +445,15 @@ export default factories.createCoreController('api::appointment.appointment', ()
       additionalFilters.doctor = { documentId: doctorDocumentIdFilter };
     }
 
+    // Apply patient filter (used by doctor's patient history page).
+    const patientIdFilter = queryFilters?.patient?.id?.$eq;
+    const patientDocumentIdFilter = queryFilters?.patient?.documentId?.$eq;
+    if (patientIdFilter) {
+      additionalFilters.patient = { id: patientIdFilter };
+    } else if (patientDocumentIdFilter) {
+      additionalFilters.patient = { documentId: patientDocumentIdFilter };
+    }
+
     if (!isAdmin) {
       const isDoctor = user.role?.type === 'doctor' || user.userRole === 'doctor';
 
@@ -453,7 +469,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
 
         // Use ONLY documentId — avoids IDOR via numeric id cross-contamination
         const data = await strapi.documents('api::appointment.appointment').findMany({
-          filters: { doctor: { documentId: doctorRecord.documentId }, ...additionalFilters },
+          filters: combineFilters({ doctor: { documentId: doctorRecord.documentId } }, additionalFilters),
           sort,
           populate,
         });
@@ -468,7 +484,7 @@ export default factories.createCoreController('api::appointment.appointment', ()
           return { data: [], meta: { pagination: { page: 1, pageSize: 0, pageCount: 0, total: 0 } } };
         }
         const data = await strapi.documents('api::appointment.appointment').findMany({
-          filters: { patient: { documentId: patientDocId }, ...additionalFilters },
+          filters: combineFilters({ patient: { documentId: patientDocId } }, additionalFilters),
           sort,
           populate,
         });
