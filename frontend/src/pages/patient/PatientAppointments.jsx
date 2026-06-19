@@ -466,19 +466,34 @@ function PatientAppointments() {
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${
+                            <Link
+                              to={`/patient/appointments/${appointment.documentId || appointment.id}#documents`}
+                              title={t('appointments.prep_docs_action')}
+                              aria-label={t('appointments.prep_docs_action')}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 ${
                               preparation.documentsReady ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                            }`}>
+                            } ${
+                              preparation.documentsReady ? 'hover:bg-emerald-100' : 'hover:bg-amber-100'
+                            }`}
+                            >
                               <FileText className="w-3.5 h-3.5" />
                               {preparation.documentsStatus === DOCUMENT_STATUS.NO_DOCUMENTS
                                 ? t('appointments.prep_docs_none')
                                 : preparation.documentsReady
                                 ? t('appointments.prep_docs_ready')
                                 : t('appointments.prep_docs_waiting')}
-                            </span>
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </Link>
+                            <Link
+                              to={`/patient/appointments/${appointment.documentId || appointment.id}#access`}
+                              title={t('appointments.prep_access_action')}
+                              aria-label={t('appointments.prep_access_action')}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 ${
                               preparation.accessReady ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                            }`}>
+                            } ${
+                              preparation.accessReady ? 'hover:bg-emerald-100' : 'hover:bg-slate-200'
+                            }`}
+                            >
                               {preparation.accessReady ? (
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                               ) : (
@@ -487,7 +502,8 @@ function PatientAppointments() {
                               {preparation.accessReady
                                 ? t('appointments.prep_access_ready')
                                 : t('appointments.prep_access_waiting')}
-                            </span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </Link>
                           </div>
                         </div>
                       </div>

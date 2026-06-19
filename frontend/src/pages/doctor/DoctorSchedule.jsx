@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useToast } from "../../components/ui/Toast";
+import { io } from "socket.io-client";
 import {
     ChevronLeft,
     ChevronRight,
@@ -29,7 +30,7 @@ import Select from "../../components/ui/Select";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { ru, kk, enUS } from "date-fns/locale";
 import useAuthStore from "../../stores/authStore";
-import api, { normalizeResponse, getMediaUrl, getServerNow } from "../../services/api";
+import api, { normalizeResponse, getMediaUrl, getServerNow, getSignalingUrl } from "../../services/api";
 import {
     DEFAULT_WORKING_INTERVALS,
     generateSlotsFromIntervals,
@@ -62,7 +63,7 @@ const JOINABLE_APPOINTMENT_STATUSES = ["pending", "confirmed", "in_progress"];
 function DoctorSchedule() {
     const { t, i18n } = useTranslation()
     const dateLocale = i18n.language === 'kk' ? kk : i18n.language === 'en' ? enUS : ru
-    const { user } = useAuthStore();
+    const { user, token } = useAuthStore();
     const toast = useToast();
     const [doctor, setDoctor] = useState(null);
     const [appointments, setAppointments] = useState([]);
@@ -76,6 +77,19 @@ function DoctorSchedule() {
     });
     const [workingIntervals, setWorkingIntervals] = useState(DEFAULT_WORKING_INTERVALS);
     const [workingDays, setWorkingDays] = useState([1, 2, 3, 4, 5]);
+
+    const notifyScheduleUpdated = () => {
+        if (!doctor?.id || !token) return;
+        const socket = io(getSignalingUrl(), {
+            transports: ["websocket", "polling"],
+            auth: { token },
+        });
+        socket.on("connect", () => {
+            socket.emit("schedule-updated", { doctorId: doctor.id });
+            socket.disconnect();
+        });
+        socket.on("connect_error", () => socket.disconnect());
+    };
 
     useEffect(() => {
         if (user?.id) {
@@ -234,6 +248,7 @@ function DoctorSchedule() {
 
             setShowSettingsModal(false);
             toast.success(t('schedule.save_success'));
+            notifyScheduleUpdated();
             // Обновляем данные
             await fetchDoctorAndAppointments();
         } catch (error) {

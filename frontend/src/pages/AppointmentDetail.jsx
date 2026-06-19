@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft,
   Calendar,
   Clock,
+  CheckCircle2,
   Video,
   MessageCircle,
   User,
@@ -19,6 +20,7 @@ import {
   Paperclip,
   X,
   MessageSquare,
+  ShieldCheck,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -28,6 +30,7 @@ import useAuthStore from '../stores/authStore'
 import { useTranslation } from 'react-i18next'
 import { appointmentsAPI, documentsAPI, uploadFile, getMediaUrl, downloadMedia } from '../services/api'
 import { getSpecName } from '../utils/helpers'
+import { DOCUMENT_STATUS, getAppointmentPreparation } from '../utils/appointmentPreparation'
 
 // 48-hour window for post-consultation notes
 const WINDOW_HOURS = 48
@@ -35,6 +38,7 @@ const WINDOW_HOURS = 48
 function AppointmentDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { t, i18n } = useTranslation()
   const dateLocale = i18n.language === 'kk' ? 'kk-KZ' : i18n.language === 'en' ? 'en-US' : 'ru-RU'
   const { user } = useAuthStore()
@@ -44,6 +48,11 @@ function AppointmentDetail() {
   const [appointment, setAppointment] = useState(null)
   const [documents, setDocuments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isGrantingAccess, setIsGrantingAccess] = useState(false)
+  const [accessError, setAccessError] = useState('')
+
+  const documentsSectionRef = useRef(null)
+  const accessSectionRef = useRef(null)
 
   // Post-consultation notes state (doctors only)
   const [activeNotesTab, setActiveNotesTab] = useState('diagnosis')
@@ -86,6 +95,22 @@ function AppointmentDetail() {
     setDocuments(aptDocs)
   }, [appointment])
 
+  useEffect(() => {
+    if (!appointment || isLoading || !location.hash) return
+
+    const targetMap = {
+      '#documents': documentsSectionRef,
+      '#access': accessSectionRef,
+    }
+    const target = targetMap[location.hash]?.current
+    if (!target) return
+
+    window.setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      target.focus?.({ preventScroll: true })
+    }, 100)
+  }, [appointment, isLoading, location.hash])
+
   // Preload existing documents into notes fields
   useEffect(() => {
     if (!documents.length) return
@@ -111,6 +136,72 @@ function AppointmentDetail() {
   }, [documents])
 
   const backPath = isDoctor ? '/doctor' : '/patient/appointments'
+
+  const grantDoctorAccess = async () => {
+    const doctorDocumentId = appointment?.doctor?.documentId
+    const appointmentId = appointment?.documentId || appointment?.id
+    if (!appointmentId || !doctorDocumentId || documents.length === 0) return
+
+    setIsGrantingAccess(true)
+    setAccessError('')
+
+    try {
+      const patientDocuments = documents.filter((doc) => !doc.doctor && (!doc.user?.id || doc.user.id === user?.id))
+
+      await Promise.all(patientDocuments.map((doc) => {
+        const existingDoctorIds = (doc.sharedWithDoctors || [])
+          .map((doctor) => doctor.documentId)
+          .filter(Boolean)
+        const nextDoctorIds = [...new Set([...existingDoctorIds, doctorDocumentId])]
+        return documentsAPI.share(doc.documentId || doc.id, nextDoctorIds)
+      }))
+
+      const nextChecklist = {
+        ...(appointment.preparationChecklist || {}),
+        documentsReady: true,
+        doctorAccessGranted: true,
+        selectedDocumentCount: documents.length,
+        noDocuments: false,
+      }
+
+      await appointmentsAPI.update(appointmentId, {
+        doctorAccessGranted: true,
+        patientDocumentsStatus: DOCUMENT_STATUS.UPLOADED,
+        preparationChecklist: nextChecklist,
+        preparationUpdatedAt: new Date().toISOString(),
+      })
+
+      setAppointment((prev) => prev
+        ? {
+            ...prev,
+            doctorAccessGranted: true,
+            patientDocumentsStatus: DOCUMENT_STATUS.UPLOADED,
+            preparationChecklist: nextChecklist,
+          }
+        : prev)
+      setDocuments((prev) => prev.map((doc) => {
+        if (doc.doctor) return doc
+        const existingDoctors = doc.sharedWithDoctors || []
+        if (existingDoctors.some((doctor) => doctor.documentId === doctorDocumentId)) return doc
+        return {
+          ...doc,
+          sharedWithDoctors: [
+            ...existingDoctors,
+            {
+              id: appointment.doctor?.id,
+              documentId: doctorDocumentId,
+              fullName: appointment.doctor?.fullName,
+            },
+          ],
+        }
+      }))
+    } catch (err) {
+      console.error('Error granting doctor access:', err)
+      setAccessError(t('appointment_detail.access_grant_error'))
+    } finally {
+      setIsGrantingAccess(false)
+    }
+  }
 
   // ── Save functions ──────────────────────────────────────────────
 
@@ -311,6 +402,23 @@ function AppointmentDetail() {
   const isWithinWindow = now < windowEnd
   const hoursRemaining = Math.max(0, Math.floor((windowEnd - now) / (1000 * 60 * 60)))
   const isCompleted = isPast && (appointment.statuse || appointment.status) !== 'cancelled'
+  const preparation = getAppointmentPreparation(appointment)
+  const documentsStatusLabel = preparation.documentsStatus === DOCUMENT_STATUS.NO_DOCUMENTS
+    ? t('appointments.prep_docs_none')
+    : preparation.documentsReady
+    ? t('appointments.prep_docs_ready')
+    : t('appointments.prep_docs_waiting')
+  const accessStatusLabel = preparation.accessReady
+    ? t('appointments.prep_access_ready')
+    : t('appointments.prep_access_waiting')
+  const shareableDocuments = documents.filter((doc) => !doc.doctor && (!doc.user?.id || doc.user.id === user?.id))
+  const canGrantAccess = Boolean(
+    !isDoctor &&
+    !preparation.accessReady &&
+    preparation.documentsReady &&
+    appointment.doctor?.documentId &&
+    shareableDocuments.length > 0
+  )
 
   const typeLabels = {
     analysis: t('appointment_detail.doctype_analysis'),
@@ -655,11 +763,24 @@ function AppointmentDetail() {
           )}
 
           {/* Documents Card */}
-          <Card>
+          <Card
+            ref={documentsSectionRef}
+            id="documents"
+            tabIndex={-1}
+            className="scroll-mt-24 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+          >
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FolderOpen className="w-5 h-5 text-teal-600" />
-                {t('appointment_detail.medical_docs')}
+              <CardTitle className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="flex items-center gap-2">
+                  <FolderOpen className="w-5 h-5 text-teal-600" />
+                  {t('appointment_detail.medical_docs')}
+                </span>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${
+                  preparation.documentsReady ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                }`}>
+                  <FileText className="w-3.5 h-3.5" />
+                  {documentsStatusLabel}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -710,6 +831,75 @@ function AppointmentDetail() {
                   })}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Doctor Access Card */}
+          <Card
+            ref={accessSectionRef}
+            id="access"
+            tabIndex={-1}
+            className="scroll-mt-24 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+          >
+            <CardHeader>
+              <CardTitle className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-teal-600" />
+                  {t('appointment_detail.access_title')}
+                </span>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${
+                  preparation.accessReady ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {preparation.accessReady ? (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  ) : (
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  )}
+                  {accessStatusLabel}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                    preparation.accessReady ? 'bg-emerald-100' : 'bg-slate-100'
+                  }`}>
+                    {preparation.accessReady ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <ShieldCheck className="w-5 h-5 text-slate-500" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900">
+                      {preparation.accessReady
+                        ? t('appointment_detail.access_ready_title')
+                        : t('appointment_detail.access_waiting_title')}
+                    </p>
+                    <p className="text-sm text-slate-500 mt-1 break-words">
+                      {preparation.accessReady
+                        ? t('appointment_detail.access_ready_desc', { name: doctorName })
+                        : t('appointment_detail.access_waiting_desc', { name: doctorName })}
+                    </p>
+                  </div>
+                </div>
+
+                {accessError && (
+                  <p className="text-sm text-rose-600">{accessError}</p>
+                )}
+
+                {canGrantAccess && (
+                  <Button
+                    size="sm"
+                    onClick={grantDoctorAccess}
+                    isLoading={isGrantingAccess}
+                    leftIcon={<ShieldCheck className="w-4 h-4" />}
+                  >
+                    {t('appointment_detail.grant_access')}
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

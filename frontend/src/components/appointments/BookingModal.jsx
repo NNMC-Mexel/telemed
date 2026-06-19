@@ -32,7 +32,7 @@ import Avatar from "../ui/Avatar";
 import Badge from "../ui/Badge";
 import { cn, formatPrice, getSpecName, getDoctorField } from "../../utils/helpers";
 import { generateSlotsFromIntervals, getDoctorWorkingIntervals } from "../../utils/schedule";
-import { documentsAPI, getMediaUrl, getBookedSlots, getSignalingUrl } from "../../services/api";
+import { doctorsAPI, documentsAPI, getMediaUrl, getBookedSlots, getSignalingUrl } from "../../services/api";
 import useAppointmentStore from "../../stores/appointmentStore";
 import useAuthStore from "../../stores/authStore";
 import useDocumentStore from "../../stores/documentStore";
@@ -168,6 +168,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
         isUploading,
     } = useDocumentStore();
     const toast = useToast();
+    const [liveDoctor, setLiveDoctor] = useState(null);
+    const activeDoctor = liveDoctor || doctor;
 
     const paymentMethods = IS_PAYMENTS_LIVE
         ? LIVE_PAYMENT_BASE.map((m) => ({
@@ -188,15 +190,15 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const [selectedTime, setSelectedTime] = useState(null);
     const [consultationType, setConsultationType] = useState("video");
     const availableLanguageCodes = useMemo(() => {
-        const languages = doctor?.languages?.filter(Boolean).length
-            ? doctor.languages
+        const languages = activeDoctor?.languages?.filter(Boolean).length
+            ? activeDoctor.languages
             : DEFAULT_LANGUAGE_CODES;
         const normalizedLanguages = languages
             .map(normalizeLanguageCode)
             .filter((code, index, list) => code && list.indexOf(code) === index);
 
         return normalizedLanguages.length ? normalizedLanguages : DEFAULT_LANGUAGE_CODES;
-    }, [doctor?.languages]);
+    }, [activeDoctor?.languages]);
     const [consultationLanguage, setConsultationLanguage] = useState(() =>
         getPreferredLanguageCode(availableLanguageCodes, i18n.language)
     );
@@ -232,6 +234,31 @@ function BookingModal({ isOpen, onClose, doctor }) {
         selectedTimeRef.current = selectedTime
     }, [selectedTime])
 
+    const refreshDoctorProfile = useCallback(async () => {
+        const doctorRef = doctor?.documentId || doctor?.id
+        if (!doctorRef) return null
+
+        try {
+            const response = await doctorsAPI.getOne(doctorRef)
+            const freshDoctor = response.data?.data || response.data
+            if (freshDoctor) {
+                setLiveDoctor(freshDoctor)
+                return freshDoctor
+            }
+        } catch (err) {
+            console.error('Error refreshing doctor profile:', err)
+        }
+        return null
+    }, [doctor?.documentId, doctor?.id])
+
+    useEffect(() => {
+        if (!isOpen) {
+            setLiveDoctor(null)
+            return
+        }
+        refreshDoctorProfile()
+    }, [isOpen, refreshDoctorProfile])
+
     // Countdown ticks to refresh remaining time labels
     const [, setTick] = useState(0)
     useEffect(() => {
@@ -245,11 +272,11 @@ function BookingModal({ isOpen, onClose, doctor }) {
     // Получаем рабочие дни врача (по умолчанию Пн-Пт)
     const getWorkingDays = () => {
         const normalizeDay = (day) => day === 0 ? 7 : day;
-        if (doctor?.workingDays) {
-            if (typeof doctor.workingDays === 'string') {
-                return doctor.workingDays.split(',').map(Number).filter(n => !isNaN(n)).map(normalizeDay);
+        if (activeDoctor?.workingDays) {
+            if (typeof activeDoctor.workingDays === 'string') {
+                return activeDoctor.workingDays.split(',').map(Number).filter(n => !isNaN(n)).map(normalizeDay);
             }
-            return doctor.workingDays.map(normalizeDay);
+            return activeDoctor.workingDays.map(normalizeDay);
         }
         return [1, 2, 3, 4, 5]; // Пн-Пт по умолчанию
     };
@@ -262,10 +289,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
         return workingDays.includes(isoDay);
     };
 
-    const doctorName = getDoctorField(doctor, 'fullName', i18n.language) || doctor?.fullName || doctor?.name || t('booking.doctor_fallback');
-    const doctorSpecialization = getSpecName(doctor?.specialization, i18n.language)
+    const doctorName = getDoctorField(activeDoctor, 'fullName', i18n.language) || activeDoctor?.fullName || activeDoctor?.name || t('booking.doctor_fallback');
+    const doctorSpecialization = getSpecName(activeDoctor?.specialization, i18n.language)
         || t('booking.specialist_fallback');
-    const doctorPrice = doctor?.price || 0;
+    const doctorPrice = activeDoctor?.price || 0;
     const getConsultationLanguageLabel = (language) => {
         const code = normalizeLanguageCode(language) || availableLanguageCodes[0] || "ru";
         return t(LANGUAGE_LABEL_KEYS[code] || LANGUAGE_LABEL_KEYS.ru);
@@ -296,14 +323,16 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
     useEffect(() => {
         const loadSlots = async () => {
-        if (selectedDate && doctor?.id) {
+        if (selectedDate && activeDoctor?.id) {
                 setIsLoadingSlots(true);
                 try {
+                    const freshDoctor = await refreshDoctorProfile();
+                    const slotDoctor = freshDoctor || activeDoctor;
             const dateStr = format(selectedDate, "yyyy-MM-dd");
                     // Загружаем временные слоты из базы (если есть)
-            fetchTimeSlots(doctor.id, dateStr);
+            fetchTimeSlots(slotDoctor.id, dateStr);
                     // Загружаем уже занятые слоты из записей
-                    const booked = await getBookedSlots(doctor.id, dateStr);
+                    const booked = await getBookedSlots(slotDoctor.id, dateStr);
                     setBookedSlots(booked);
                 } catch (err) {
                     console.error("Error loading slots:", err);
@@ -314,7 +343,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
             }
         };
         loadSlots();
-    }, [selectedDate, doctor?.id, fetchTimeSlots]);
+    }, [selectedDate, activeDoctor, activeDoctor?.id, fetchTimeSlots, refreshDoctorProfile]);
 
     useEffect(() => {
         if (!isOpen || step !== 1 || !selectedDate) return;
@@ -343,21 +372,21 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
     // Socket: join slot-watch room when doctor + date are known, leave on cleanup
     useEffect(() => {
-        if (!isOpen || !doctor?.id || !selectedDate) return
+        if (!isOpen || !activeDoctor?.id || !selectedDate) return
 
         const dateStr = format(selectedDate, "yyyy-MM-dd")
 
         const socket = io(SIGNALING_URL, { transports: ["websocket"], auth: { token } })
         socketRef.current = socket
 
-        socket.emit("join-slot-watch", { doctorId: doctor.id, date: dateStr })
+        socket.emit("join-slot-watch", { doctorId: activeDoctor.id, date: dateStr })
 
         // Re-fetch booked slots once the socket is actually connected — closes
         // the race where someone booked between the initial getBookedSlots()
         // call and our join-slot-watch (we would have missed slot-booked).
         socket.on("connect", async () => {
             try {
-                const fresh = await getBookedSlots(doctor.id, dateStr)
+                const fresh = await getBookedSlots(activeDoctor.id, dateStr)
                 setBookedSlots(fresh)
                 if (selectedTimeRef.current && fresh.includes(selectedTimeRef.current)) {
                     toast.error(t('booking.slot_taken_other'))
@@ -427,28 +456,49 @@ function BookingModal({ isOpen, onClose, doctor }) {
             }
         })
 
+        socket.on("schedule-updated", async () => {
+            const freshDoctor = await refreshDoctorProfile()
+            if (!freshDoctor) return
+
+            const freshBooked = await getBookedSlots(activeDoctor.id, dateStr).catch(() => [])
+            setBookedSlots(freshBooked)
+
+            const freshTimeSlots = await fetchTimeSlots(activeDoctor.id, dateStr).catch(() => [])
+            const baseSlots = freshTimeSlots?.length
+                ? freshTimeSlots.map((slot) => slot.startTime || slot.time)
+                : generateTimeSlots(freshDoctor)
+            const freshAvailableSlots = filterPastSlots(baseSlots, selectedDate)
+                .filter((slot) => !freshBooked.includes(slot))
+
+            if (selectedTimeRef.current && !freshAvailableSlots.includes(selectedTimeRef.current)) {
+                toast.error(t('booking.schedule_updated'))
+                setSelectedTime(null)
+                setStep(1)
+            }
+        })
+
         return () => {
-            socket.emit("leave-slot-watch", { doctorId: doctor.id, date: dateStr })
+            socket.emit("leave-slot-watch", { doctorId: activeDoctor.id, date: dateStr })
             socket.disconnect()
             socketRef.current = null
         }
-    }, [isOpen, doctor?.id, selectedDate])
+    }, [isOpen, activeDoctor?.id, selectedDate, fetchTimeSlots, refreshDoctorProfile, t, toast, token])
 
     // Emit reserve / release when selected time changes
     useEffect(() => {
         const socket = socketRef.current
-        if (!socket || !doctor?.id || !selectedDate) return
+        if (!socket || !activeDoctor?.id || !selectedDate) return
         const dateStr = format(selectedDate, "yyyy-MM-dd")
         if (selectedTime) {
             socket.emit("reserve-slot", {
-                doctorId: doctor.id,
+                doctorId: activeDoctor.id,
                 date: dateStr,
                 time: selectedTime,
                 userId: user?.id,
             })
         }
         // release is handled server-side when a new reserve comes in from same socket
-    }, [selectedTime])
+    }, [selectedTime, activeDoctor?.id, selectedDate, user?.id])
 
     const getAvailableSlots = () => {
         if (!selectedDate) return [];
@@ -460,7 +510,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
             slots = timeSlots.map((slot) => slot.startTime || slot.time);
         } else {
         // Иначе генерируем слоты на основе настроек врача
-            slots = generateTimeSlots(doctor);
+            slots = generateTimeSlots(activeDoctor);
         }
 
         // Фильтруем прошедшие слоты (для сегодня)
@@ -474,8 +524,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
     const availableSlots = getAvailableSlots();
 
-    const doctorShareRef = doctor?.documentId || doctor?.id;
-    const doctorShareDocumentId = doctor?.documentId;
+    const doctorShareRef = activeDoctor?.documentId || activeDoctor?.id;
+    const doctorShareDocumentId = activeDoctor?.documentId;
     const preparationDocumentIds = useMemo(() => {
         const ids = new Set(selectedDocumentIds);
         uploadedPreparationDocs.forEach((doc) => {
@@ -510,7 +560,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
         const dateStr = format(selectedDate, "yyyy-MM-dd");
 
         // 1. Check booked slots in Strapi DB
-        const freshBooked = await getBookedSlots(doctor.id, dateStr);
+        const freshBooked = await getBookedSlots(activeDoctor.id, dateStr);
         setBookedSlots(freshBooked);
 
         if (freshBooked.includes(selectedTime)) {
@@ -531,11 +581,11 @@ function BookingModal({ isOpen, onClose, doctor }) {
                         ...(token ? { Authorization: `Bearer ${token}` } : {}),
                     },
                     body: JSON.stringify({
-                        doctorId: doctor.id,
+                        doctorId: activeDoctor.id,
                         date: dateStr,
                         time: selectedTime,
                         socketId: socketRef.current?.id,
-                        slotDuration: doctor.slotDuration || 30,
+                        slotDuration: activeDoctor.slotDuration || 30,
                     }),
                 }
             );
@@ -563,9 +613,9 @@ function BookingModal({ isOpen, onClose, doctor }) {
     // so their slot pickers immediately hide the now-taken slot.
     const broadcastSlotConfirmed = () => {
         const socket = socketRef.current;
-        if (!socket || !doctor?.id || !selectedDate || !selectedTime) return;
+        if (!socket || !activeDoctor?.id || !selectedDate || !selectedTime) return;
         socket.emit("slot-confirmed", {
-            doctorId: doctor.id,
+            doctorId: activeDoctor.id,
             date: format(selectedDate, "yyyy-MM-dd"),
             time: selectedTime,
         });
@@ -649,7 +699,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
             const result = await createAppointment({
                 patient: user.id,
-                doctor: doctor.id,
+                doctor: activeDoctor.id,
                 dateTime: dateTime.toISOString(),
                 type: consultationType,
                 language: consultationLanguage,
@@ -712,7 +762,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                 JSON.stringify({
                     invoiceId,
                     roomId,
-                    doctorId: doctor.id,
+                    doctorId: activeDoctor.id,
                     doctorName,
                     dateTime: dateTime.toISOString(),
                     type: consultationType,
@@ -738,7 +788,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     body: JSON.stringify({
                         invoiceId,
                         amount: doctorPrice,
-                        doctorId: doctor.id,
+                        doctorId: activeDoctor.id,
                         dateTime: dateTime.toISOString(),
                         roomId,
                         type: consultationType,
@@ -805,7 +855,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
             const bookingData = {
                 roomId,
-                doctorId: doctor.id,
+                doctorId: activeDoctor.id,
                 doctorName,
                 patientId: user.id,
                 patientName: user.fullName || user.username || "",
@@ -928,7 +978,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
 
             const result = await createAppointment({
                 patient: user.id,
-                doctor: doctor.id,
+                doctor: activeDoctor.id,
                 dateTime: dateTime.toISOString(),
                 type: consultationType,
                 language: consultationLanguage,
@@ -978,10 +1028,10 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const resetAndClose = () => {
         // Release slot reservation if one is active before closing
         const socket = socketRef.current;
-        if (socket && selectedTime && selectedDate && doctor?.id) {
+        if (socket && selectedTime && selectedDate && activeDoctor?.id) {
             const dateStr = format(selectedDate, "yyyy-MM-dd");
             socket.emit("release-slot", {
-                doctorId: doctor.id,
+                doctorId: activeDoctor.id,
                 date: dateStr,
                 time: selectedTime,
             });
@@ -1371,7 +1421,7 @@ function BookingModal({ isOpen, onClose, doctor }) {
                     {/* Doctor Info */}
                     <div className='flex items-center gap-3 p-3 sm:p-4 bg-slate-50 rounded-xl mb-5 sm:mb-6 min-w-0'>
                         <Avatar
-                            src={getMediaUrl(doctor.photo)}
+                            src={getMediaUrl(activeDoctor.photo)}
                             name={doctorName}
                             size='lg'
                             className='shrink-0'

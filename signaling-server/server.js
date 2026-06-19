@@ -1956,6 +1956,23 @@ async function fetchAppointmentRoom(roomId) {
   return entry
 }
 
+async function fetchDoctorScheduleOwner(doctorId) {
+  if (!doctorId) return null
+  const filterKey = /^\d+$/.test(String(doctorId)) ? 'id' : 'documentId'
+  const url =
+    `${STRAPI_API_URL}/api/doctors` +
+    `?filters[${filterKey}][$eq]=${encodeURIComponent(doctorId)}` +
+    `&fields[0]=id&fields[1]=documentId&fields[2]=userId` +
+    `&populate[users_permissions_user][fields][0]=id` +
+    `&pagination[pageSize]=1`
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` },
+  }).catch(() => null)
+  if (!res?.ok) return null
+  const data = await res.json().catch(() => null)
+  return data?.data?.[0] || null
+}
+
 // Cleanup expired token cache entries every 10 minutes
 setInterval(() => {
   const now = Date.now()
@@ -2180,6 +2197,21 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('chat-message', msgData)
   })
 
+  // Document list changed during the consultation. We relay only metadata;
+  // clients must re-fetch documents through the authenticated Strapi API.
+  socket.on('document-uploaded', ({ documentId, appointmentId, type } = {}) => {
+    const ctx = getJoinedRoom()
+    if (!ctx) return
+
+    socket.to(ctx.roomId).emit('document-uploaded', {
+      documentId: typeof documentId === 'string' ? documentId : null,
+      appointmentId: typeof appointmentId === 'string' ? appointmentId : null,
+      type: typeof type === 'string' ? type : null,
+      senderId: socket.id,
+      timestamp: new Date().toISOString(),
+    })
+  })
+
   // Переключение медиа (mute/unmute, video on/off)
   socket.on('media-toggle', ({ type, enabled }) => {
     const ctx = getJoinedRoom()
@@ -2320,6 +2352,28 @@ io.on('connection', (socket) => {
     // need a slot-booked echo that would clear its own selectedTime.
     socket.to(`slots:${doctorId}:${date}`).emit('slot-booked', { time })
     console.log(`[Slots] CONFIRMED ${key} by socket ${socket.id}`)
+  })
+
+  socket.on('schedule-updated', async ({ doctorId }) => {
+    if (!doctorId) return
+
+    const doctor = await fetchDoctorScheduleOwner(doctorId)
+    const doctorUserId = doctor?.users_permissions_user?.id ?? doctor?.userId
+    if (!doctor || String(doctorUserId) !== String(socket.verifiedUserId)) {
+      console.warn(`[SECURITY] schedule-updated rejected: user ${socket.verifiedUserId} is not owner of doctor ${doctorId}`)
+      return
+    }
+
+    const prefix = `slots:${doctorId}:`
+    for (const roomName of io.sockets.adapter.rooms.keys()) {
+      if (roomName.startsWith(prefix)) {
+        io.to(roomName).emit('schedule-updated', {
+          doctorId,
+          timestamp: new Date().toISOString(),
+        })
+      }
+    }
+    console.log(`[Slots] Schedule updated for doctor ${doctorId}`)
   })
 
   // Отключение

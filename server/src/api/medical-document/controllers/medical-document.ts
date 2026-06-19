@@ -48,10 +48,6 @@ const getDoctorAppointmentDocumentWriteViolation = (appointment: any, doctorReco
   const consultationEnd = new Date(appointmentTime.getTime() + (durationMinutes * 60 * 1000));
   const now = new Date();
 
-  if (now < consultationEnd) {
-    return { type: 'badRequest', message: 'Medical conclusion documents can only be created after the consultation has ended' };
-  }
-
   const windowEnd = new Date(consultationEnd.getTime() + (DOCTOR_DOCUMENT_WINDOW_HOURS * 60 * 60 * 1000));
 
   if (now > windowEnd) {

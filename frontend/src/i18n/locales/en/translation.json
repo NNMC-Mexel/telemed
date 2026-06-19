@@ -448,6 +448,7 @@
     "slot_taken_booked": "Sorry, this slot was just booked by another patient. Please choose another.",
     "slot_taken_long": "Sorry, the selected time was booked by another patient. Please choose another available slot.",
     "slot_unavailable": "This time is no longer available. Please choose another.",
+    "schedule_updated": "The doctor updated the schedule. Please choose a new available time.",
     "err_create": "Error creating appointment",
     "err_generic": "An error occurred. Please try again later.",
     "err_init_payment": "Failed to initialize payment",
@@ -690,7 +691,9 @@
     "prep_docs_ready": "Documents ready",
     "prep_docs_waiting": "Documents pending",
     "prep_access_ready": "Access granted",
-    "prep_access_waiting": "Access not granted"
+    "prep_access_waiting": "Access not granted",
+    "prep_docs_action": "Go to appointment documents",
+    "prep_access_action": "Go to doctor access"
   },
   "profile": {
     "patient_since": "Patient since {{date}}",
@@ -1089,11 +1092,13 @@
     "saving": "Saving...",
     "save": "Save",
     "saved": "Saved",
+    "save_note_error": "Could not save the note. Check the file and try again.",
     "plan_label": "Examination plan",
     "plan_placeholder": "Enter patient examination plan...",
     "prescriptions_label": "Prescriptions",
     "prescriptions_placeholder": "Enter prescriptions and recommendations...",
     "patient_docs": "Patient documents",
+    "patient_doc_received": "The patient uploaded a new document. The list has been updated.",
     "no_patient_docs": "Patient has no uploaded documents",
     "doctype_analysis": "Tests",
     "doctype_prescription": "Prescriptions",
@@ -1164,7 +1169,14 @@
     "window_open": "Note window is open",
     "window_closed": "Note window is closed",
     "window_available": "{{hours}} h. remaining to add notes",
-    "window_expired_detail": "The {{hours}}-hour window after consultation has expired"
+    "window_expired_detail": "The {{hours}}-hour window after consultation has expired",
+    "access_title": "Doctor access to documents",
+    "access_ready_title": "The doctor can view documents",
+    "access_ready_desc": "{{name}} has access to the documents attached to this consultation.",
+    "access_waiting_title": "Doctor access is not granted",
+    "access_waiting_desc": "{{name}} cannot review the documents for this consultation yet.",
+    "grant_access": "Grant access",
+    "access_grant_error": "Could not grant access. Please try again later."
   },
   "payment_failure": {
     "title": "Payment declined",
