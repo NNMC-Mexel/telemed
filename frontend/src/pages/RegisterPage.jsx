@@ -11,6 +11,7 @@ import Input from '../components/ui/Input'
 import LanguageSwitcher from '../components/ui/LanguageSwitcher'
 import { Card, CardContent } from '../components/ui/Card'
 import useAuthStore from '../stores/authStore'
+import useRegistrationDraftStore from '../stores/registrationDraftStore'
 import { formatKazakhstanPhoneInput, isValidEmail, isValidPhone, isValidIIN, getPasswordError } from '../utils/helpers'
 import { specializationsAPI, normalizeResponse, authAPI } from '../services/api'
 
@@ -28,25 +29,12 @@ function RegisterPage() {
   const { register, isLoading, error, clearError } = useAuthStore()
 
   const [userType] = useState('patient')
-  const [step, setStep] = useState(1)
   const [pendingEmail, setPendingEmail] = useState(null)
   const [resendStatus, setResendStatus] = useState(null) // null | 'sending' | 'sent' | 'error'
   const [specializations, setSpecializations] = useState([])
-  const [formData, setFormData] = useState({
-    fullName: '', email: '', phone: '', iin: '',
-    password: '', confirmPassword: '',
-    specialization: '', licenseNumber: '', experience: '',
-    education: '', workplace: '',
-  })
+  const { step, setStep, formData, setFormData, consents, setConsents, resetDraft } = useRegistrationDraftStore()
   const [showPassword, setShowPassword] = useState(false)
   const [formErrors, setFormErrors] = useState({})
-  const [consents, setConsents] = useState({
-    personalData: false,
-    medicalData: false,
-    telemedicine: false,
-    thirdPartyTransfer: false,
-    termsAndPrivacy: false,
-  })
 
   useEffect(() => {
     const fetchSpecializations = async () => {
@@ -149,8 +137,10 @@ function RegisterPage() {
 
     const result = await register(userData)
     if (result.success) {
+      const registeredEmail = result.email || formData.email
+      resetDraft()
       if (result.pendingConfirmation) {
-        setPendingEmail(result.email || formData.email)
+        setPendingEmail(registeredEmail)
       } else {
         navigate('/patient')
       }
