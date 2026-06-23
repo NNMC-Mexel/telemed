@@ -414,6 +414,8 @@ function normalizePersistedIntent(intent) {
     language: intent.language,
     price: Number(intent.amount),
     amount: Number(intent.amount),
+    originalAmount: Number(intent.originalAmount || intent.metadata?.promotionSnapshot?.originalPrice || intent.amount),
+    discountAmount: Number(intent.discountAmount || intent.metadata?.promotionSnapshot?.discountAmount || 0),
     appointmentId: intent.appointment?.documentId,
     metadata: intent.metadata || {},
     createdAt: intent.createdAt,
@@ -452,6 +454,9 @@ async function createPaidQRAppointmentFromIntent(intent, source, statusData = nu
         type: intent.type || 'video',
         statuse: 'confirmed',
         price: intent.price || intent.amount,
+        originalPrice: intent.originalAmount || intent.metadata?.promotionSnapshot?.originalPrice || intent.price || intent.amount,
+        discountAmount: intent.discountAmount || intent.metadata?.promotionSnapshot?.discountAmount || 0,
+        promotionSnapshot: intent.metadata?.promotionSnapshot || null,
         paymentStatus: 'paid',
         paymentId: intent.paymentId,
         roomId: intent.roomId,
@@ -599,7 +604,7 @@ setInterval(() => {
 async function fetchDoctorPaymentProfile(doctorId) {
   const res = await fetch(
     `${STRAPI_API_URL}/api/doctors?filters[id][$eq]=${encodeURIComponent(doctorId)}` +
-      '&fields[0]=price&fields[1]=slotDuration',
+      '&populate=*',
     {
       headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN || ''}` },
     }
@@ -608,10 +613,25 @@ async function fetchDoctorPaymentProfile(doctorId) {
   const json = await res.json()
   const doctor = json?.data?.[0]
   if (!doctor) throw new Error(`Doctor ${doctorId} not found`)
-  const price = doctor.price ?? doctor.attributes?.price
+  const originalPrice = doctor.price ?? doctor.attributes?.price
+  const price = doctor.effectivePrice ?? doctor.attributes?.effectivePrice ?? originalPrice
   if (price == null || isNaN(Number(price))) throw new Error(`Doctor ${doctorId} has no valid price`)
+  const discountAmount = Math.max(0, Number(originalPrice || price) - Number(price))
+  const promotionSnapshot = discountAmount > 0 && doctor.activePromotion
+    ? {
+        ...doctor.activePromotion,
+        originalPrice: Number(originalPrice),
+        effectivePrice: Number(price),
+        discountAmount,
+        discountPercent: doctor.discountPercent || Math.round((discountAmount / Number(originalPrice)) * 100),
+        appliedAt: new Date().toISOString(),
+      }
+    : null
   return {
     price: Number(price),
+    originalPrice: Number(originalPrice || price),
+    discountAmount,
+    promotionSnapshot,
     slotDuration: Number(doctor.slotDuration || doctor.attributes?.slotDuration || 30) || 30,
   }
 }
@@ -1130,6 +1150,8 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
       paymentId,
       status: 'pending',
       amount: actualPrice,
+      originalAmount: doctorProfile.originalPrice,
+      discountAmount: doctorProfile.discountAmount,
       currency: 'KZT',
       dateTime: bookingData.dateTime,
       roomId: bookingData.roomId,
@@ -1140,6 +1162,7 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
       metadata: {
         source: 'create-halyk-qr',
         preparation: buildPreparationFields(bookingData),
+        promotionSnapshot: doctorProfile.promotionSnapshot,
       },
     })
 
@@ -1152,6 +1175,9 @@ app.post('/api/payment/create-halyk-qr', async (req, res) => {
       patientEmail: patient.email || '',
       patientPhone: patient.phone || '',
       price: actualPrice,
+      originalAmount: doctorProfile.originalPrice,
+      discountAmount: doctorProfile.discountAmount,
+      promotionSnapshot: doctorProfile.promotionSnapshot,
       invoiceId,
       paymentId,
       accessToken: auth.access_token,
@@ -1277,6 +1303,7 @@ app.get('/api/payment/halyk-qr-status/:billNumber', async (req, res) => {
           await updatePaymentIntent(pending.documentId, {
             status: 'paid',
             metadata: {
+              ...(pending.metadata || {}),
               source: 'halyk-qr-status',
               epayTransactionId: paidTransactionId,
               paidStatus: status,
@@ -1544,6 +1571,9 @@ app.post('/api/payment/epay-confirm', async (req, res) => {
           type: booking.type,
           statuse: 'confirmed',
           price: verifiedPaymentIntent?.amount || verifiedPaymentIntent?.price || booking.price,
+          originalPrice: verifiedPaymentIntent?.originalAmount || verifiedPaymentIntent?.metadata?.promotionSnapshot?.originalPrice || booking.price,
+          discountAmount: verifiedPaymentIntent?.discountAmount || verifiedPaymentIntent?.metadata?.promotionSnapshot?.discountAmount || 0,
+          promotionSnapshot: verifiedPaymentIntent?.metadata?.promotionSnapshot || verifiedPaymentIntent?.promotionSnapshot || null,
           paymentStatus: 'paid',
           roomId: booking.roomId,
           ...(invoiceId ? { paymentId: invoiceId } : {}),
@@ -1683,6 +1713,9 @@ app.post('/api/payment/epay-callback', async (req, res) => {
           type: intent.type || intent.consultationType || 'video',
           statuse: 'confirmed',
           price: expectedAmount,
+          originalPrice: intent.originalAmount || intent.metadata?.promotionSnapshot?.originalPrice || expectedAmount,
+          discountAmount: intent.discountAmount || intent.metadata?.promotionSnapshot?.discountAmount || 0,
+          promotionSnapshot: intent.metadata?.promotionSnapshot || intent.promotionSnapshot || null,
           paymentStatus: 'paid',
           roomId: intent.roomId,
           paymentId: invoiceId,
@@ -1865,7 +1898,10 @@ app.post('/api/payment/epay-token', async (req, res) => {
       roomId,
       type: consultationType,
       amount: actualPrice,
+      originalAmount: doctorProfile.originalPrice,
+      discountAmount: doctorProfile.discountAmount,
       preparation,
+      promotionSnapshot: doctorProfile.promotionSnapshot,
       createdAt: Date.now(),
     })
 
@@ -1875,13 +1911,15 @@ app.post('/api/payment/epay-token', async (req, res) => {
       paymentId: String(invoiceId),
       status: 'pending',
       amount: actualPrice,
+      originalAmount: doctorProfile.originalPrice,
+      discountAmount: doctorProfile.discountAmount,
       currency,
       dateTime,
       roomId,
       consultationType,
       patient: patient.id,
       doctor: doctorId,
-      metadata: { source: 'epay-token', preparation },
+      metadata: { source: 'epay-token', preparation, promotionSnapshot: doctorProfile.promotionSnapshot },
     })
 
     const auth = await getEPayAuthToken(invoiceId, actualPrice, currency)

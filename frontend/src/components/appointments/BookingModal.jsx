@@ -30,7 +30,7 @@ import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import Avatar from "../ui/Avatar";
 import Badge from "../ui/Badge";
-import { cn, formatPrice, getSpecName, getDoctorField } from "../../utils/helpers";
+import { cn, formatPrice, getSpecName, getDoctorField, getDoctorPricing } from "../../utils/helpers";
 import { generateSlotsFromIntervals, getDoctorWorkingIntervals } from "../../utils/schedule";
 import { doctorsAPI, documentsAPI, getMediaUrl, getBookedSlots, getSignalingUrl } from "../../services/api";
 import useAppointmentStore from "../../stores/appointmentStore";
@@ -292,7 +292,8 @@ function BookingModal({ isOpen, onClose, doctor }) {
     const doctorName = getDoctorField(activeDoctor, 'fullName', i18n.language) || activeDoctor?.fullName || activeDoctor?.name || t('booking.doctor_fallback');
     const doctorSpecialization = getSpecName(activeDoctor?.specialization, i18n.language)
         || t('booking.specialist_fallback');
-    const doctorPrice = activeDoctor?.price || 0;
+    const doctorPricing = getDoctorPricing(activeDoctor);
+    const doctorPrice = doctorPricing.effectivePrice;
     const getConsultationLanguageLabel = (language) => {
         const code = normalizeLanguageCode(language) || availableLanguageCodes[0] || "ru";
         return t(LANGUAGE_LABEL_KEYS[code] || LANGUAGE_LABEL_KEYS.ru);
@@ -1459,6 +1460,16 @@ function BookingModal({ isOpen, onClose, doctor }) {
                             </p>
                         </div>
                         <div className='text-right shrink-0'>
+                            {doctorPricing.hasPromotion && (
+                                <div className='mb-0.5 flex items-center justify-end gap-2'>
+                                    <span className='text-xs text-slate-400 line-through'>
+                                        {formatPrice(doctorPricing.originalPrice)}
+                                    </span>
+                                    <span className='rounded-md bg-rose-100 px-1.5 py-0.5 text-[11px] font-semibold text-rose-700'>
+                                        -{doctorPricing.discountPercent}%
+                                    </span>
+                                </div>
+                            )}
                             <p className='font-bold text-slate-900'>
                                 {formatPrice(doctorPrice)}
                             </p>
@@ -2020,8 +2031,15 @@ function BookingModal({ isOpen, onClose, doctor }) {
                                     <span className='font-semibold text-teal-700'>
                                         {t('booking.field_total')}
                                     </span>
-                                    <span className='font-bold text-teal-700'>
-                                        {formatPrice(doctorPrice)}
+                                    <span className='text-right'>
+                                        {doctorPricing.hasPromotion && (
+                                            <span className='block text-xs text-slate-400 line-through'>
+                                                {formatPrice(doctorPricing.originalPrice)}
+                                            </span>
+                                        )}
+                                        <span className='block font-bold text-teal-700'>
+                                            {formatPrice(doctorPrice)}
+                                        </span>
                                     </span>
                                 </div>
                             </div>

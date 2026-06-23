@@ -56,6 +56,7 @@
     "admin_dashboard": "Dashboard",
     "admin_users": "Users",
     "admin_appointments": "Appointments",
+    "admin_promotions": "Promotions",
     "admin_specializations": "Specializations",
     "admin_settings": "Site Content",
     "login_as_patient": "Sign in as Patient",

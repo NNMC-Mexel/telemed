@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Button from '../ui/Button'
 import { getMediaUrl } from '../../services/api'
-import { cn, getInitials, isDoctorOnline, getSpecName, getDoctorField } from '../../utils/helpers'
+import { cn, getInitials, isDoctorOnline, getSpecName, getDoctorField, getDoctorPricing } from '../../utils/helpers'
 
 const colors = [
   'bg-gradient-to-br from-teal-400 to-teal-600',
@@ -30,7 +30,7 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
   const rating = Math.min(doctor.rating || 0, 5)
   const reviewsCount = doctor.reviewsCount || 0
   const experience = doctor.experience || 0
-  const price = doctor.price || 0
+  const pricing = getDoctorPricing(doctor)
   const specialization = getSpecName(doctor.specialization, i18n.language) || t('common.specialist')
   const isOnline = isDoctorOnline(doctor)
 
@@ -103,7 +103,13 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
         {/* Bottom row: Price + Button */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-100">
           <div>
-            <p className="text-xl font-bold text-slate-900">{price.toLocaleString('ru-RU')} ₸</p>
+            {pricing.hasPromotion && (
+              <div className="mb-0.5 flex items-center gap-2">
+                <span className="text-sm text-slate-400 line-through">{pricing.originalPrice.toLocaleString('ru-RU')} ₸</span>
+                <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-600">-{pricing.discountPercent}%</span>
+              </div>
+            )}
+            <p className="text-xl font-bold text-slate-900">{pricing.effectivePrice.toLocaleString('ru-RU')} ₸</p>
             <p className="text-xs text-slate-500">{t('common.price_per_consultation')}</p>
           </div>
           <Button onClick={handleBookClick} size="md">
@@ -180,8 +186,18 @@ function DoctorCard({ doctor, onBookClick, basePath = '' }) {
         {/* Price and Action Section */}
         <div className="flex-shrink-0 flex flex-col items-end justify-between py-1">
           <div className="text-right">
+            {pricing.hasPromotion && (
+              <div className="mb-1 flex items-center justify-end gap-2">
+                <span className="text-sm text-slate-400 line-through">
+                  {pricing.originalPrice.toLocaleString('ru-RU')} ₸
+                </span>
+                <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-600">
+                  -{pricing.discountPercent}%
+                </span>
+              </div>
+            )}
             <p className="text-2xl font-bold text-slate-900">
-              {price.toLocaleString('ru-RU')} ₸
+              {pricing.effectivePrice.toLocaleString('ru-RU')} ₸
             </p>
             <p className="text-xs text-slate-500">{t('common.price_per_consultation')}</p>
           </div>

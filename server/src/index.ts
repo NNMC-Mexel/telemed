@@ -158,6 +158,12 @@ const roleDefinitions = {
       'api::appointment.appointment.canJoin',
       'api::appointment.appointment.findBookedSlots',
       'api::appointment.appointment.findSlotConflicts',
+      // Promotions — полный CRUD
+      'api::promotion.promotion.find',
+      'api::promotion.promotion.findOne',
+      'api::promotion.promotion.create',
+      'api::promotion.promotion.update',
+      'api::promotion.promotion.delete',
       // Reviews — полный CRUD
       'api::review.review.find',
       'api::review.review.findOne',

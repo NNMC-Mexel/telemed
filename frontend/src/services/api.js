@@ -450,6 +450,37 @@ export const specializationsAPI = {
 };
 
 // ===========================================
+// API для акций
+// ===========================================
+
+export const promotionsAPI = {
+    getAll: () =>
+        api.get(
+            `/api/promotions?populate=*&sort=priority:desc,createdAt:desc&pagination[limit]=${LARGE_COLLECTION_LIMIT}`
+        ),
+
+    create: async (data) => {
+        try {
+            return await api.post("/api/promotions?status=published", { data });
+        } catch (error) {
+            if (error?.response?.status === 400 || error?.response?.status === 404) {
+                return api.post("/api/promotions", {
+                    data: {
+                        ...data,
+                        publishedAt: new Date().toISOString(),
+                    },
+                });
+            }
+            throw error;
+        }
+    },
+
+    update: (id, data) => api.put(`/api/promotions/${id}`, { data }),
+
+    delete: (id) => api.delete(`/api/promotions/${id}`),
+};
+
+// ===========================================
 // API для контента лендинга
 // ===========================================
 

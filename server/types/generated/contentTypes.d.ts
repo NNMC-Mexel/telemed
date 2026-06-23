@@ -488,6 +488,7 @@ export interface ApiAppointmentAppointment extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     dateTime: Schema.Attribute.DateTime;
+    discountAmount: Schema.Attribute.Integer;
     doctor: Schema.Attribute.Relation<'manyToOne', 'api::doctor.doctor'>;
     doctorAccessGranted: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;
@@ -501,6 +502,7 @@ export interface ApiAppointmentAppointment extends Struct.CollectionTypeSchema {
       'oneToMany',
       'api::medical-document.medical-document'
     >;
+    originalPrice: Schema.Attribute.Integer;
     patient: Schema.Attribute.Relation<
       'manyToOne',
       'plugin::users-permissions.user'
@@ -519,6 +521,7 @@ export interface ApiAppointmentAppointment extends Struct.CollectionTypeSchema {
     preparationReminder2hSentAt: Schema.Attribute.DateTime;
     preparationUpdatedAt: Schema.Attribute.DateTime;
     price: Schema.Attribute.Integer & Schema.Attribute.Required;
+    promotionSnapshot: Schema.Attribute.JSON;
     publishedAt: Schema.Attribute.DateTime;
     rating: Schema.Attribute.Integer &
       Schema.Attribute.SetMinMax<
@@ -1033,6 +1036,7 @@ export interface ApiPaymentIntentPaymentIntent
       Schema.Attribute.Private;
     currency: Schema.Attribute.String & Schema.Attribute.DefaultTo<'KZT'>;
     dateTime: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    discountAmount: Schema.Attribute.Integer;
     doctor: Schema.Attribute.Relation<'manyToOne', 'api::doctor.doctor'>;
     invoiceId: Schema.Attribute.String & Schema.Attribute.Unique;
     language: Schema.Attribute.String;
@@ -1043,6 +1047,7 @@ export interface ApiPaymentIntentPaymentIntent
     > &
       Schema.Attribute.Private;
     metadata: Schema.Attribute.JSON;
+    originalAmount: Schema.Attribute.Integer;
     patient: Schema.Attribute.Relation<
       'manyToOne',
       'plugin::users-permissions.user'
@@ -1064,6 +1069,62 @@ export interface ApiPaymentIntentPaymentIntent
       ]
     > &
       Schema.Attribute.DefaultTo<'pending'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiPromotionPromotion extends Struct.CollectionTypeSchema {
+  collectionName: 'promotions';
+  info: {
+    displayName: 'Promotion';
+    pluralName: 'promotions';
+    singularName: 'promotion';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    badgeLabel: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'\u0410\u043A\u0446\u0438\u044F'>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text;
+    discountType: Schema.Attribute.Enumeration<
+      ['percentage', 'fixed_amount', 'fixed_price']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'percentage'>;
+    discountValue: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 1;
+        },
+        number
+      >;
+    doctors: Schema.Attribute.Relation<'manyToMany', 'api::doctor.doctor'>;
+    endsAt: Schema.Attribute.DateTime;
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::promotion.promotion'
+    > &
+      Schema.Attribute.Private;
+    priority: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    publishedAt: Schema.Attribute.DateTime;
+    scope: Schema.Attribute.Enumeration<['all', 'doctors', 'specializations']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'doctors'>;
+    specializations: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::specialization.specialization'
+    >;
+    startsAt: Schema.Attribute.DateTime;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1741,6 +1802,7 @@ declare module '@strapi/strapi' {
       'api::message.message': ApiMessageMessage;
       'api::notification.notification': ApiNotificationNotification;
       'api::payment-intent.payment-intent': ApiPaymentIntentPaymentIntent;
+      'api::promotion.promotion': ApiPromotionPromotion;
       'api::review.review': ApiReviewReview;
       'api::specialization.specialization': ApiSpecializationSpecialization;
       'api::time-slot.time-slot': ApiTimeSlotTimeSlot;

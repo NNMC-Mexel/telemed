@@ -29,7 +29,7 @@ import Badge from "../components/ui/Badge";
 import BookingModal from "../components/appointments/BookingModal";
 import { useTranslation } from "react-i18next";
 import api, { normalizeResponse, getMediaUrl } from "../services/api";
-import { formatPrice, formatDate, isDoctorOnline, getSpecName, getDoctorField } from "../utils/helpers";
+import { formatPrice, formatDate, isDoctorOnline, getSpecName, getDoctorField, getDoctorPricing } from "../utils/helpers";
 import { getDoctorWorkingIntervals } from "../utils/schedule";
 
 function DoctorProfilePage() {
@@ -100,6 +100,7 @@ function DoctorProfilePage() {
     const totalPatients = doctor.appointmentsCount || reviewsCount || 0;
     const isDashboardView = location.pathname.startsWith('/patient/');
     const backTo = isDashboardView ? '/patient/doctors' : '/doctors';
+    const pricing = getDoctorPricing(doctor);
 
     const doctorStructuredData = {
         "@context": "https://schema.org",
@@ -240,8 +241,18 @@ function DoctorProfilePage() {
                                         <p className='text-xs uppercase tracking-wide text-teal-500 mb-1'>
                                             {t('doctor_public.price_label')}
                                         </p>
+                                        {pricing.hasPromotion && (
+                                            <div className='mb-1 flex items-center justify-center gap-2'>
+                                                <span className='text-sm text-slate-400 line-through'>
+                                                    {formatPrice(pricing.originalPrice)}
+                                                </span>
+                                                <span className='rounded-md bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700'>
+                                                    {pricing.activePromotion?.badgeLabel || 'Акция'} -{pricing.discountPercent}%
+                                                </span>
+                                            </div>
+                                        )}
                                         <p className='text-2xl md:text-3xl font-bold leading-tight'>
-                                            {formatPrice(doctor.price || 0)}
+                                            {formatPrice(pricing.effectivePrice)}
                                         </p>
                                         <p className='text-sm text-slate-600 mt-1 flex items-center justify-center gap-1'>
                                             <Clock className='w-4 h-4 text-teal-500' />

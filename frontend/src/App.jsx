@@ -35,6 +35,7 @@ import PatientHistory from './pages/doctor/PatientHistory'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminDoctors from './pages/admin/AdminDoctors'
+import AdminPromotions from './pages/admin/AdminPromotions'
 import AdminAppointments from './pages/admin/AdminAppointments'
 import AdminSpecializations from './pages/admin/AdminSpecializations'
 import AdminContent from './pages/admin/AdminContent'
@@ -334,6 +335,7 @@ function App() {
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="doctors" element={<AdminDoctors />} />
+          <Route path="promotions" element={<AdminPromotions />} />
           <Route path="appointments" element={<AdminAppointments />} />
           <Route path="specializations" element={<AdminSpecializations />} />
           <Route path="settings" element={<AdminContent />} />

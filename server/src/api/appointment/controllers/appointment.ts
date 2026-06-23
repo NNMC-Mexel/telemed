@@ -6,6 +6,7 @@
  */
 import { factories } from '@strapi/strapi';
 import { randomUUID } from 'crypto';
+import { getPromotionPricing } from '../../../utils/promotions';
 
 const ACTIVE_SLOT_STATUSES = ['pending', 'confirmed', 'in_progress'];
 const ALLOWED_PATIENT_DOCUMENT_STATUSES = ['not_provided', 'will_upload_later', 'no_documents', 'uploaded'];
@@ -650,11 +651,17 @@ export default factories.createCoreController('api::appointment.appointment', ()
     let doctorRecord: any;
     if (body.doctor) {
       if (typeof body.doctor === 'number') {
-        doctorRecord = await strapi.query('api::doctor.doctor').findOne({ where: { id: body.doctor } });
+        doctorRecord = await strapi.query('api::doctor.doctor').findOne({
+          where: { id: body.doctor },
+          populate: { specialization: true },
+        });
         doctorDocId = doctorRecord?.documentId;
       } else {
         doctorDocId = body.doctor;
-        doctorRecord = await strapi.query('api::doctor.doctor').findOne({ where: { documentId: body.doctor } });
+        doctorRecord = await strapi.query('api::doctor.doctor').findOne({
+          where: { documentId: body.doctor },
+          populate: { specialization: true },
+        });
       }
     }
 
@@ -662,7 +669,8 @@ export default factories.createCoreController('api::appointment.appointment', ()
     if (!doctorRecord) {
       return ctx.badRequest('Doctor not found');
     }
-    const actualPrice = Number(doctorRecord.price);
+    const pricing = await getPromotionPricing(strapi, doctorRecord);
+    const actualPrice = Number(pricing.effectivePrice);
     const submittedPrice = Number(body.price);
     // For a paid gateway create the price was locked when the payment intent was
     // created and the patient has already been charged that amount. If the doctor
@@ -673,6 +681,25 @@ export default factories.createCoreController('api::appointment.appointment', ()
       return ctx.badRequest('Invalid appointment price');
     }
     const priceToStore = isPaidGatewayCreate ? submittedPrice : actualPrice;
+    const submittedOriginalPrice = Number(body.originalPrice);
+    const originalPriceToStore = isPaidGatewayCreate && Number.isFinite(submittedOriginalPrice) && submittedOriginalPrice >= priceToStore
+      ? submittedOriginalPrice
+      : Number(pricing.originalPrice || doctorRecord.price || priceToStore);
+    const discountAmountToStore = Math.max(0, originalPriceToStore - priceToStore);
+    const gatewayPromotionSnapshot =
+      isPaidGatewayCreate && body.promotionSnapshot && typeof body.promotionSnapshot === 'object'
+        ? body.promotionSnapshot
+        : null;
+    const promotionSnapshot = discountAmountToStore > 0
+      ? {
+          ...(gatewayPromotionSnapshot || pricing.activePromotion || {}),
+          originalPrice: originalPriceToStore,
+          effectivePrice: priceToStore,
+          discountAmount: discountAmountToStore,
+          discountPercent: gatewayPromotionSnapshot?.discountPercent || pricing.discountPercent,
+          appliedAt: gatewayPromotionSnapshot?.appliedAt || new Date().toISOString(),
+        }
+      : null;
 
     // --- Restrict paymentStatus: only signaling server / admin may mark as paid ---
     const ALLOWED_STATUSES = ['pending', 'confirmed', 'cancelled', 'completed', 'in_progress'];
@@ -756,6 +783,9 @@ export default factories.createCoreController('api::appointment.appointment', ()
           type: body.type || 'video',
           statuse: requestedStatus,
           price: priceToStore,
+          originalPrice: originalPriceToStore,
+          discountAmount: discountAmountToStore,
+          ...(promotionSnapshot ? { promotionSnapshot } : {}),
           ...(roomId ? { roomId } : {}),
           paymentStatus: requestedPaymentStatus,
           ...(body.paymentId ? { paymentId: body.paymentId } : {}),
@@ -795,6 +825,9 @@ export default factories.createCoreController('api::appointment.appointment', ()
       doctorId: doctorDocId,
       dateTime: body.dateTime,
       price: priceToStore,
+      originalPrice: originalPriceToStore,
+      discountAmount: discountAmountToStore,
+      promotionId: promotionSnapshot?.documentId || null,
       paymentStatus: requestedPaymentStatus,
       createdBy: user?.id ?? 'api-token',
       ip: ctx.request.ip,

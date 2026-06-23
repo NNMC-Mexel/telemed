@@ -7,6 +7,7 @@
  *   licenseNumber, position, workplace
  */
 import { factories } from '@strapi/strapi';
+import { attachPromotionPricing, getPublishedPromotions } from '../../../utils/promotions';
 
 // Fields only admin may change
 const ADMIN_ONLY_FIELDS = [
@@ -39,7 +40,15 @@ export default factories.createCoreController('api::doctor.doctor', ({ strapi })
       };
     }
 
-    return await super.find(ctx);
+    const response = await super.find(ctx);
+    const data = (response as any)?.data;
+
+    if (Array.isArray(data)) {
+      const promotions = await getPublishedPromotions(strapi);
+      (response as any).data = data.map((doctor: any) => attachPromotionPricing(doctor, promotions));
+    }
+
+    return response;
   },
 
   async findOne(ctx) {
@@ -51,6 +60,11 @@ export default factories.createCoreController('api::doctor.doctor', ({ strapi })
 
     if (!isAdmin && !isDoctor && doctor?.isActive === false) {
       return ctx.notFound('Doctor not found');
+    }
+
+    if (doctor) {
+      const promotions = await getPublishedPromotions(strapi);
+      (response as any).data = attachPromotionPricing(doctor, promotions);
     }
 
     return response;

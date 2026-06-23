@@ -50,6 +50,15 @@
       "type": "integer",
       "required": true
     },
+    "originalPrice": {
+      "type": "integer"
+    },
+    "discountAmount": {
+      "type": "integer"
+    },
+    "promotionSnapshot": {
+      "type": "json"
+    },
     "roomId": {
       "type": "string",
       "unique": true

@@ -126,6 +126,23 @@ export const formatPrice = (price) => {
   }).format(price)
 }
 
+export const getDoctorPricing = (doctor) => {
+  const originalPrice = Number(doctor?.originalPrice ?? doctor?.price ?? 0) || 0
+  const effectivePrice = Number(doctor?.effectivePrice ?? doctor?.price ?? originalPrice) || 0
+  const discountAmount = Math.max(0, originalPrice - effectivePrice)
+  const activePromotion = discountAmount > 0 ? doctor?.activePromotion : null
+
+  return {
+    originalPrice,
+    effectivePrice,
+    discountAmount,
+    discountPercent: Number(doctor?.discountPercent || (originalPrice > 0 ? Math.round((discountAmount / originalPrice) * 100) : 0)),
+    hasPromotion: Boolean(activePromotion && discountAmount > 0),
+    activePromotion,
+    badgeLabel: activePromotion?.badgeLabel || 'Акция',
+  }
+}
+
 // Get localised specialization name from API object (uses nameEn / nameKk from Strapi)
 export const getSpecName = (spec, lang) => {
   if (!spec) return ''

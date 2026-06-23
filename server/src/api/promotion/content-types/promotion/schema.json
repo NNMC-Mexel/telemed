@@ -1,0 +1,75 @@
+{
+  "kind": "collectionType",
+  "collectionName": "promotions",
+  "info": {
+    "singularName": "promotion",
+    "pluralName": "promotions",
+    "displayName": "Promotion"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "text"
+    },
+    "badgeLabel": {
+      "type": "string",
+      "default": "Акция"
+    },
+    "scope": {
+      "type": "enumeration",
+      "required": true,
+      "default": "doctors",
+      "enum": [
+        "all",
+        "doctors",
+        "specializations"
+      ]
+    },
+    "discountType": {
+      "type": "enumeration",
+      "required": true,
+      "default": "percentage",
+      "enum": [
+        "percentage",
+        "fixed_amount",
+        "fixed_price"
+      ]
+    },
+    "discountValue": {
+      "type": "integer",
+      "required": true,
+      "min": 1
+    },
+    "startsAt": {
+      "type": "datetime"
+    },
+    "endsAt": {
+      "type": "datetime"
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    },
+    "priority": {
+      "type": "integer",
+      "default": 0
+    },
+    "doctors": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::doctor.doctor"
+    },
+    "specializations": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::specialization.specialization"
+    }
+  }
+}
