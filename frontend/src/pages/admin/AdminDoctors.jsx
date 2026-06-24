@@ -9,6 +9,7 @@ import Textarea from '../../components/ui/Textarea'
 import Modal from '../../components/ui/Modal'
 import Badge from '../../components/ui/Badge'
 import ImageCropModal from '../../components/ui/ImageCropModal'
+import AdminCreateUserModal from '../../components/admin/AdminCreateUserModal'
 import api, { doctorsAPI, getMediaUrl, normalizeResponse, specializationsAPI, uploadFile } from '../../services/api'
 import {
   DEFAULT_WORKING_INTERVALS,
@@ -80,6 +81,7 @@ function AdminDoctors() {
   const [specFilter, setSpecFilter] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editingDoctor, setEditingDoctor] = useState(null)
   const [form, setForm] = useState(defaultForm)
@@ -478,9 +480,14 @@ function AdminDoctors() {
           <h1 className='text-2xl font-bold text-slate-900'>{t('admin_doc.title')}</h1>
           <p className='text-slate-600'>{t('admin_doc.subtitle')}</p>
         </div>
-        <Button leftIcon={<Plus className='w-4 h-4' />} onClick={openCreateModal}>
-          {t('admin_doc.add_btn')}
-        </Button>
+        <div className='flex flex-wrap gap-2'>
+          <Button variant='outline' leftIcon={<Plus className='w-4 h-4' />} onClick={() => setIsPatientModalOpen(true)}>
+            {t('admin_doc.add_patient_btn')}
+          </Button>
+          <Button leftIcon={<Plus className='w-4 h-4' />} onClick={openCreateModal}>
+            {t('admin_doc.add_btn')}
+          </Button>
+        </div>
       </div>
 
       <div className='grid md:grid-cols-2 gap-4'>
@@ -862,6 +869,12 @@ function AdminDoctors() {
         imageSrc={cropImageSrc}
         onCropComplete={handleCroppedPhoto}
         aspect={1}
+      />
+
+      <AdminCreateUserModal
+        isOpen={isPatientModalOpen}
+        role='patient'
+        onClose={() => setIsPatientModalOpen(false)}
       />
     </div>
   )

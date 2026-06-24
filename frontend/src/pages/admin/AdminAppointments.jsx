@@ -18,6 +18,7 @@ import {
   Filter,
   Download,
   ExternalLink,
+  UserPlus,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -25,6 +26,7 @@ import Avatar from '../../components/ui/Avatar'
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import { useToast } from '../../components/ui/Toast'
+import AdminCreateUserModal from '../../components/admin/AdminCreateUserModal'
 import api, { normalizeResponse, getMediaUrl } from '../../services/api'
 import { formatDateTime, formatPrice, formatDate } from '../../utils/helpers'
 
@@ -288,6 +290,7 @@ function AdminAppointments() {
 
   const [detailAppointment, setDetailAppointment] = useState(null)
   const [statusModal, setStatusModal] = useState({ open: false, appointment: null, newStatus: null })
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
   const statusFilters = [
@@ -466,7 +469,11 @@ function AdminAppointments() {
           <h1 className="text-2xl font-bold text-slate-900">{t('admin_apt.title')}</h1>
           <p className="text-slate-600">{t('admin_apt.subtitle')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => setIsPatientModalOpen(true)}>
+            <UserPlus className="w-4 h-4 mr-1.5" />
+            {t('admin_apt.add_patient_btn')}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => fetchAppointments(true)} disabled={isRefreshing}>
             <RefreshCw className={`w-4 h-4 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             {t('admin_apt.refresh_btn')}
@@ -777,6 +784,12 @@ function AdminAppointments() {
           )}
         </div>
       </Modal>
+
+      <AdminCreateUserModal
+        isOpen={isPatientModalOpen}
+        role='patient'
+        onClose={() => setIsPatientModalOpen(false)}
+      />
 
     </div>
   )

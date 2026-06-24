@@ -2,22 +2,20 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Search,
-  Filter,
-  MoreVertical,
-  Edit,
   Trash2,
   UserPlus,
+  ShieldPlus,
   Loader2,
   AlertCircle,
   Check,
   X,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
+import { Card, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Avatar from '../../components/ui/Avatar'
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
-import Input from '../../components/ui/Input'
+import AdminCreateUserModal from '../../components/admin/AdminCreateUserModal'
 import api, { getMediaUrl } from '../../services/api'
 import { formatDate } from '../../utils/helpers'
 
@@ -35,6 +33,7 @@ function AdminUsers() {
   const [roleFilter, setRoleFilter] = useState('all')
   const [selectedUser, setSelectedUser] = useState(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [createRole, setCreateRole] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
   const roleLabels = {
@@ -105,6 +104,10 @@ function AdminUsers() {
     setShowDeleteModal(true)
   }
 
+  const handleUserCreated = () => {
+    fetchUsers()
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -119,6 +122,21 @@ function AdminUsers() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{t('admin_users.title')}</h1>
           <p className="text-slate-600">{t('admin_users.subtitle')}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            leftIcon={<UserPlus className="w-4 h-4" />}
+            onClick={() => setCreateRole('patient')}
+          >
+            {t('admin_users.add_patient')}
+          </Button>
+          <Button
+            leftIcon={<ShieldPlus className="w-4 h-4" />}
+            onClick={() => setCreateRole('admin')}
+          >
+            {t('admin_users.add_admin')}
+          </Button>
         </div>
       </div>
 
@@ -383,6 +401,13 @@ function AdminUsers() {
           </p>
         </div>
       </Modal>
+
+      <AdminCreateUserModal
+        isOpen={Boolean(createRole)}
+        role={createRole || 'patient'}
+        onClose={() => setCreateRole(null)}
+        onCreated={handleUserCreated}
+      />
     </div>
   )
 }

@@ -231,6 +231,8 @@ const roleDefinitions = {
       'plugin::users-permissions.user.update',
       'plugin::users-permissions.user.destroy',
       'plugin::users-permissions.user.me',
+      'plugin::users-permissions.role.find',
+      'plugin::users-permissions.role.findOne',
     ],
   },
   manager: {
