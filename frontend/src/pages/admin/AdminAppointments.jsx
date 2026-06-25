@@ -25,6 +25,7 @@ import Button from '../../components/ui/Button'
 import Avatar from '../../components/ui/Avatar'
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
+import Pagination from '../../components/ui/Pagination'
 import { useToast } from '../../components/ui/Toast'
 import AdminCreateUserModal from '../../components/admin/AdminCreateUserModal'
 import api, { normalizeResponse, getMediaUrl } from '../../services/api'
@@ -58,19 +59,21 @@ const TYPE_ICONS = {
   chat:  MessageCircle,
 }
 
+const APPOINTMENTS_PER_PAGE = 10
+
 const getAppointmentDocumentId = (appointment) => appointment?.documentId || appointment?.id
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
     <Card>
       <CardContent className="p-4 sm:p-6">
-        <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
-            <Icon className="w-6 h-6 text-white" />
+        <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 sm:w-12 sm:h-12 ${color}`}>
+            <Icon className="w-5 h-5 text-white sm:w-6 sm:h-6" />
           </div>
-          <div className="min-w-0">
-            <p className="text-xl sm:text-2xl font-bold text-slate-900 wrap-break-word">{value}</p>
-            <p className="text-sm text-slate-500">{label}</p>
+          <div className="min-w-0 w-full">
+            <p className="text-xl sm:text-2xl font-bold leading-tight text-slate-900 break-words">{value}</p>
+            <p className="text-sm leading-snug text-slate-500">{label}</p>
           </div>
         </div>
       </CardContent>
@@ -292,6 +295,7 @@ function AdminAppointments() {
   const [statusModal, setStatusModal] = useState({ open: false, appointment: null, newStatus: null })
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const statusFilters = [
     { value: 'all',         label: t('admin_apt.filter_all') },
@@ -370,6 +374,17 @@ function AdminAppointments() {
     }
     return true
   })
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, statusFilter, paymentFilter, dateFrom, dateTo])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / APPOINTMENTS_PER_PAGE))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const paginatedAppointments = filtered.slice(
+    (safeCurrentPage - 1) * APPOINTMENTS_PER_PAGE,
+    safeCurrentPage * APPOINTMENTS_PER_PAGE
+  )
 
   const stats = {
     total:   appointments.length,
@@ -469,23 +484,23 @@ function AdminAppointments() {
           <h1 className="text-2xl font-bold text-slate-900">{t('admin_apt.title')}</h1>
           <p className="text-slate-600">{t('admin_apt.subtitle')}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => setIsPatientModalOpen(true)}>
+        <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-wrap">
+          <Button className="w-full" variant="outline" size="sm" onClick={() => setIsPatientModalOpen(true)}>
             <UserPlus className="w-4 h-4 mr-1.5" />
             {t('admin_apt.add_patient_btn')}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => fetchAppointments(true)} disabled={isRefreshing}>
+          <Button className="w-full" variant="outline" size="sm" onClick={() => fetchAppointments(true)} disabled={isRefreshing}>
             <RefreshCw className={`w-4 h-4 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             {t('admin_apt.refresh_btn')}
           </Button>
-          <Button variant="outline" size="sm" onClick={exportCSV}>
+          <Button className="w-full sm:w-auto" variant="outline" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-1.5" />
             CSV
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <StatCard icon={Calendar}    label={t('admin_apt.stat_total')}   value={stats.total}            color="bg-gradient-to-br from-teal-500 to-sky-500" />
         <StatCard icon={Clock}       label={t('admin_apt.stat_today')}   value={stats.today}            color="bg-gradient-to-br from-amber-500 to-orange-500" />
         <StatCard icon={AlertCircle} label={t('admin_apt.stat_pending')} value={stats.pending}          color="bg-gradient-to-br from-violet-500 to-purple-500" />
@@ -576,7 +591,7 @@ function AdminAppointments() {
           ) : (
             <>
             <div className="divide-y divide-slate-100 md:hidden">
-              {filtered.map((apt) => {
+              {paginatedAppointments.map((apt) => {
                 const TypeIcon = TYPE_ICONS[apt.type] || Video
                 const next = STATUS_NEXT[apt.status] || []
                 return (
@@ -603,10 +618,10 @@ function AdminAppointments() {
                           <p className="text-xs text-slate-500">{apt.doctor?.specialization?.name || '—'}</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="grid grid-cols-1 gap-3 text-sm min-[420px]:grid-cols-2">
                         <div>
                           <p className="text-xs text-slate-400">{t('admin_apt.col_datetime')}</p>
-                          <p className="font-medium text-slate-900">{formatDateTime(apt.dateTime)}</p>
+                          <p className="font-medium text-slate-900 break-words">{formatDateTime(apt.dateTime)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-slate-400">{t('admin_apt.col_type')}</p>
@@ -621,7 +636,9 @@ function AdminAppointments() {
                         </div>
                         <div>
                           <p className="text-xs text-slate-400">{t('admin_apt.col_payment')}</p>
-                          <PaymentDropdown appointment={apt} onChange={handlePaymentStatusChange} />
+                          <div className="min-w-0">
+                            <PaymentDropdown appointment={apt} onChange={handlePaymentStatusChange} />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -657,7 +674,7 @@ function AdminAppointments() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((apt) => {
+                  {paginatedAppointments.map((apt) => {
                     const TypeIcon = TYPE_ICONS[apt.type] || Video
                     const next = STATUS_NEXT[apt.status] || []
                     return (
@@ -731,6 +748,12 @@ function AdminAppointments() {
                 </span>
               </div>
             </div>
+            <Pagination
+              currentPage={safeCurrentPage}
+              totalItems={filtered.length}
+              pageSize={APPOINTMENTS_PER_PAGE}
+              onPageChange={setCurrentPage}
+            />
             </>
           )}
         </CardContent>

@@ -212,7 +212,7 @@ function AdminSpecializations() {
           <h1 className='text-2xl font-bold text-slate-900'>{t('admin_spec.title')}</h1>
           <p className='text-slate-600'>{t('admin_spec.subtitle')}</p>
         </div>
-        <Button leftIcon={<Plus className='w-4 h-4' />} onClick={openCreateModal}>
+        <Button className='w-full sm:w-auto' leftIcon={<Plus className='w-4 h-4' />} onClick={openCreateModal}>
           {t('admin_spec.add_btn')}
         </Button>
       </div>
@@ -227,13 +227,67 @@ function AdminSpecializations() {
       <Card>
         <CardHeader>
           <CardTitle>{t('admin_spec.list_title', { count: filteredItems.length })}</CardTitle>
-          <p className='text-sm text-slate-500'>{t('admin_spec.drag_hint')}</p>
+          <p className='hidden text-sm text-slate-500 md:block'>{t('admin_spec.drag_hint')}</p>
           {search.trim() && (
-            <p className='text-xs text-amber-600'>{t('admin_spec.drag_disabled')}</p>
+            <p className='hidden text-xs text-amber-600 md:block'>{t('admin_spec.drag_disabled')}</p>
           )}
         </CardHeader>
         <CardContent className='p-0'>
-          <div className='overflow-x-auto'>
+          <div className='divide-y divide-slate-100 md:hidden'>
+            {filteredItems.length === 0 ? (
+              <div className='px-4 py-10 text-center text-slate-500'>
+                {t('admin_spec.not_found')}
+              </div>
+            ) : (
+              filteredItems.map((item) => (
+                <div key={item.documentId || item.id} className='p-4'>
+                  <div className='flex items-start justify-between gap-3'>
+                    <div className='min-w-0'>
+                      <p className='font-semibold text-slate-900 break-words'>{item.name}</p>
+                      <p className='mt-1 text-sm text-slate-500 break-words'>
+                        {item.description || '—'}
+                      </p>
+                    </div>
+                    <div className='shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600'>
+                      #{items.findIndex((x) => x.documentId === item.documentId) + 1}
+                    </div>
+                  </div>
+
+                  <div className='mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-600'>
+                    <span className='inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-1 text-teal-700'>
+                      <Tags className='w-4 h-4' />
+                      {item.icon || '—'}
+                    </span>
+                  </div>
+
+                  <div className='mt-4 grid grid-cols-2 gap-2'>
+                    <Button
+                      size='sm'
+                      variant='secondary'
+                      className='w-full'
+                      onClick={() => openEditModal(item)}
+                      aria-label={t('admin_spec.edit_aria')}
+                    >
+                      <Pencil className='w-4 h-4' />
+                      {t('common.edit')}
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='secondary'
+                      className='w-full'
+                      onClick={() => handleDelete(item)}
+                      aria-label={t('admin_spec.delete_aria')}
+                    >
+                      <Trash2 className='w-4 h-4 text-rose-600' />
+                      {t('common.delete')}
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className='hidden overflow-x-auto md:block'>
             <table className='w-full'>
               <thead>
                 <tr className='border-b border-slate-200'>

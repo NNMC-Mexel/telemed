@@ -1,0 +1,267 @@
+{
+  "when": "2026-06-24T16:44:56.455Z",
+  "base": "http://localhost:1340",
+  "pass": 36,
+  "fail": 1,
+  "results": [
+    {
+      "name": "login:patient",
+      "expected": 200,
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "login:doctor",
+      "expected": 200,
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "login:admin",
+      "expected": 200,
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "users/me patient no password",
+      "expected": "200 & no pw",
+      "got": "200 pw=false",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "users/me doctor no password",
+      "expected": "200 & no pw",
+      "got": "200 pw=false",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "users/me admin no password",
+      "expected": "200 & no pw",
+      "got": "200 pw=false",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "GET /api/users patient -> 403",
+      "expected": "403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "GET /api/users doctor -> 403",
+      "expected": "403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "GET /api/users admin -> 200",
+      "expected": "200",
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "GET /api/users anon -> 401/403",
+      "expected": "401/403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "anon GET /api/doctors",
+      "expected": "200",
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "anon GET /api/specializations",
+      "expected": "200",
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "anon GET /api/articles",
+      "expected": "200/404",
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "check-email enumeration (privacy)",
+      "expected": "identical/no-leak",
+      "got": "uniform",
+      "ok": true,
+      "extra": "existing=null missing=null"
+    },
+    {
+      "name": "GET /api/promotions patient -> 403",
+      "expected": "403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "GET /api/promotions doctor -> 403",
+      "expected": "403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "GET /api/promotions admin -> 200",
+      "expected": "200",
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "POST /api/promotions patient -> 403",
+      "expected": "403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "POST /api/promotions doctor -> 403",
+      "expected": "403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "POST /api/users patient -> 401/403",
+      "expected": "401/403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "POST /api/users doctor -> 401/403",
+      "expected": "401/403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "POST /api/users admin -> 200/201",
+      "expected": "200/201",
+      "got": 400,
+      "ok": false,
+      "extra": " {\"data\":null,\"error\":{\"status\":400,\"name\":\"ValidationError\",\"message\":\"role is a required field\",\"details\":{\"errors\":[{\""
+    },
+    {
+      "name": "patient PUT /api/users/:id (role escalation) blocked",
+      "expected": "401/403/400/405",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "patient appointments list",
+      "expected": "200",
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "doctor appointments list",
+      "expected": "200",
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "admin appointments list",
+      "expected": "200",
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "anon appointments list -> 401/403",
+      "expected": "401/403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "doctor create appointment -> 403",
+      "expected": "403/400",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "patient price/paymentStatus tampering rejected",
+      "expected": "400/403",
+      "got": 400,
+      "ok": true,
+      "extra": "forced paid+price=1"
+    },
+    {
+      "name": "IDOR appointments (patient scan 1..40)",
+      "expected": "no foreign 200 leak",
+      "got": "owned=0 forbidden=40 notfound=0",
+      "ok": true,
+      "extra": "(manual: owned must be patient-owned only)"
+    },
+    {
+      "name": "medical-documents access codes sane (patient 1..20)",
+      "expected": "200/403/404 only",
+      "got": "unexpected=0",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "conversations access codes sane (patient 1..20)",
+      "expected": "200/403/404 only",
+      "got": "unexpected=0",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "weak password registration rejected",
+      "expected": "400",
+      "got": 400,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "password without uppercase rejected",
+      "expected": "400",
+      "got": 400,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "doctor self-registration disabled",
+      "expected": "400/403",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "anon upload -> 401/403/400",
+      "expected": "401/403/400",
+      "got": 403,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "anon GET /api/global",
+      "expected": "200/404",
+      "got": 200,
+      "ok": true,
+      "extra": ""
+    }
+  ]
+}

@@ -1,0 +1,212 @@
+{
+  "app": "http://localhost:1342",
+  "when": "2026-06-24T16:48:01.252Z",
+  "roles": {
+    "patient": {
+      "loginUrl": "http://localhost:1342/patient",
+      "pages": [
+        {
+          "route": "/patient",
+          "finalUrl": "http://localhost:1342/patient",
+          "textLen": 710,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/patient/doctors",
+          "finalUrl": "http://localhost:1342/patient/doctors",
+          "textLen": 1944,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/patient/appointments",
+          "finalUrl": "http://localhost:1342/patient/appointments",
+          "textLen": 520,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/patient/chat",
+          "finalUrl": "http://localhost:1342/patient/chat",
+          "textLen": 449,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/patient/documents",
+          "finalUrl": "http://localhost:1342/patient/documents",
+          "textLen": 487,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/patient/profile",
+          "finalUrl": "http://localhost:1342/patient/profile",
+          "textLen": 682,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        }
+      ]
+    },
+    "doctor": {
+      "loginUrl": "http://localhost:1342/doctor",
+      "pages": [
+        {
+          "route": "/doctor",
+          "finalUrl": "http://localhost:1342/doctor",
+          "textLen": 435,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/doctor/schedule",
+          "finalUrl": "http://localhost:1342/doctor/schedule",
+          "textLen": 797,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/doctor/patients",
+          "finalUrl": "http://localhost:1342/doctor/patients",
+          "textLen": 383,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/doctor/chat",
+          "finalUrl": "http://localhost:1342/doctor/chat",
+          "textLen": 436,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/doctor/profile",
+          "finalUrl": "http://localhost:1342/doctor/profile",
+          "textLen": 586,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        }
+      ]
+    },
+    "admin": {
+      "loginUrl": "http://localhost:1342/admin",
+      "pages": [
+        {
+          "route": "/admin",
+          "finalUrl": "http://localhost:1342/admin",
+          "textLen": 1057,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/admin/users",
+          "finalUrl": "http://localhost:1342/admin/users",
+          "textLen": 1464,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/admin/doctors",
+          "finalUrl": "http://localhost:1342/admin/doctors",
+          "textLen": 1189,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/admin/promotions",
+          "finalUrl": "http://localhost:1342/admin/promotions",
+          "textLen": 318,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/admin/appointments",
+          "finalUrl": "http://localhost:1342/admin/appointments",
+          "textLen": 1805,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/admin/specializations",
+          "finalUrl": "http://localhost:1342/admin/specializations",
+          "textLen": 1113,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/admin/support",
+          "finalUrl": "http://localhost:1342/admin/support",
+          "textLen": 553,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        },
+        {
+          "route": "/admin/settings",
+          "finalUrl": "http://localhost:1342/admin/settings",
+          "textLen": 2088,
+          "blank": false,
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedReq": [],
+          "err": null
+        }
+      ]
+    }
+  },
+  "anonPatientRedirect": "/login?redirect=%2Fpatient"
+}

@@ -1501,6 +1501,8 @@
     "no_phone": "Телефон жоқ",
     "blocked": "Бұғатталған",
     "active": "Белсенді",
+    "block_action": "Бұғаттау",
+    "unblock_action": "Белсендіру",
     "not_confirmed": "Расталмаған",
     "stat_patients": "Пациенттер",
     "stat_doctors": "Дәрігерлер",

@@ -1501,6 +1501,8 @@
     "no_phone": "Нет телефона",
     "blocked": "Заблокирован",
     "active": "Активен",
+    "block_action": "Заблокировать",
+    "unblock_action": "Активировать",
     "not_confirmed": "Не подтверждён",
     "stat_patients": "Пациентов",
     "stat_doctors": "Врачей",

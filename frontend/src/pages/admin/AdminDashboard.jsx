@@ -111,55 +111,55 @@ function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <Card>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-white" />
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center shrink-0 sm:w-12 sm:h-12">
+                <Users className="w-5 h-5 text-white sm:w-6 sm:h-6" />
               </div>
-              <div className="min-w-0">
-                <p className="text-2xl font-bold text-slate-900 wrap-break-word">{stats.totalUsers}</p>
-                <p className="text-sm text-slate-500">{t('admin.stat_users')}</p>
+              <div className="min-w-0 w-full">
+                <p className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">{stats.totalUsers}</p>
+                <p className="text-sm leading-snug text-slate-500">{t('admin.stat_users')}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center">
-                <UserPlus className="w-6 h-6 text-white" />
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center shrink-0 sm:w-12 sm:h-12">
+                <UserPlus className="w-5 h-5 text-white sm:w-6 sm:h-6" />
               </div>
-              <div className="min-w-0">
-                <p className="text-2xl font-bold text-slate-900 wrap-break-word">{stats.totalDoctors}</p>
-                <p className="text-sm text-slate-500">{t('admin.stat_doctors')}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-2xl font-bold text-slate-900 wrap-break-word">{stats.totalAppointments}</p>
-                <p className="text-sm text-slate-500">{t('admin.stat_appointments')}</p>
+              <div className="min-w-0 w-full">
+                <p className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">{stats.totalDoctors}</p>
+                <p className="text-sm leading-snug text-slate-500">{t('admin.stat_doctors')}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-white" />
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shrink-0 sm:w-12 sm:h-12">
+                <Calendar className="w-5 h-5 text-white sm:w-6 sm:h-6" />
               </div>
-              <div className="min-w-0">
-                <p className="text-xl sm:text-2xl font-bold text-slate-900 wrap-break-word">{formatPrice(stats.totalRevenue)}</p>
-                <p className="text-sm text-slate-500">{t('admin.stat_revenue')}</p>
+              <div className="min-w-0 w-full">
+                <p className="text-xl font-bold leading-tight text-slate-900 sm:text-2xl">{stats.totalAppointments}</p>
+                <p className="text-sm leading-snug text-slate-500">{t('admin.stat_appointments')}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shrink-0 sm:w-12 sm:h-12">
+                <DollarSign className="w-5 h-5 text-white sm:w-6 sm:h-6" />
+              </div>
+              <div className="min-w-0 w-full">
+                <p className="whitespace-nowrap text-[clamp(1rem,4.5vw,1.5rem)] font-bold leading-tight text-slate-900">{formatPrice(stats.totalRevenue)}</p>
+                <p className="text-sm leading-snug text-slate-500">{t('admin.stat_revenue')}</p>
               </div>
             </div>
           </CardContent>

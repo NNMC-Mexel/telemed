@@ -15,9 +15,12 @@ import Button from '../../components/ui/Button'
 import Avatar from '../../components/ui/Avatar'
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
+import Pagination from '../../components/ui/Pagination'
 import AdminCreateUserModal from '../../components/admin/AdminCreateUserModal'
 import api, { getMediaUrl } from '../../services/api'
 import { formatDate } from '../../utils/helpers'
+
+const USERS_PER_PAGE = 10
 
 const roleVariants = {
   patient: 'default',
@@ -35,6 +38,7 @@ function AdminUsers() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [createRole, setCreateRole] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const roleLabels = {
     patient: t('admin_users.role_patient'),
@@ -72,6 +76,17 @@ function AdminUsers() {
     }
     return true
   })
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, roleFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const paginatedUsers = filteredUsers.slice(
+    (safeCurrentPage - 1) * USERS_PER_PAGE,
+    safeCurrentPage * USERS_PER_PAGE
+  )
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return
@@ -123,15 +138,17 @@ function AdminUsers() {
           <h1 className="text-2xl font-bold text-slate-900">{t('admin_users.title')}</h1>
           <p className="text-slate-600">{t('admin_users.subtitle')}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2">
           <Button
             variant="outline"
+            className="w-full"
             leftIcon={<UserPlus className="w-4 h-4" />}
             onClick={() => setCreateRole('patient')}
           >
             {t('admin_users.add_patient')}
           </Button>
           <Button
+            className="w-full"
             leftIcon={<ShieldPlus className="w-4 h-4" />}
             onClick={() => setCreateRole('admin')}
           >
@@ -152,7 +169,7 @@ function AdminUsers() {
             className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>
-        <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:max-w-full sm:overflow-x-auto sm:pb-1">
           {[
             { value: 'all', label: t('admin_users.filter_all') },
             { value: 'patient', label: t('admin_users.filter_patient') },
@@ -162,7 +179,7 @@ function AdminUsers() {
             <button
               key={value}
               onClick={() => setRoleFilter(value)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
                 roleFilter === value
                   ? 'bg-teal-600 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -183,7 +200,7 @@ function AdminUsers() {
                 {t('admin.no_users')}
               </div>
             ) : (
-              filteredUsers.map((user) => (
+              paginatedUsers.map((user) => (
                 <div key={user.id} className="p-4">
                   <div className="flex items-start gap-3">
                     <Avatar
@@ -192,14 +209,14 @@ function AdminUsers() {
                       size="md"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-900 wrap-break-word">
+                      <p className="font-semibold text-slate-900 break-words">
                         {user.fullName || user.username}
                       </p>
-                      <p className="text-sm text-slate-500 wrap-break-word">{user.email}</p>
+                      <p className="mt-0.5 text-sm text-slate-500 break-all">{user.email}</p>
                       <p className="text-sm text-slate-500">{user.phone || t('admin_users.no_phone')}</p>
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
                     <Badge variant={roleVariants[user.userRole] || 'default'}>
                       {roleLabels[user.userRole] || user.userRole}
                     </Badge>
@@ -210,26 +227,28 @@ function AdminUsers() {
                     ) : (
                       <Badge variant="default">{t('admin_users.not_confirmed')}</Badge>
                     )}
-                    <span className="text-xs text-slate-400">{formatDate(user.createdAt)}</span>
+                    <span className="basis-full text-xs text-slate-400 sm:basis-auto">{formatDate(user.createdAt)}</span>
                   </div>
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-4 grid grid-cols-[minmax(0,1fr)_44px] gap-2">
                     {user.blocked ? (
                       <Button
                         variant="outline"
                         size="sm"
+                        className="w-full min-w-0"
                         onClick={() => handleBlockUser(user.id, false)}
                       >
                         <Check className="w-4 h-4 mr-1" />
-                        {t('admin_users.active')}
+                        {t('admin_users.unblock_action')}
                       </Button>
                     ) : (
                       <Button
                         variant="outline"
                         size="sm"
+                        className="w-full min-w-0"
                         onClick={() => handleBlockUser(user.id, true)}
                       >
                         <X className="w-4 h-4 mr-1" />
-                        {t('admin_users.blocked')}
+                        {t('admin_users.block_action')}
                       </Button>
                     )}
                     <Button
@@ -265,7 +284,7 @@ function AdminUsers() {
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((user) => (
+                  paginatedUsers.map((user) => (
                     <tr key={user.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
@@ -311,7 +330,7 @@ function AdminUsers() {
                               onClick={() => handleBlockUser(user.id, false)}
                             >
                               <Check className="w-4 h-4 mr-1" />
-                              {t('admin_users.active')}
+                              {t('admin_users.unblock_action')}
                             </Button>
                           ) : (
                             <Button
@@ -320,7 +339,7 @@ function AdminUsers() {
                               onClick={() => handleBlockUser(user.id, true)}
                             >
                               <X className="w-4 h-4 mr-1" />
-                              {t('admin_users.blocked')}
+                              {t('admin_users.block_action')}
                             </Button>
                           )}
                           <Button
@@ -338,33 +357,39 @@ function AdminUsers() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={safeCurrentPage}
+            totalItems={filteredUsers.length}
+            pageSize={USERS_PER_PAGE}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <Card>
-          <CardContent className="text-center">
-            <p className="text-3xl font-bold text-slate-900">
+          <CardContent className="p-4 text-center sm:p-6">
+            <p className="text-2xl font-bold text-slate-900 sm:text-3xl">
               {users.filter(u => u.userRole === 'patient').length}
             </p>
-            <p className="text-slate-500">{t('admin_users.stat_patients')}</p>
+            <p className="text-sm text-slate-500 sm:text-base">{t('admin_users.stat_patients')}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="text-center">
-            <p className="text-3xl font-bold text-slate-900">
+          <CardContent className="p-4 text-center sm:p-6">
+            <p className="text-2xl font-bold text-slate-900 sm:text-3xl">
               {users.filter(u => u.userRole === 'doctor').length}
             </p>
-            <p className="text-slate-500">{t('admin_users.stat_doctors')}</p>
+            <p className="text-sm text-slate-500 sm:text-base">{t('admin_users.stat_doctors')}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="text-center">
-            <p className="text-3xl font-bold text-slate-900">
+          <CardContent className="p-4 text-center sm:p-6">
+            <p className="text-2xl font-bold text-slate-900 sm:text-3xl">
               {users.filter(u => u.blocked).length}
             </p>
-            <p className="text-slate-500">{t('admin_users.stat_blocked')}</p>
+            <p className="text-sm text-slate-500 sm:text-base">{t('admin_users.stat_blocked')}</p>
           </CardContent>
         </Card>
       </div>

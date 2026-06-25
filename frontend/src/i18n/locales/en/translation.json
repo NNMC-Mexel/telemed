@@ -1501,6 +1501,8 @@
     "no_phone": "No phone",
     "blocked": "Blocked",
     "active": "Active",
+    "block_action": "Block",
+    "unblock_action": "Activate",
     "not_confirmed": "Not confirmed",
     "stat_patients": "Patients",
     "stat_doctors": "Doctors",

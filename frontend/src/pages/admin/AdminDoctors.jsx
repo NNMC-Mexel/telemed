@@ -9,6 +9,8 @@ import Textarea from '../../components/ui/Textarea'
 import Modal from '../../components/ui/Modal'
 import Badge from '../../components/ui/Badge'
 import ImageCropModal from '../../components/ui/ImageCropModal'
+import Pagination from '../../components/ui/Pagination'
+import Avatar from '../../components/ui/Avatar'
 import AdminCreateUserModal from '../../components/admin/AdminCreateUserModal'
 import api, { doctorsAPI, getMediaUrl, normalizeResponse, specializationsAPI, uploadFile } from '../../services/api'
 import {
@@ -40,6 +42,8 @@ const defaultForm = {
   workingDays: '1,2,3,4,5',
   workingIntervals: DEFAULT_WORKING_INTERVALS,
 }
+
+const DOCTORS_PER_PAGE = 10
 
 function toPayload(form) {
   const validation = validateWorkingIntervals(form.workingIntervals)
@@ -91,6 +95,7 @@ function AdminDoctors() {
   const [removePhoto, setRemovePhoto] = useState(false)
   const [cropModalOpen, setCropModalOpen] = useState(false)
   const [cropImageSrc, setCropImageSrc] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const extractUser = (value) => {
     if (!value) return null
@@ -209,6 +214,17 @@ function AdminDoctors() {
       return matchesSearch && matchesSpec
     })
   }, [doctors, search, specFilter])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, specFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filteredDoctors.length / DOCTORS_PER_PAGE))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const paginatedDoctors = filteredDoctors.slice(
+    (safeCurrentPage - 1) * DOCTORS_PER_PAGE,
+    safeCurrentPage * DOCTORS_PER_PAGE
+  )
 
   const openCreateModal = () => {
     setEditingDoctor(null)
@@ -480,11 +496,11 @@ function AdminDoctors() {
           <h1 className='text-2xl font-bold text-slate-900'>{t('admin_doc.title')}</h1>
           <p className='text-slate-600'>{t('admin_doc.subtitle')}</p>
         </div>
-        <div className='flex flex-wrap gap-2'>
-          <Button variant='outline' leftIcon={<Plus className='w-4 h-4' />} onClick={() => setIsPatientModalOpen(true)}>
+        <div className='grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2'>
+          <Button className='w-full' variant='outline' leftIcon={<Plus className='w-4 h-4' />} onClick={() => setIsPatientModalOpen(true)}>
             {t('admin_doc.add_patient_btn')}
           </Button>
-          <Button leftIcon={<Plus className='w-4 h-4' />} onClick={openCreateModal}>
+          <Button className='w-full' leftIcon={<Plus className='w-4 h-4' />} onClick={openCreateModal}>
             {t('admin_doc.add_btn')}
           </Button>
         </div>
@@ -519,22 +535,25 @@ function AdminDoctors() {
                 {t('admin_doc.not_found')}
               </div>
             ) : (
-              filteredDoctors.map((doctor) => (
+              paginatedDoctors.map((doctor) => (
                 <div key={doctor.documentId || doctor.id} className='p-4'>
-                  <div className='flex items-start justify-between gap-3'>
-                    <div className='min-w-0'>
-                      <p className='font-medium text-slate-900 wrap-break-word'>{doctor.fullName}</p>
-                      <p className='text-sm text-slate-500'>
+                  <div className='flex items-start gap-3'>
+                    <Avatar src={getMediaUrl(doctor.photo)} name={doctor.fullName} size='md' />
+                    <div className='min-w-0 flex-1'>
+                      <div className='flex items-start justify-between gap-2'>
+                        <p className='font-semibold text-slate-900 break-words'>{doctor.fullName}</p>
+                        <Badge variant={doctor.isActive === false ? 'danger' : 'success'} className='shrink-0'>
+                          {doctor.isActive === false ? t('admin_doc.inactive') : t('admin_doc.active')}
+                        </Badge>
+                      </div>
+                      <p className='mt-1 text-sm text-slate-500 break-words'>
                         {typeof doctor.specialization === 'object'
                           ? doctor.specialization?.name || t('admin_doc.no_spec')
                           : doctor.specialization || t('admin_doc.no_spec')}
                       </p>
                     </div>
-                    <Badge variant={doctor.isActive === false ? 'danger' : 'success'} className='shrink-0'>
-                      {doctor.isActive === false ? t('admin_doc.inactive') : t('admin_doc.active')}
-                    </Badge>
                   </div>
-                  <div className='mt-3 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm'>
+                  <div className='mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm'>
                     <div>
                       <p className='text-xs text-slate-400'>{t('admin_doc.col_license')}</p>
                       <p className='font-medium text-slate-900 wrap-break-word'>{doctor.licenseNumber || '—'}</p>
@@ -548,22 +567,26 @@ function AdminDoctors() {
                       <p className='font-medium text-slate-900'>{(doctor.price || 0).toLocaleString('ru-RU')} ₸</p>
                     </div>
                   </div>
-                  <div className='mt-4 flex justify-end gap-2'>
+                  <div className='mt-4 grid grid-cols-2 gap-2'>
                     <Button
-                      size='icon'
+                      size='sm'
                       variant='secondary'
+                      className='w-full'
                       onClick={() => openEditModal(doctor)}
                       aria-label={t('admin_doc.edit_aria')}
                     >
                       <Pencil className='w-4 h-4' />
+                      {t('common.edit')}
                     </Button>
                     <Button
-                      size='icon'
+                      size='sm'
                       variant='secondary'
+                      className='w-full'
                       onClick={() => handleDelete(doctor)}
                       aria-label={t('admin_doc.delete_aria')}
                     >
                       <Trash2 className='w-4 h-4 text-rose-600' />
+                      {t('common.delete')}
                     </Button>
                   </div>
                 </div>
@@ -591,7 +614,7 @@ function AdminDoctors() {
                     </td>
                   </tr>
                 ) : (
-                  filteredDoctors.map((doctor) => (
+                  paginatedDoctors.map((doctor) => (
                     <tr key={doctor.documentId || doctor.id} className='border-b border-slate-100 hover:bg-slate-50'>
                       <td className='py-4 px-6 font-medium text-slate-900'>{doctor.fullName}</td>
                       <td className='py-4 px-6 text-slate-600'>
@@ -637,6 +660,12 @@ function AdminDoctors() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={safeCurrentPage}
+            totalItems={filteredDoctors.length}
+            pageSize={DOCTORS_PER_PAGE}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
 

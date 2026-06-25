@@ -1,0 +1,1819 @@
+{
+  "summarized": [
+    {
+      "role": "anon",
+      "path": "/patient",
+      "finalPath": "/login",
+      "blank": false,
+      "errors": [],
+      "text": "На главную Добро пожаловать Войдите в свой аккаунт для доступа к личному кабинету Пациент Врач Email или телефон* Пароль* Запомнить меня Забыли пароль? Войти Нет аккаунта? Зарегистрироваться MedConnect Современная платформа телемедицины для онлайн-консультаций с врачами 500+ Врачей 50K+ Консультаций 4.9 Рейтинг"
+    },
+    {
+      "role": "anon",
+      "path": "/doctors",
+      "finalPath": "/doctors",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Врачи Специализации О нас Контакты Рус Войти Регистрация Найти врача 0 врачей доступно для онлайн-консультации Фильтры Сбросить Специализация Все специализации Цена консультации (₸) По рейтингу Цена: по возрастанию Цена: по убыванию По стажу Врачи не найдены по заданным критериям Сбросит"
+    },
+    {
+      "role": "anon",
+      "path": "/login",
+      "finalPath": "/login",
+      "blank": false,
+      "errors": [],
+      "text": "На главную Добро пожаловать Войдите в свой аккаунт для доступа к личному кабинету Пациент Врач Email или телефон* Пароль* Запомнить меня Забыли пароль? Войти Нет аккаунта? Зарегистрироваться MedConnect Современная платформа телемедицины для онлайн-консультаций с врачами 500+ Врачей 50K+ Консультаций 4.9 Рейтинг"
+    },
+    {
+      "role": "patient",
+      "path": "/patient",
+      "finalPath": "/patient",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Мои записи Врачи Сообщения Документы Профиль QП QA Пациент Фейбл qa_f5_patient@test.kz Выйти Рус Главная Добро пожаловать в личный кабинет QП QA Пациент Фейбл Добрый день, Пациент! 👋 Вот что происходит с вашим здоровьем Записаться к врачу 0 Консультаций 0 Предстоящих 0 Документов 0 Сооб"
+    },
+    {
+      "role": "patient",
+      "path": "/patient/appointments",
+      "finalPath": "/patient/appointments",
+      "blank": false,
+      "errors": [
+        "Network Error"
+      ],
+      "text": "MedConnect Телемедицина Главная Мои записи Врачи Сообщения Документы Профиль QП QA Пациент Фейбл qa_f5_patient@test.kz Выйти Рус Мои записи Управление записями к врачам QП QA Пациент Фейбл Мои записи История и предстоящие консультации Записаться к врачу Все Предстоящие Завершённые Отменённые С: По: Network Error Нет за"
+    },
+    {
+      "role": "patient",
+      "path": "/patient/doctors",
+      "finalPath": "/patient/doctors",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Мои записи Врачи Сообщения Документы Профиль QП QA Пациент Фейбл qa_f5_patient@test.kz Выйти Рус Врачи Найдите нужного специалиста QП QA Пациент Фейбл Найти врача 0 врачей доступно для онлайн-консультации Фильтры Сбросить Специализация Все специализации Цена консультации (₸) По рейтингу "
+    },
+    {
+      "role": "patient",
+      "path": "/patient/chat",
+      "finalPath": "/patient/chat",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Мои записи Врачи Сообщения Документы Профиль QП QA Пациент Фейбл qa_f5_patient@test.kz Выйти Рус Сообщения Чат с врачами QП QA Пациент Фейбл Сообщения Общайтесь с вашими врачами Служба поддержки Вопросы по сервису, записям и оплате Нет диалогов Диалоги появятся после записи к врачу Выбер"
+    },
+    {
+      "role": "patient",
+      "path": "/patient/documents",
+      "finalPath": "/patient/documents",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Мои записи Врачи Сообщения Документы Профиль QП QA Пациент Фейбл qa_f5_patient@test.kz Выйти Рус Документы Медицинские документы QП QA Пациент Фейбл Мои документы Медицинские документы и результаты анализов Загрузить документ Network Error 0 Всего документов 0 Анализы 0 Рецепты 0 Справки"
+    },
+    {
+      "role": "patient",
+      "path": "/patient/profile",
+      "finalPath": "/patient/profile",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Мои записи Врачи Сообщения Документы Профиль QП QA Пациент Фейбл qa_f5_patient@test.kz Выйти Рус Профиль Личные данные QП QA Пациент Фейбл QП QA Пациент Фейбл qa_f5_patient@test.kz Пациент с июня 2026 Редактировать Личные данные Email ФИО Телефон ИИН Дата рождения Моё имя на других языка"
+    },
+    {
+      "role": "doctor",
+      "path": "/doctor",
+      "finalPath": "/doctor",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Расписание Пациенты Сообщения Профиль МА Михаилов Азат test@mail.ru Выйти Рус Главная Рабочий кабинет врача МА Михаилов Азат Добрый день, Азат! 👨‍⚕️ У вас сегодня 0 записей Расписание 0 Пациентов сегодня 0 ₸ За месяц 0.0 Рейтинг 0 Консультаций за месяц Расписание на сегодня Полное распи"
+    },
+    {
+      "role": "doctor",
+      "path": "/doctor/schedule",
+      "finalPath": "/doctor/schedule",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Расписание Пациенты Сообщения Профиль МА Михаилов Азат test@mail.ru Выйти Рус Расписание Управление рабочим временем МА Михаилов Азат Расписание Управление рабочим временем и записями Сегодня Настройки 22 июня - 28 июня 2026 пн 22 вт 23 ср 24 чт 25 пт 26 сб 27 вс 28 вторник, 23 июня 09:0"
+    },
+    {
+      "role": "doctor",
+      "path": "/doctor/patients",
+      "finalPath": "/doctor/patients",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Расписание Пациенты Сообщения Профиль МА Михаилов Азат test@mail.ru Выйти Рус Пациенты Список пациентов МА Михаилов Азат Мои пациенты Список пациентов, которые обращались к вам 0 Всего пациентов 0 За эту неделю 0 Ожидают приёма Пока нет пациентов Здесь появятся пациенты, которые запишутс"
+    },
+    {
+      "role": "doctor",
+      "path": "/doctor/chat",
+      "finalPath": "/doctor/chat",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Расписание Пациенты Сообщения Профиль МА Михаилов Азат test@mail.ru Выйти Рус Сообщения Чат с пациентами МА Михаилов Азат Сообщения Общайтесь с вашими врачами Служба поддержки Вопросы по сервису, записям и оплате Нет диалогов Диалоги появятся после записи к врачу Выберите диалог Выберите"
+    },
+    {
+      "role": "doctor",
+      "path": "/doctor/profile",
+      "finalPath": "/doctor/profile",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Расписание Пациенты Сообщения Профиль МА Михаилов Азат test@mail.ru Выйти Рус Профиль Личные и профессиональные данные МА Михаилов Азат Профиль врача Управляйте вашими профессиональными данными ?? Врач 0.0 Рейтинг 0 Отзывов Основная информация ФИО Email Телефон Стаж (лет) Профессиональна"
+    },
+    {
+      "role": "admin",
+      "path": "/admin",
+      "finalPath": "/admin",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Дашборд Пользователи Врачи Акции Записи Специализации Поддержка Контент сайта QS QA Senior Admin qa_senior_admin_1780741939714@test.kz Выйти Рус Дашборд Обзор системы QS QA Senior Admin Панель администратора Обзор системы и статистика 0 Пользователей 0 Врачей 0 Записей 0 ₸ Доход Новые пользовате"
+    },
+    {
+      "role": "admin",
+      "path": "/admin/users",
+      "finalPath": "/admin/users",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Дашборд Пользователи Врачи Акции Записи Специализации Поддержка Контент сайта QS QA Senior Admin qa_senior_admin_1780741939714@test.kz Выйти Рус Пользователи Управление пользователями QS QA Senior Admin Пользователи Управление пользователями системы Добавить пациента Добавить админа Все Пациенты"
+    },
+    {
+      "role": "admin",
+      "path": "/admin/doctors",
+      "finalPath": "/admin/doctors",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Дашборд Пользователи Врачи Акции Записи Специализации Поддержка Контент сайта QS QA Senior Admin qa_senior_admin_1780741939714@test.kz Выйти Рус Врачи Управление врачами QS QA Senior Admin Врачи Создание и управление профилями врачей Добавить пациента Добавить врача Фильтр по специализации Все с"
+    },
+    {
+      "role": "admin",
+      "path": "/admin/appointments",
+      "finalPath": "/admin/appointments",
+      "blank": false,
+      "errors": [
+        "Ошибка загрузки записей",
+        "Ошибка загрузки записей"
+      ],
+      "text": "MedConnect Телемедицина Дашборд Пользователи Врачи Акции Записи Специализации Поддержка Контент сайта QS QA Senior Admin qa_senior_admin_1780741939714@test.kz Выйти Рус Записи Все записи на приём QS QA Senior Admin Записи на приём Управление всеми записями пациентов Добавить пациента Обновить CSV 0 Всего записей 0 Сего"
+    },
+    {
+      "role": "admin",
+      "path": "/admin/specializations",
+      "finalPath": "/admin/specializations",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Дашборд Пользователи Врачи Акции Записи Специализации Поддержка Контент сайта QS QA Senior Admin qa_senior_admin_1780741939714@test.kz Выйти Рус Специализации Направления врачей QS QA Senior Admin Специализации Создание, редактирование и изменение порядка направлений врачей Добавить специализаци"
+    },
+    {
+      "role": "admin",
+      "path": "/admin/settings",
+      "finalPath": "/admin/settings",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Дашборд Пользователи Врачи Акции Записи Специализации Поддержка Контент сайта QS QA Senior Admin qa_senior_admin_1780741939714@test.kz Выйти Рус Настройки Настройки системы QS QA Senior Admin Контент лендинга MedConnect Редактируются блоки главной страницы (/) из ваших скриншотов Обновить Сохран"
+    },
+    {
+      "role": "admin",
+      "path": "/admin/support",
+      "finalPath": "/admin/support",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Дашборд Пользователи Врачи Акции Записи Специализации Поддержка Контент сайта QS QA Senior Admin qa_senior_admin_1780741939714@test.kz Выйти Рус Служба поддержки Обращения пациентов QS QA Senior Admin Все Открыто В работе Решено Обращений пока нет Выберите обращение Выберите обращение из списка "
+    },
+    {
+      "role": "patient-mobile",
+      "path": "/patient",
+      "finalPath": "/patient",
+      "blank": false,
+      "errors": [],
+      "text": "MedConnect Телемедицина Главная Мои записи Врачи Сообщения Документы Профиль QП QA Пациент Фейбл qa_f5_patient@test.kz Выйти Рус Главная Добрый день, Пациент! 👋 Вот что происходит с вашим здоровьем 0 Консультаций 0 Предстоящих 0 Документов 0 Сообщений Записаться к врачу Мои записи Сообщения Документы Предстоящие запис"
+    },
+    {
+      "role": "patient-mobile",
+      "path": "/patient/appointments",
+      "finalPath": "/patient/appointments",
+      "blank": false,
+      "errors": [
+        "Network Error"
+      ],
+      "text": "MedConnect Телемедицина Главная Мои записи Врачи Сообщения Документы Профиль QП QA Пациент Фейбл qa_f5_patient@test.kz Выйти Рус Мои записи Мои записи История и предстоящие консультации Записаться к врачу Все Предстоящие Завершённые Отменённые С: По: Network Error Нет записей У вас пока нет записей к врачам Записаться "
+    }
+  ],
+  "logs": [
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "Error fetching documents:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.36.3",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 36,
+        "timestamp": 1782208711503.603,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchDocuments",
+              "scriptId": "88",
+              "url": "http://127.0.0.1:1343/src/stores/documentStore.js",
+              "lineNumber": 19,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208711510.074,
+          "url": "http://localhost:1340/api/medical-documents?populate%5Bfile%5D=*&populate%5Buser%5D%5Bfields%5D%5B0%5D=id&populate%5Buser%5D%5Bfields%5D%5B1%5D=fullName&populate%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bdoctor%5D%5Bfields%5D%5B0%5D=id&populate%5Bdoctor%5D%5Bfields%5D%5B1%5D=fullName&populate%5Bappointment%5D%5Bpopulate%5D%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bappointment%5D%5Bfields%5D%5B0%5D=id&populate%5Bappointment%5D%5Bfields%5D%5B1%5D=dateTime&populate%5Bappointment%5D%5Bfields%5D%5B2%5D=type&populate%5BsharedWithDoctors%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5BsharedWithDoctors%5D%5Bfields%5D%5B0%5D=id&populate%5BsharedWithDoctors%5D%5Bfields%5D%5B1%5D=fullName&populate%5BsharedWithDoctors%5D%5Bfields%5D%5B2%5D=documentId&sort=createdAt%3Adesc",
+          "networkRequestId": "68254.4619"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/conversations?populate%5Busers_permissions_users%5D%5Bpopulate%5D=*&sort=updatedAt%3Adesc' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208711511.18,
+          "url": "http://127.0.0.1:1343/patient"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "Error fetching conversations:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.36.4",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 36,
+        "timestamp": 1782208711511.296,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchConversations",
+              "scriptId": "94",
+              "url": "http://127.0.0.1:1343/src/stores/chatStore.js",
+              "lineNumber": 23,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208711516.947,
+          "url": "http://localhost:1340/api/conversations?populate%5Busers_permissions_users%5D%5Bpopulate%5D=*&sort=updatedAt%3Adesc",
+          "networkRequestId": "68254.4620"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/conversations/support' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208711518.221,
+          "url": "http://127.0.0.1:1343/patient"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "Error initializing support chat:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.36.5",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 36,
+        "timestamp": 1782208711518.341,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "init",
+              "scriptId": "100",
+              "url": "http://127.0.0.1:1343/src/stores/supportStore.js",
+              "lineNumber": 31,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208711523.405,
+          "url": "http://localhost:1340/api/conversations/support",
+          "networkRequestId": "68254.4621"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/users/me?populate=*' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208711523.484,
+          "url": "http://127.0.0.1:1343/patient"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "fetchUser error:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.36.6",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 36,
+        "timestamp": 1782208711523.588,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchUser",
+              "scriptId": "62",
+              "url": "http://127.0.0.1:1343/src/stores/authStore.js",
+              "lineNumber": 132,
+              "columnNumber": 18
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208711535.442,
+          "url": "http://localhost:1340/api/users/me?populate=*",
+          "networkRequestId": "68254.4622"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/appointments?populate%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bdoctor%5D%5Bpopulate%5D%5B1%5D=photo&populate%5Bpatient%5D%5Bfields%5D%5B0%5D=id&populate%5Bpatient%5D%5Bfields%5D%5B1%5D=fullName&sort=dateTime%3Adesc' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208711535.565,
+          "url": "http://127.0.0.1:1343/patient"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "Error fetching appointments:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.36.7",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 36,
+        "timestamp": 1782208711535.655,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchAppointments",
+              "scriptId": "87",
+              "url": "http://127.0.0.1:1343/src/stores/appointmentStore.js",
+              "lineNumber": 26,
+              "columnNumber": 20
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208711539.823,
+          "url": "http://localhost:1340/api/appointments?populate%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bdoctor%5D%5Bpopulate%5D%5B1%5D=photo&populate%5Bpatient%5D%5Bfields%5D%5B0%5D=id&populate%5Bpatient%5D%5Bfields%5D%5B1%5D=fullName&sort=dateTime%3Adesc",
+          "networkRequestId": "68254.4624"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/medical-documents?populate%5Bfile%5D=*&populate%5Buser%5D%5Bfields%5D%5B0%5D=id&populate%5Buser%5D%5Bfields%5D%5B1%5D=fullName&populate%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bdoctor%5D%5Bfields%5D%5B0%5D=id&populate%5Bdoctor%5D%5Bfields%5D%5B1%5D=fullName&populate%5Bappointment%5D%5Bpopulate%5D%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bappointment%5D%5Bfields%5D%5B0%5D=id&populate%5Bappointment%5D%5Bfields%5D%5B1%5D=dateTime&populate%5Bappointment%5D%5Bfields%5D%5B2%5D=type&populate%5BsharedWithDoctors%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5BsharedWithDoctors%5D%5Bfields%5D%5B0%5D=id&populate%5BsharedWithDoctors%5D%5Bfields%5D%5B1%5D=fullName&populate%5BsharedWithDoctors%5D%5Bfields%5D%5B2%5D=documentId&sort=createdAt%3Adesc' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208711540.112,
+          "url": "http://127.0.0.1:1343/patient"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "Error fetching documents:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.36.8",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 36,
+        "timestamp": 1782208711540.169,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchDocuments",
+              "scriptId": "88",
+              "url": "http://127.0.0.1:1343/src/stores/documentStore.js",
+              "lineNumber": 19,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208711544.572,
+          "url": "http://localhost:1340/api/medical-documents?populate%5Bfile%5D=*&populate%5Buser%5D%5Bfields%5D%5B0%5D=id&populate%5Buser%5D%5Bfields%5D%5B1%5D=fullName&populate%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bdoctor%5D%5Bfields%5D%5B0%5D=id&populate%5Bdoctor%5D%5Bfields%5D%5B1%5D=fullName&populate%5Bappointment%5D%5Bpopulate%5D%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bappointment%5D%5Bfields%5D%5B0%5D=id&populate%5Bappointment%5D%5Bfields%5D%5B1%5D=dateTime&populate%5Bappointment%5D%5Bfields%5D%5B2%5D=type&populate%5BsharedWithDoctors%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5BsharedWithDoctors%5D%5Bfields%5D%5B0%5D=id&populate%5BsharedWithDoctors%5D%5Bfields%5D%5B1%5D=fullName&populate%5BsharedWithDoctors%5D%5Bfields%5D%5B2%5D=documentId&sort=createdAt%3Adesc",
+          "networkRequestId": "68254.4625"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/conversations?populate%5Busers_permissions_users%5D%5Bpopulate%5D=*&sort=updatedAt%3Adesc' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208711544.643,
+          "url": "http://127.0.0.1:1343/patient"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "Error fetching conversations:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.36.9",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 36,
+        "timestamp": 1782208711544.726,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchConversations",
+              "scriptId": "94",
+              "url": "http://127.0.0.1:1343/src/stores/chatStore.js",
+              "lineNumber": 23,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208711548.892,
+          "url": "http://localhost:1340/api/conversations?populate%5Busers_permissions_users%5D%5Bpopulate%5D=*&sort=updatedAt%3Adesc",
+          "networkRequestId": "68254.4626"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/users/me?populate=*' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208711548.94,
+          "url": "http://127.0.0.1:1343/patient"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "fetchUser error:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.36.10",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 36,
+        "timestamp": 1782208711549.011,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchUser",
+              "scriptId": "62",
+              "url": "http://127.0.0.1:1343/src/stores/authStore.js",
+              "lineNumber": 132,
+              "columnNumber": 18
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208711560.298,
+          "url": "http://localhost:1340/api/users/me?populate=*",
+          "networkRequestId": "68254.4627"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/notifications?sort=createdAt%3Adesc&pagination%5Blimit%5D=50' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208711560.367,
+          "url": "http://127.0.0.1:1343/patient"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "notifications fetch failed:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.36.11",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 36,
+        "timestamp": 1782208711560.452,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetch",
+              "scriptId": "102",
+              "url": "http://127.0.0.1:1343/src/stores/notificationStore.js",
+              "lineNumber": 90,
+              "columnNumber": 16
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208711560.522,
+          "url": "http://localhost:1340/api/notifications?sort=createdAt%3Adesc&pagination%5Blimit%5D=50",
+          "networkRequestId": "68254.4623"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "debug",
+        "args": [
+          {
+            "type": "string",
+            "value": "[vite] connecting..."
+          }
+        ],
+        "executionContextId": 38,
+        "timestamp": 1782208713272.238,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "11",
+              "url": "http://127.0.0.1:1343/@vite/client",
+              "lineNumber": 732,
+              "columnNumber": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "debug",
+        "args": [
+          {
+            "type": "string",
+            "value": "[vite] connected."
+          }
+        ],
+        "executionContextId": 38,
+        "timestamp": 1782208713274.741,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "handleMessage",
+              "scriptId": "11",
+              "url": "http://127.0.0.1:1343/@vite/client",
+              "lineNumber": 826,
+              "columnNumber": 11
+            },
+            {
+              "functionName": "",
+              "scriptId": "11",
+              "url": "http://127.0.0.1:1343/@vite/client",
+              "lineNumber": 457,
+              "columnNumber": 41
+            },
+            {
+              "functionName": "dequeue",
+              "scriptId": "11",
+              "url": "http://127.0.0.1:1343/@vite/client",
+              "lineNumber": 479,
+              "columnNumber": 7
+            },
+            {
+              "functionName": "",
+              "scriptId": "11",
+              "url": "http://127.0.0.1:1343/@vite/client",
+              "lineNumber": 471,
+              "columnNumber": 8
+            },
+            {
+              "functionName": "enqueue",
+              "scriptId": "11",
+              "url": "http://127.0.0.1:1343/@vite/client",
+              "lineNumber": 465,
+              "columnNumber": 9
+            },
+            {
+              "functionName": "",
+              "scriptId": "11",
+              "url": "http://127.0.0.1:1343/@vite/client",
+              "lineNumber": 457,
+              "columnNumber": 27
+            },
+            {
+              "functionName": "onMessage",
+              "scriptId": "11",
+              "url": "http://127.0.0.1:1343/@vite/client",
+              "lineNumber": 304,
+              "columnNumber": 5
+            },
+            {
+              "functionName": "",
+              "scriptId": "11",
+              "url": "http://127.0.0.1:1343/@vite/client",
+              "lineNumber": 412,
+              "columnNumber": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "info",
+        "args": [
+          {
+            "type": "string",
+            "value": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools"
+          },
+          {
+            "type": "string",
+            "value": "font-weight:bold"
+          }
+        ],
+        "executionContextId": 38,
+        "timestamp": 1782208713299.408,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "15",
+              "url": "http://127.0.0.1:1343/node_modules/.vite/deps/react-dom_client.js?v=4aa88fe5",
+              "lineNumber": 20102,
+              "columnNumber": 53
+            },
+            {
+              "functionName": "node_modules/react-dom/cjs/react-dom-client.development.js",
+              "scriptId": "15",
+              "url": "http://127.0.0.1:1343/node_modules/.vite/deps/react-dom_client.js?v=4aa88fe5",
+              "lineNumber": 20176,
+              "columnNumber": 6
+            },
+            {
+              "functionName": "__require",
+              "scriptId": "16",
+              "url": "http://127.0.0.1:1343/node_modules/.vite/deps/chunk-G3PMV62Z.js?v=4aa88fe5",
+              "lineNumber": 7,
+              "columnNumber": 49
+            },
+            {
+              "functionName": "node_modules/react-dom/client.js",
+              "scriptId": "15",
+              "url": "http://127.0.0.1:1343/node_modules/.vite/deps/react-dom_client.js?v=4aa88fe5",
+              "lineNumber": 20187,
+              "columnNumber": 23
+            },
+            {
+              "functionName": "__require",
+              "scriptId": "16",
+              "url": "http://127.0.0.1:1343/node_modules/.vite/deps/chunk-G3PMV62Z.js?v=4aa88fe5",
+              "lineNumber": 7,
+              "columnNumber": 49
+            },
+            {
+              "functionName": "",
+              "scriptId": "15",
+              "url": "http://127.0.0.1:1343/node_modules/.vite/deps/react-dom_client.js?v=4aa88fe5",
+              "lineNumber": 20191,
+              "columnNumber": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/notifications?sort=createdAt%3Adesc&pagination%5Blimit%5D=50' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208713352.024,
+          "url": "http://127.0.0.1:1343/patient/appointments"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "notifications fetch failed:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.38.1",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 38,
+        "timestamp": 1782208713352.224,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetch",
+              "scriptId": "102",
+              "url": "http://127.0.0.1:1343/src/stores/notificationStore.js",
+              "lineNumber": 90,
+              "columnNumber": 16
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208713352.314,
+          "url": "http://localhost:1340/api/notifications?sort=createdAt%3Adesc&pagination%5Blimit%5D=50",
+          "networkRequestId": "68254.4782"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/conversations/support' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208713353.288,
+          "url": "http://127.0.0.1:1343/patient/appointments"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "Error initializing support chat:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.38.2",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 38,
+        "timestamp": 1782208713353.382,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "init",
+              "scriptId": "100",
+              "url": "http://127.0.0.1:1343/src/stores/supportStore.js",
+              "lineNumber": 31,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208713354.168,
+          "url": "http://localhost:1340/api/conversations/support",
+          "networkRequestId": "68254.4784"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/appointments?populate%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bdoctor%5D%5Bpopulate%5D%5B1%5D=photo&populate%5Bpatient%5D%5Bfields%5D%5B0%5D=id&populate%5Bpatient%5D%5Bfields%5D%5B1%5D=fullName&sort=dateTime%3Adesc' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208713354.206,
+          "url": "http://127.0.0.1:1343/patient/appointments"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "Error fetching appointments:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.38.3",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 38,
+        "timestamp": 1782208713354.246,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchAppointments",
+              "scriptId": "87",
+              "url": "http://127.0.0.1:1343/src/stores/appointmentStore.js",
+              "lineNumber": 26,
+              "columnNumber": 20
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208713357.624,
+          "url": "http://localhost:1340/api/appointments?populate%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bdoctor%5D%5Bpopulate%5D%5B1%5D=photo&populate%5Bpatient%5D%5Bfields%5D%5B0%5D=id&populate%5Bpatient%5D%5Bfields%5D%5B1%5D=fullName&sort=dateTime%3Adesc",
+          "networkRequestId": "68254.4783"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/users/me?populate=*' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208713357.706,
+          "url": "http://127.0.0.1:1343/patient/appointments"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "fetchUser error:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.38.4",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 38,
+        "timestamp": 1782208713357.771,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchUser",
+              "scriptId": "62",
+              "url": "http://127.0.0.1:1343/src/stores/authStore.js",
+              "lineNumber": 132,
+              "columnNumber": 18
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208713368.935,
+          "url": "http://localhost:1340/api/users/me?populate=*",
+          "networkRequestId": "68254.4785"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/notifications?sort=createdAt%3Adesc&pagination%5Blimit%5D=50' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208713368.987,
+          "url": "http://127.0.0.1:1343/patient/appointments"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "notifications fetch failed:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.38.5",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 38,
+        "timestamp": 1782208713369.061,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetch",
+              "scriptId": "102",
+              "url": "http://127.0.0.1:1343/src/stores/notificationStore.js",
+              "lineNumber": 90,
+              "columnNumber": 16
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208713369.119,
+          "url": "http://localhost:1340/api/notifications?sort=createdAt%3Adesc&pagination%5Blimit%5D=50",
+          "networkRequestId": "68254.4786"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/appointments?populate%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bdoctor%5D%5Bpopulate%5D%5B1%5D=photo&populate%5Bpatient%5D%5Bfields%5D%5B0%5D=id&populate%5Bpatient%5D%5Bfields%5D%5B1%5D=fullName&sort=dateTime%3Adesc' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208713369.165,
+          "url": "http://127.0.0.1:1343/patient/appointments"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "Error fetching appointments:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.38.6",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 38,
+        "timestamp": 1782208713369.197,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchAppointments",
+              "scriptId": "87",
+              "url": "http://127.0.0.1:1343/src/stores/appointmentStore.js",
+              "lineNumber": 26,
+              "columnNumber": 20
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208713372.248,
+          "url": "http://localhost:1340/api/appointments?populate%5Bdoctor%5D%5Bpopulate%5D%5B0%5D=specialization&populate%5Bdoctor%5D%5Bpopulate%5D%5B1%5D=photo&populate%5Bpatient%5D%5Bfields%5D%5B0%5D=id&populate%5Bpatient%5D%5Bfields%5D%5B1%5D=fullName&sort=dateTime%3Adesc",
+          "networkRequestId": "68254.4787"
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "javascript",
+          "level": "error",
+          "text": "Access to XMLHttpRequest at 'http://localhost:1340/api/users/me?populate=*' from origin 'http://127.0.0.1:1343' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+          "category": "cors",
+          "timestamp": 1782208713372.319,
+          "url": "http://127.0.0.1:1343/patient/appointments"
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "error",
+        "args": [
+          {
+            "type": "string",
+            "value": "fetchUser error:"
+          },
+          {
+            "type": "object",
+            "subtype": "error",
+            "className": "_AxiosError",
+            "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+            "objectId": "-768527639958108305.38.7",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://127.0.0.1:1343/node_modules/.vite/deps/axios.js?v=4aa88fe5:1863:19)",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "Network Error"
+                },
+                {
+                  "name": "name",
+                  "type": "string",
+                  "value": "AxiosError"
+                },
+                {
+                  "name": "isAxiosError",
+                  "type": "boolean",
+                  "value": "true"
+                },
+                {
+                  "name": "code",
+                  "type": "string",
+                  "value": "ERR_NETWORK"
+                },
+                {
+                  "name": "config",
+                  "type": "object",
+                  "value": "Object"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 38,
+        "timestamp": 1782208713372.406,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "fetchUser",
+              "scriptId": "62",
+              "url": "http://127.0.0.1:1343/src/stores/authStore.js",
+              "lineNumber": 132,
+              "columnNumber": 18
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Log.entryAdded",
+      "params": {
+        "entry": {
+          "source": "network",
+          "level": "error",
+          "text": "Failed to load resource: net::ERR_FAILED",
+          "category": "cors",
+          "timestamp": 1782208713383.003,
+          "url": "http://localhost:1340/api/users/me?populate=*",
+          "networkRequestId": "68254.4788"
+        }
+      }
+    }
+  ]
+}
