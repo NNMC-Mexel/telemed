@@ -22,6 +22,7 @@ import PatientAppointments from './pages/patient/PatientAppointments'
 import PatientProfile from './pages/patient/PatientProfile'
 import PatientChat from './pages/patient/PatientChat'
 import PatientDocuments from './pages/patient/PatientDocuments'
+import PatientHelp from './pages/patient/PatientHelp'
 import AppointmentDetail from './pages/AppointmentDetail'
 
 // Doctor Pages
@@ -39,6 +40,7 @@ import AdminPromotions from './pages/admin/AdminPromotions'
 import AdminAppointments from './pages/admin/AdminAppointments'
 import AdminSpecializations from './pages/admin/AdminSpecializations'
 import AdminContent from './pages/admin/AdminContent'
+import AdminPatientHelp from './pages/admin/AdminPatientHelp'
 
 // Support Pages
 import SupportInbox from './pages/support/SupportInbox'
@@ -300,6 +302,7 @@ function App() {
           <Route path="doctors/:id" element={<DoctorProfilePage />} />
           <Route path="chat" element={<PatientChat />} />
           <Route path="documents" element={<PatientDocuments />} />
+          <Route path="help" element={<PatientHelp />} />
           <Route path="profile" element={<PatientProfile />} />
           <Route path="notifications" element={<NotificationsPage />} />
         </Route>
@@ -338,6 +341,7 @@ function App() {
           <Route path="promotions" element={<AdminPromotions />} />
           <Route path="appointments" element={<AdminAppointments />} />
           <Route path="specializations" element={<AdminSpecializations />} />
+          <Route path="patient-help" element={<AdminPatientHelp />} />
           <Route path="settings" element={<AdminContent />} />
           <Route path="support" element={<SupportInbox />} />
           <Route path="notifications" element={<NotificationsPage />} />

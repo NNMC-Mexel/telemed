@@ -486,6 +486,7 @@ export const promotionsAPI = {
 
 export const contentAPI = {
     getGlobal: () => api.get("/api/global?populate=*"),
+    getPatientGuide: () => api.get("/api/global/patient-guide"),
     updateGlobal: (data) => api.put("/api/global", { data }),
     getAbout: () => api.get("/api/about?populate=*"),
     updateAbout: (data) => api.put("/api/about", { data }),

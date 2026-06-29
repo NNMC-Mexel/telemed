@@ -26,10 +26,13 @@ import { Card, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
+import Pagination from '../../components/ui/Pagination'
 import { formatDate, cn } from '../../utils/helpers'
 import useDocumentStore from '../../stores/documentStore'
 import useAuthStore from '../../stores/authStore'
 import api, { downloadMedia, getMediaUrl } from '../../services/api'
+
+const DOCUMENTS_PAGE_SIZE = 20
 
 function PatientDocuments() {
   const { t, i18n } = useTranslation()
@@ -62,6 +65,7 @@ function PatientDocuments() {
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortNewest, setSortNewest] = useState(true)
+  const [documentsPage, setDocumentsPage] = useState(1)
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null)
@@ -80,6 +84,7 @@ function PatientDocuments() {
   const [uploadType, setUploadType] = useState('other')
   const [uploadDescription, setUploadDescription] = useState('')
   const fileInputRef = useRef(null)
+  const documentsListRef = useRef(null)
 
   useEffect(() => {
     if (user?.id) {
@@ -134,17 +139,20 @@ function PatientDocuments() {
     }
   }, [selectedDocument?.file?.url, selectedDocument?.file?.mime, selectedDocument?.id])
 
-  // Group documents by appointment (consultation folders)
-  // "Мои загрузки" = all docs uploaded by the patient (no doctor field = patient uploaded it)
-  // A doc can appear in BOTH a consultation folder AND "Мои загрузки"
-  const { folders, ungroupedDocs } = useMemo(() => {
+  // Primary split by source: patient uploads are separated from doctor-created documents.
+  const { folders, patientUploadedDocs, doctorUngroupedDocs } = useMemo(() => {
     const grouped = {}
-    const myUploads = []
+    const patientUploads = []
+    const doctorWithoutAppointment = []
 
     for (const doc of documents) {
       const apt = doc.appointment
-      // Patient-uploaded doc: no doctor relation (doctor uploads have doctor set)
-      const isPatientUploaded = !doc.doctor
+      const isDoctorUploaded = !!doc.doctor
+
+      if (!isDoctorUploaded) {
+        patientUploads.push(doc)
+        continue
+      }
 
       if (apt) {
         const aptKey = apt.documentId || apt.id
@@ -160,11 +168,8 @@ function PatientDocuments() {
         if (apt.doctor && !grouped[aptKey].doctor) {
           grouped[aptKey].doctor = apt.doctor
         }
-      }
-
-      // Patient's own uploads go to "Мои загрузки" regardless of appointment link
-      if (isPatientUploaded) {
-        myUploads.push(doc)
+      } else {
+        doctorWithoutAppointment.push(doc)
       }
     }
 
@@ -175,7 +180,15 @@ function PatientDocuments() {
       return sortNewest ? dateB - dateA : dateA - dateB
     })
 
-    return { folders: folderList, ungroupedDocs: myUploads }
+    return { folders: folderList, patientUploadedDocs: patientUploads, doctorUngroupedDocs: doctorWithoutAppointment }
+  }, [documents, sortNewest])
+
+  const sortedDocuments = useMemo(() => {
+    return [...documents].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0)
+      const dateB = new Date(b.createdAt || 0)
+      return sortNewest ? dateB - dateA : dateA - dateB
+    })
   }, [documents, sortNewest])
 
   // Filter folders by search query (doctor name)
@@ -194,13 +207,24 @@ function PatientDocuments() {
   // Documents inside selected folder, filtered by type
   const folderDocuments = useMemo(() => {
     if (!selectedFolder) return []
-    const docs = selectedFolder.id === '__uploads__'
-      ? ungroupedDocs
+    const docs = selectedFolder.id === '__all_documents__'
+      ? sortedDocuments
+      : selectedFolder.id === '__uploads__'
+      ? patientUploadedDocs
+      : selectedFolder.id === '__doctor_unlinked__'
+        ? doctorUngroupedDocs
       : (folders.find(f => f.id === selectedFolder.id)?.docs || [])
 
     if (filter === 'all') return docs
     return docs.filter(d => d.type === filter)
-  }, [selectedFolder, folders, ungroupedDocs, filter])
+  }, [selectedFolder, folders, sortedDocuments, patientUploadedDocs, doctorUngroupedDocs, filter])
+
+  const totalDocumentPages = Math.max(1, Math.ceil(folderDocuments.length / DOCUMENTS_PAGE_SIZE))
+  const safeDocumentsPage = Math.min(Math.max(documentsPage, 1), totalDocumentPages)
+  const paginatedFolderDocuments = useMemo(() => {
+    const start = (safeDocumentsPage - 1) * DOCUMENTS_PAGE_SIZE
+    return folderDocuments.slice(start, start + DOCUMENTS_PAGE_SIZE)
+  }, [folderDocuments, safeDocumentsPage])
 
   const stats = {
     total: documents.length,
@@ -312,14 +336,67 @@ function PatientDocuments() {
     return t('documents.doc_count_many')
   }
 
+  const openQuickDocuments = (type = 'all') => {
+    const typeConfig = type !== 'all' ? documentTypes[type] || documentTypes.other : null
+    setSelectedFolder({
+      id: '__all_documents__',
+      label: typeConfig?.label || t('documents.all_documents'),
+      type,
+    })
+    setFilter(type)
+    setDocumentsPage(1)
+  }
+
   const openFolder = (folder) => {
     setSelectedFolder(folder)
     setFilter('all')
+    setDocumentsPage(1)
   }
 
   const closeFolder = () => {
     setSelectedFolder(null)
     setFilter('all')
+    setDocumentsPage(1)
+  }
+
+  const handleFilterChange = (nextFilter) => {
+    setFilter(nextFilter)
+    setDocumentsPage(1)
+  }
+
+  const handleSortToggle = () => {
+    setSortNewest(prev => !prev)
+    setDocumentsPage(1)
+  }
+
+  const handlePageChange = (page) => {
+    setDocumentsPage(page)
+    requestAnimationFrame(() => {
+      documentsListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
+  const selectedFolderTypeConfig = selectedFolder?.id === '__all_documents__' && selectedFolder.type !== 'all'
+    ? documentTypes[selectedFolder.type] || documentTypes.other
+    : null
+
+  const getSelectedFolderIconClass = () => {
+    if (selectedFolderTypeConfig) return selectedFolderTypeConfig.color
+    if (selectedFolder?.id === '__all_documents__') return 'bg-slate-100 text-slate-600'
+    if (selectedFolder?.id === '__uploads__') return 'bg-amber-50'
+    if (selectedFolder?.id === '__doctor_unlinked__') return 'bg-sky-50'
+    return 'bg-teal-50'
+  }
+
+  const renderSelectedFolderIcon = () => {
+    if (selectedFolderTypeConfig) {
+      const Icon = selectedFolderTypeConfig.icon
+      return <Icon className="w-6 h-6" />
+    }
+    if (selectedFolder?.id === '__all_documents__') return <FileText className="w-6 h-6 text-slate-600" />
+    if (selectedFolder?.id === '__uploads__') return <FolderOpen className="w-6 h-6 text-amber-600" />
+    if (selectedFolder?.id === '__doctor_unlinked__') return <Stethoscope className="w-6 h-6 text-sky-600" />
+    return <Stethoscope className="w-6 h-6 text-teal-600" />
   }
 
   const isImagePreview = selectedDocument?.file?.mime?.startsWith('image/')
@@ -344,8 +421,12 @@ function PatientDocuments() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => openQuickDocuments('all')}
+          className="w-full rounded-2xl border border-slate-100 bg-white text-left shadow-sm card-hover focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+        >
+          <div className="flex items-center gap-4 p-6">
             <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
               <FileText className="w-6 h-6 text-slate-600" />
             </div>
@@ -353,11 +434,16 @@ function PatientDocuments() {
               <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
               <p className="text-sm text-slate-500">{t('documents.stat_total')}</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </button>
         {Object.entries(documentTypes).slice(0, 3).map(([key, config]) => (
-          <Card key={key}>
-            <CardContent className="flex items-center gap-4">
+          <button
+            key={key}
+            type="button"
+            onClick={() => openQuickDocuments(key)}
+            className="w-full rounded-2xl border border-slate-100 bg-white text-left shadow-sm card-hover focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+          >
+            <div className="flex items-center gap-4 p-6">
               <div className={`w-12 h-12 rounded-xl ${config.color} flex items-center justify-center`}>
                 <config.icon className="w-6 h-6" />
               </div>
@@ -365,8 +451,8 @@ function PatientDocuments() {
                 <p className="text-2xl font-bold text-slate-900">{stats[key] || 0}</p>
                 <p className="text-sm text-slate-500">{config.label}</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </button>
         ))}
       </div>
 
@@ -395,7 +481,7 @@ function PatientDocuments() {
                 />
               </div>
               <button
-                onClick={() => setSortNewest(prev => !prev)}
+                onClick={handleSortToggle}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
               >
                 <ArrowUpDown className="w-4 h-4" />
@@ -418,8 +504,8 @@ function PatientDocuments() {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-slate-900">{t('documents.my_uploads')}</h3>
                   <p className="text-sm text-slate-500 mt-0.5">
-                    {ungroupedDocs.length > 0
-                      ? `${ungroupedDocs.length} ${getDocCountWord(ungroupedDocs.length)} · ${t('documents.uploads_desc_count')}`
+                    {patientUploadedDocs.length > 0
+                      ? `${patientUploadedDocs.length} ${getDocCountWord(patientUploadedDocs.length)} · ${t('documents.uploads_desc_count')}`
                       : t('documents.upload_desc')
                     }
                   </p>
@@ -429,12 +515,12 @@ function PatientDocuments() {
             </CardContent>
           </Card>
 
-          {/* Consultation Folders */}
+          {/* Doctor Documents */}
           {filteredFolders.length > 0 && (
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wider pt-2">{t('documents.consultations_header')}</p>
           )}
-          <div className="space-y-3">
-            {filteredFolders.length === 0 && ungroupedDocs.length === 0 ? (
+          <div ref={documentsListRef} className="space-y-3">
+            {filteredFolders.length === 0 && patientUploadedDocs.length === 0 && doctorUngroupedDocs.length === 0 ? (
               <Card>
                 <CardContent className="text-center py-12">
                   <FolderOpen className="w-16 h-16 mx-auto text-slate-300 mb-4" />
@@ -445,36 +531,25 @@ function PatientDocuments() {
                 </CardContent>
               </Card>
             ) : (
-              filteredFolders.map((folder) => {
-                const doctorInfo = getDoctorInfo(folder)
-                const typeBadges = getDocTypeBadges(folder.docs)
-                return (
+              <>
+                {doctorUngroupedDocs.length > 0 && (
                   <Card
-                    key={folder.id}
                     hover
-                    className="cursor-pointer"
-                    onClick={() => openFolder(folder)}
+                    className="cursor-pointer border-sky-200 bg-sky-50/40"
+                    onClick={() => openFolder({ id: '__doctor_unlinked__', label: t('documents.doctor_uploads') })}
                   >
                     <CardContent>
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center shrink-0">
-                          <Stethoscope className="w-6 h-6 text-teal-600" />
+                        <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center shrink-0">
+                          <Stethoscope className="w-6 h-6 text-sky-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-slate-900">
-                            {t('documents.consultation_title', { date: formatDate(folder.dateTime, i18n.language) })}
-                          </h3>
-                          {doctorInfo && (
-                            <p className="text-sm text-slate-600 mt-0.5">
-                              {doctorInfo.name}
-                              {doctorInfo.spec && <span className="text-slate-400"> · {doctorInfo.spec}</span>}
-                            </p>
-                          )}
+                          <h3 className="font-semibold text-slate-900">{t('documents.doctor_docs_without_appointment')}</h3>
                           <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <span className="text-xs text-slate-500">
-                              {folder.docs.length} {getDocCountWord(folder.docs.length)}
+                              {doctorUngroupedDocs.length} {getDocCountWord(doctorUngroupedDocs.length)}
                             </span>
-                            {typeBadges.map((badge, i) => (
+                            {getDocTypeBadges(doctorUngroupedDocs).map((badge, i) => (
                               <Badge key={i} className={cn('text-xs', badge.color)}>{badge.label}</Badge>
                             ))}
                           </div>
@@ -483,8 +558,48 @@ function PatientDocuments() {
                       </div>
                     </CardContent>
                   </Card>
-                )
-              })
+                )}
+                {filteredFolders.map((folder) => {
+                  const doctorInfo = getDoctorInfo(folder)
+                  const typeBadges = getDocTypeBadges(folder.docs)
+                  return (
+                    <Card
+                      key={folder.id}
+                      hover
+                      className="cursor-pointer"
+                      onClick={() => openFolder(folder)}
+                    >
+                      <CardContent>
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center shrink-0">
+                            <Stethoscope className="w-6 h-6 text-teal-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-slate-900">
+                              {t('documents.consultation_title', { date: formatDate(folder.dateTime, i18n.language) })}
+                            </h3>
+                            {doctorInfo && (
+                              <p className="text-sm text-slate-600 mt-0.5">
+                                {doctorInfo.name}
+                                {doctorInfo.spec && <span className="text-slate-400"> · {doctorInfo.spec}</span>}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              <span className="text-xs text-slate-500">
+                                {folder.docs.length} {getDocCountWord(folder.docs.length)}
+                              </span>
+                              {typeBadges.map((badge, i) => (
+                                <Badge key={i} className={cn('text-xs', badge.color)}>{badge.label}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-slate-400 shrink-0" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </>
             )}
           </div>
         </>
@@ -505,16 +620,23 @@ function PatientDocuments() {
                 <div className="flex items-center gap-4">
                   <div className={cn(
                     'w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0',
-                    selectedFolder.id === '__uploads__' ? 'bg-amber-50' : 'bg-teal-50'
+                    getSelectedFolderIconClass()
                   )}>
-                    {selectedFolder.id === '__uploads__'
-                      ? <FolderOpen className="w-6 h-6 text-amber-600" />
-                      : <Stethoscope className="w-6 h-6 text-teal-600" />
-                    }
+                    {renderSelectedFolderIcon()}
                   </div>
                   <div>
-                    {selectedFolder.id === '__uploads__' ? (
+                    {selectedFolder.id === '__all_documents__' ? (
+                      <>
+                        <h2 className="text-lg font-semibold text-slate-900">{selectedFolder.label}</h2>
+                        <p className="text-slate-600 mt-0.5">{t('documents.quick_list_desc')}</p>
+                      </>
+                    ) : selectedFolder.id === '__uploads__' ? (
                       <h2 className="text-lg font-semibold text-slate-900">{t('documents.my_uploads')}</h2>
+                    ) : selectedFolder.id === '__doctor_unlinked__' ? (
+                      <>
+                        <h2 className="text-lg font-semibold text-slate-900">{t('documents.doctor_docs_without_appointment')}</h2>
+                        <p className="text-slate-600 mt-0.5">{t('documents.doctor_upload_desc')}</p>
+                      </>
                     ) : (
                       <>
                         <h2 className="text-lg font-semibold text-slate-900">
@@ -539,7 +661,7 @@ function PatientDocuments() {
           {/* Type filter */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={() => setFilter('all')}
+              onClick={() => handleFilterChange('all')}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                 filter === 'all' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
@@ -549,7 +671,7 @@ function PatientDocuments() {
             {Object.entries(documentTypes).map(([key, config]) => (
               <button
                 key={key}
-                onClick={() => setFilter(key)}
+                onClick={() => handleFilterChange(key)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                   filter === key ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
@@ -570,8 +692,9 @@ function PatientDocuments() {
                 </CardContent>
               </Card>
             ) : (
-              folderDocuments.map((doc) => {
+              paginatedFolderDocuments.map((doc) => {
                 const typeConfig = documentTypes[doc.type] || documentTypes.other
+                const isDoctorUploaded = !!doc.doctor
                 return (
                   <Card key={doc.id} hover className="cursor-pointer" onClick={() => setSelectedDocument(doc)}>
                     <CardContent>
@@ -597,6 +720,9 @@ function PatientDocuments() {
                           </div>
                         </div>
                         <div className="col-span-2 flex items-center gap-2 flex-shrink-0 border-t border-slate-100 pt-3 sm:col-span-1 sm:border-t-0 sm:pt-0 sm:ml-auto">
+                          <Badge className={isDoctorUploaded ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700'}>
+                            {isDoctorUploaded ? t('documents.doctor_uploads') : t('documents.my_uploads')}
+                          </Badge>
                           <Badge className={typeConfig.color}>{typeConfig.label}</Badge>
                           {doc.sharedWithDoctors?.length > 0 && (
                             <span className="flex items-center gap-1 text-xs text-teal-600" title={t('documents.shared_badge_title')}>
@@ -604,13 +730,15 @@ function PatientDocuments() {
                               {doc.sharedWithDoctors.length}
                             </span>
                           )}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openShareModal(doc) }}
-                            className="p-2 hover:bg-teal-100 rounded-lg text-slate-500 hover:text-teal-600"
-                            title={t('documents.share_title')}
-                          >
-                            <Share2 className="w-5 h-5" />
-                          </button>
+                          {!isDoctorUploaded && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openShareModal(doc) }}
+                              className="p-2 hover:bg-teal-100 rounded-lg text-slate-500 hover:text-teal-600"
+                              title={t('documents.share_title')}
+                            >
+                              <Share2 className="w-5 h-5" />
+                            </button>
+                          )}
                           <button
                             onClick={(e) => { e.stopPropagation(); handleDownload(doc) }}
                             className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
@@ -618,13 +746,15 @@ function PatientDocuments() {
                           >
                             <Download className="w-5 h-5" />
                           </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(doc.documentId) }}
-                            className="p-2 hover:bg-red-100 rounded-lg text-slate-500 hover:text-red-600"
-                            title={t('documents.delete_action')}
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
+                          {!isDoctorUploaded && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(doc.documentId) }}
+                              className="p-2 hover:bg-red-100 rounded-lg text-slate-500 hover:text-red-600"
+                              title={t('documents.delete_action')}
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -633,6 +763,14 @@ function PatientDocuments() {
               })
             )}
           </div>
+
+          <Pagination
+            currentPage={safeDocumentsPage}
+            totalItems={folderDocuments.length}
+            pageSize={DOCUMENTS_PAGE_SIZE}
+            onPageChange={handlePageChange}
+            className="rounded-2xl border border-slate-100 bg-white shadow-sm"
+          />
         </>
       )}
 
@@ -767,7 +905,7 @@ function PatientDocuments() {
               uploadFileState ? 'border-teal-500 bg-teal-50' : 'border-slate-300 hover:border-teal-500 hover:bg-teal-50/50'
             }`}
           >
-            <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={handleFileSelect} />
+            <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={handleFileSelect} />
             {uploadFileState ? (
               <div className="flex items-center justify-center gap-3">
                 <FileText className="w-8 h-8 text-teal-600" />

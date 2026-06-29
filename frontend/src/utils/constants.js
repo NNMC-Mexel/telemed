@@ -51,6 +51,7 @@ export const PATIENT_NAV_ITEMS = [
   { path: '/patient/doctors', label: 'nav.doctors', icon: 'users' },
   { path: '/patient/chat', label: 'nav.chat', icon: 'message-circle' },
   { path: '/patient/documents', label: 'nav.documents', icon: 'file-text' },
+  { path: '/patient/help', label: 'nav.patient_help', icon: 'circle-help' },
   { path: '/patient/profile', label: 'nav.profile', icon: 'user' },
 ]
 
@@ -70,6 +71,7 @@ export const ADMIN_NAV_ITEMS = [
   { path: '/admin/appointments', label: 'nav.admin_appointments', icon: 'calendar' },
   { path: '/admin/specializations', label: 'nav.admin_specializations', icon: 'tags' },
   { path: '/admin/support', label: 'nav.support', icon: 'life-buoy' },
+  { path: '/admin/patient-help', label: 'nav.admin_patient_help', icon: 'book-open-check' },
   { path: '/admin/settings', label: 'nav.admin_settings', icon: 'settings' },
 ]
 

@@ -13,6 +13,8 @@ import {
   Stethoscope,
   Tags,
   Activity,
+  BookOpenCheck,
+  CircleHelp,
   LifeBuoy,
   X,
 } from 'lucide-react'
@@ -35,6 +37,8 @@ const iconMap = {
   stethoscope: Stethoscope,
   tags: Tags,
   activity: Activity,
+  'book-open-check': BookOpenCheck,
+  'circle-help': CircleHelp,
   'life-buoy': LifeBuoy,
 }
 

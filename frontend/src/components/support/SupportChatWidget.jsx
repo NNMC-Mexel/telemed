@@ -167,7 +167,7 @@ function SupportChatWidget() {
         <button
           onClick={open}
           aria-label={t('support.title')}
-          className="fixed z-40 right-4 bottom-[calc(6.25rem+var(--safe-bottom))] lg:right-6 lg:bottom-6 w-14 h-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-lg shadow-teal-600/30 flex items-center justify-center transition-colors"
+          className="fixed z-40 right-6 bottom-6 hidden w-14 h-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-lg shadow-teal-600/30 lg:flex items-center justify-center transition-colors"
         >
           <LifeBuoy className="w-6 h-6" />
           {unreadCount > 0 && (

@@ -142,7 +142,7 @@ function RegisterPage() {
       if (result.pendingConfirmation) {
         setPendingEmail(registeredEmail)
       } else {
-        navigate('/patient')
+        navigate('/patient/help?welcome=1')
       }
     }
   }
