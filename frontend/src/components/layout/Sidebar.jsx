@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Home,
@@ -58,7 +58,13 @@ function Sidebar({ navItems, onNavClick }) {
       {/* Logo */}
       <div className="px-6 pb-6 pt-[max(1.5rem,calc(env(safe-area-inset-top)+0.75rem))] border-b border-slate-100">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link
+            to="/"
+            onClick={onNavClick}
+            aria-label={`${t('nav.home')} — MedConnect`}
+            title={t('nav.home')}
+            className="-m-2 flex min-w-0 items-center gap-3 rounded-xl p-2 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+          >
             {isNativeApp ? (
               <img
                 src={mobileAppLogo}
@@ -74,7 +80,7 @@ function Sidebar({ navItems, onNavClick }) {
               <h1 className="font-bold text-slate-900">MedConnect</h1>
               <p className="text-xs text-slate-500">{t('common.telemedicine')}</p>
             </div>
-          </div>
+          </Link>
           <button
             onClick={onNavClick}
             className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"

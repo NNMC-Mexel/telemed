@@ -15,6 +15,11 @@ import {
     Plus,
     Trash2,
     FileText,
+    AlertCircle,
+    ArrowLeft,
+    Download,
+    Eye,
+    FolderOpen,
 } from "lucide-react";
 import {
     Card,
@@ -30,7 +35,14 @@ import Select from "../../components/ui/Select";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { ru, kk, enUS } from "date-fns/locale";
 import useAuthStore from "../../stores/authStore";
-import api, { normalizeResponse, getMediaUrl, getServerNow, getSignalingUrl } from "../../services/api";
+import api, {
+    documentsAPI,
+    downloadMedia,
+    normalizeResponse,
+    getMediaUrl,
+    getServerNow,
+    getSignalingUrl,
+} from "../../services/api";
 import {
     DEFAULT_WORKING_INTERVALS,
     generateSlotsFromIntervals,
@@ -72,6 +84,14 @@ function DoctorSchedule() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [documentsAppointment, setDocumentsAppointment] = useState(null);
+    const [appointmentDocuments, setAppointmentDocuments] = useState([]);
+    const [selectedDocument, setSelectedDocument] = useState(null);
+    const [isDocumentsLoading, setIsDocumentsLoading] = useState(false);
+    const [documentsError, setDocumentsError] = useState("");
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const [previewError, setPreviewError] = useState("");
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
     const [workingHours, setWorkingHours] = useState({
         slotDuration: 30,
     });
@@ -96,6 +116,50 @@ function DoctorSchedule() {
             fetchDoctorAndAppointments();
         }
     }, [user?.id, currentDate]);
+
+    useEffect(() => {
+        let isActive = true;
+        let objectUrl = null;
+
+        const file = selectedDocument?.file;
+        const mime = String(file?.mime || "").toLowerCase();
+        const supportsPreview = mime === "application/pdf" || mime.startsWith("image/");
+
+        setPreviewUrl(null);
+        setPreviewError("");
+        setIsPreviewLoading(false);
+
+        if (!file?.url || !supportsPreview) return undefined;
+
+        const fileUrl = getMediaUrl(file);
+        if (!fileUrl) {
+            setPreviewError(t("documents.link_error"));
+            return undefined;
+        }
+
+        setIsPreviewLoading(true);
+        api.get(fileUrl, { responseType: "blob" })
+            .then((response) => {
+                if (!isActive) return;
+                const typedBlob = new Blob(
+                    [response.data],
+                    { type: mime || response.data?.type || "application/octet-stream" }
+                );
+                objectUrl = URL.createObjectURL(typedBlob);
+                setPreviewUrl(objectUrl);
+            })
+            .catch(() => {
+                if (isActive) setPreviewError(t("documents.preview_unavailable"));
+            })
+            .finally(() => {
+                if (isActive) setIsPreviewLoading(false);
+            });
+
+        return () => {
+            isActive = false;
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [selectedDocument, t]);
 
     const fetchDoctorAndAppointments = async () => {
         setIsLoading(true);
@@ -172,6 +236,61 @@ function DoctorSchedule() {
             const aptDate = format(new Date(apt.dateTime), "yyyy-MM-dd");
             return aptDate === dateStr;
         });
+    };
+
+    const openAppointmentDocuments = async (appointment) => {
+        const patientId = appointment?.patient?.id;
+        if (!patientId) return;
+
+        setDocumentsAppointment(appointment);
+        setAppointmentDocuments([]);
+        setSelectedDocument(null);
+        setDocumentsError("");
+        setIsDocumentsLoading(true);
+
+        try {
+            const response = await documentsAPI.getAll({ userId: patientId });
+            const documents = response.data?.data || [];
+            const appointmentId = String(appointment.documentId || appointment.id || "");
+            const patientDocuments = documents.filter((document) => !document.doctor);
+            const linkedDocuments = patientDocuments.filter((document) => {
+                const linkedAppointmentId = String(
+                    document.appointment?.documentId || document.appointment?.id || ""
+                );
+                return linkedAppointmentId && linkedAppointmentId === appointmentId;
+            });
+
+            // Older records may have access configured before documents were linked
+            // to an appointment. The API still returns only files shared with this doctor.
+            setAppointmentDocuments(
+                linkedDocuments.length > 0 ? linkedDocuments : patientDocuments
+            );
+        } catch (error) {
+            console.error("Error loading appointment documents:", error);
+            setDocumentsError(t("schedule.documents_error"));
+        } finally {
+            setIsDocumentsLoading(false);
+        }
+    };
+
+    const closeDocumentsModal = () => {
+        setDocumentsAppointment(null);
+        setAppointmentDocuments([]);
+        setSelectedDocument(null);
+        setDocumentsError("");
+    };
+
+    const getDocumentTypeLabel = (type) => {
+        const knownType = [
+            "analysis",
+            "prescription",
+            "certificate",
+            "mrt",
+            "xray",
+            "ultrasound",
+            "other",
+        ].includes(type) ? type : "other";
+        return t(`documents.type_${knownType}`);
     };
 
     const isWorkingDay = (date) => workingDays.includes(date.getDay());
@@ -598,10 +717,28 @@ function DoctorSchedule() {
                                                                             </Badge>
                                                                         )}
                                                                         {!isPast && appointmentStatus !== 'cancelled' && (
-                                                                            <Badge variant={preparationBadge.variant}>
-                                                                                <FileText className='w-3 h-3 mr-1' />
-                                                                                {preparationBadge.label}
-                                                                            </Badge>
+                                                                            preparation.status === 'ready' ? (
+                                                                                <button
+                                                                                    type='button'
+                                                                                    onClick={() => openAppointmentDocuments(appointment)}
+                                                                                    title={t('schedule.open_documents_aria', {
+                                                                                        name: appointment.patient?.fullName || t('schedule.patient_label'),
+                                                                                    })}
+                                                                                    aria-label={t('schedule.open_documents_aria', {
+                                                                                        name: appointment.patient?.fullName || t('schedule.patient_label'),
+                                                                                    })}
+                                                                                    className='rounded-full transition-transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2'>
+                                                                                    <Badge variant={preparationBadge.variant} className='cursor-pointer hover:bg-emerald-200'>
+                                                                                        <FileText className='w-3 h-3 mr-1' />
+                                                                                        {preparationBadge.label}
+                                                                                    </Badge>
+                                                                                </button>
+                                                                            ) : (
+                                                                                <Badge variant={preparationBadge.variant}>
+                                                                                    <FileText className='w-3 h-3 mr-1' />
+                                                                                    {preparationBadge.label}
+                                                                                </Badge>
+                                                                            )
                                                                         )}
                                                                         {canJoin && appointment.roomId && (
                                                                             <Link to={`/consultation/${appointment.roomId}`}>
@@ -723,6 +860,182 @@ function DoctorSchedule() {
                     </Card>
                 </div>
             </div>
+
+            {/* Appointment documents modal */}
+            <Modal
+                isOpen={Boolean(documentsAppointment)}
+                onClose={closeDocumentsModal}
+                title={selectedDocument?.title || t('schedule.documents_modal_title')}
+                description={t('schedule.documents_modal_desc', {
+                    name: documentsAppointment?.patient?.fullName || t('schedule.patient_label'),
+                })}
+                size='xl'
+                footer={
+                    selectedDocument ? (
+                        <>
+                            <Button
+                                variant='secondary'
+                                onClick={() => setSelectedDocument(null)}
+                                leftIcon={<ArrowLeft className='w-4 h-4' />}>
+                                {t('schedule.documents_back')}
+                            </Button>
+                            {selectedDocument.file && (
+                                <Button
+                                    onClick={() => downloadMedia(
+                                        selectedDocument.file,
+                                        selectedDocument.title || 'document'
+                                    )}
+                                    leftIcon={<Download className='w-4 h-4' />}>
+                                    {t('documents.download')}
+                                </Button>
+                            )}
+                        </>
+                    ) : (
+                        <Button variant='secondary' onClick={closeDocumentsModal}>
+                            {t('documents.close')}
+                        </Button>
+                    )
+                }>
+                {selectedDocument ? (
+                    <div className='space-y-4'>
+                        <div className='rounded-xl border border-slate-200 bg-slate-50 p-4'>
+                            <div className='flex flex-wrap items-center justify-between gap-2'>
+                                <Badge variant='info'>
+                                    {getDocumentTypeLabel(selectedDocument.type)}
+                                </Badge>
+                                {selectedDocument.createdAt && (
+                                    <span className='text-sm text-slate-500'>
+                                        {format(new Date(selectedDocument.createdAt), 'd MMMM yyyy', {
+                                            locale: dateLocale,
+                                        })}
+                                    </span>
+                                )}
+                            </div>
+                            {selectedDocument.description && (
+                                <p className='mt-3 whitespace-pre-wrap text-sm text-slate-700'>
+                                    {selectedDocument.description}
+                                </p>
+                            )}
+                        </div>
+
+                        {selectedDocument.file ? (() => {
+                            const mime = String(selectedDocument.file.mime || '').toLowerCase();
+                            const isImage = mime.startsWith('image/');
+                            const isPdf = mime === 'application/pdf';
+
+                            if (isPreviewLoading) {
+                                return (
+                                    <div className='flex min-h-72 items-center justify-center rounded-xl bg-slate-100 text-slate-500'>
+                                        <Loader2 className='mr-2 h-5 w-5 animate-spin' />
+                                        {t('documents.preview_loading')}
+                                    </div>
+                                );
+                            }
+
+                            if (isImage && previewUrl) {
+                                return (
+                                    <div className='flex max-h-[60vh] justify-center overflow-auto rounded-xl bg-slate-100 p-3'>
+                                        <img
+                                            src={previewUrl}
+                                            alt={selectedDocument.title}
+                                            className='max-h-[56vh] max-w-full rounded-lg object-contain'
+                                        />
+                                    </div>
+                                );
+                            }
+
+                            if (isPdf && previewUrl) {
+                                return (
+                                    <object
+                                        data={previewUrl}
+                                        type='application/pdf'
+                                        className='h-[60vh] w-full overflow-hidden rounded-xl bg-slate-100'
+                                        aria-label={t('documents.pdf_aria')}>
+                                        <p className='p-6 text-center text-slate-500'>
+                                            {t('documents.download_to_view')}
+                                        </p>
+                                    </object>
+                                );
+                            }
+
+                            return (
+                                <div className='rounded-xl border border-slate-200 bg-slate-50 p-8 text-center'>
+                                    <FileText className='mx-auto mb-3 h-12 w-12 text-slate-300' />
+                                    <p className='font-medium text-slate-700'>
+                                        {previewError || t('documents.preview_unavailable')}
+                                    </p>
+                                    <p className='mt-1 text-sm text-slate-500'>
+                                        {t('documents.download_to_view')}
+                                    </p>
+                                </div>
+                            );
+                        })() : (
+                            <div className='rounded-xl bg-slate-50 p-8 text-center text-slate-500'>
+                                {t('schedule.document_without_file')}
+                            </div>
+                        )}
+                    </div>
+                ) : isDocumentsLoading ? (
+                    <div className='flex min-h-56 items-center justify-center text-slate-500'>
+                        <Loader2 className='mr-2 h-5 w-5 animate-spin text-teal-600' />
+                        {t('schedule.documents_loading')}
+                    </div>
+                ) : documentsError ? (
+                    <div className='flex min-h-48 flex-col items-center justify-center rounded-xl bg-rose-50 p-6 text-center text-rose-700'>
+                        <AlertCircle className='mb-3 h-8 w-8' />
+                        <p>{documentsError}</p>
+                    </div>
+                ) : appointmentDocuments.length === 0 ? (
+                    <div className='flex min-h-48 flex-col items-center justify-center rounded-xl bg-slate-50 p-6 text-center'>
+                        <FolderOpen className='mb-3 h-10 w-10 text-slate-300' />
+                        <p className='font-medium text-slate-700'>{t('schedule.documents_empty')}</p>
+                        <p className='mt-1 max-w-md text-sm text-slate-500'>
+                            {t('schedule.documents_empty_hint')}
+                        </p>
+                    </div>
+                ) : (
+                    <div className='space-y-3'>
+                        <p className='text-sm text-slate-500'>
+                            {t('schedule.documents_count', { count: appointmentDocuments.length })}
+                        </p>
+                        {appointmentDocuments.map((document) => (
+                            <div
+                                key={document.documentId || document.id}
+                                className='flex flex-col gap-3 rounded-xl border border-slate-200 p-4 transition-colors hover:border-teal-200 hover:bg-teal-50/30 sm:flex-row sm:items-center sm:justify-between'>
+                                <div className='flex min-w-0 items-start gap-3'>
+                                    <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600'>
+                                        <FileText className='h-5 w-5' />
+                                    </div>
+                                    <div className='min-w-0'>
+                                        <p className='font-medium text-slate-900 break-words'>
+                                            {document.title || t('documents.file_label')}
+                                        </p>
+                                        <div className='mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500'>
+                                            <span>{getDocumentTypeLabel(document.type)}</span>
+                                            {document.createdAt && (
+                                                <>
+                                                    <span aria-hidden='true'>•</span>
+                                                    <span>
+                                                        {format(new Date(document.createdAt), 'dd.MM.yyyy')}
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <Button
+                                    size='sm'
+                                    variant='secondary'
+                                    className='w-full sm:w-auto'
+                                    onClick={() => setSelectedDocument(document)}
+                                    leftIcon={<Eye className='h-4 w-4' />}>
+                                    {t('schedule.view_document')}
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Modal>
 
             {/* Settings Modal */}
             <Modal

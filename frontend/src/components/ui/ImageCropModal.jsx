@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Cropper from 'react-easy-crop'
-import { ZoomIn, ZoomOut, RotateCw } from 'lucide-react'
+import { RotateCcw, RotateCw, ZoomIn, ZoomOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import Modal from './Modal'
 import Button from './Button'
@@ -8,30 +8,68 @@ import Button from './Button'
 /**
  * Converts cropped area pixels to a canvas blob.
  */
-async function getCroppedImg(imageSrc, croppedAreaPixels) {
+const MAX_OUTPUT_DIMENSION = 1200
+
+function getRadianAngle(degreeValue) {
+  return (degreeValue * Math.PI) / 180
+}
+
+function getRotatedSize(width, height, rotation) {
+  const rotationInRadians = getRadianAngle(rotation)
+
+  return {
+    width:
+      Math.abs(Math.cos(rotationInRadians) * width) +
+      Math.abs(Math.sin(rotationInRadians) * height),
+    height:
+      Math.abs(Math.sin(rotationInRadians) * width) +
+      Math.abs(Math.cos(rotationInRadians) * height),
+  }
+}
+
+async function getCroppedImg(imageSrc, croppedAreaPixels, rotation) {
   const image = await createImage(imageSrc)
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')
+  const rotationInRadians = getRadianAngle(rotation)
+  const rotatedSize = getRotatedSize(image.width, image.height, rotation)
+  const sourceCanvas = document.createElement('canvas')
+  const sourceContext = sourceCanvas.getContext('2d')
 
-  canvas.width = croppedAreaPixels.width
-  canvas.height = croppedAreaPixels.height
+  sourceCanvas.width = Math.round(rotatedSize.width)
+  sourceCanvas.height = Math.round(rotatedSize.height)
 
-  ctx.drawImage(
-    image,
+  sourceContext.translate(sourceCanvas.width / 2, sourceCanvas.height / 2)
+  sourceContext.rotate(rotationInRadians)
+  sourceContext.translate(-image.width / 2, -image.height / 2)
+  sourceContext.drawImage(image, 0, 0)
+
+  const scale = Math.min(
+    1,
+    MAX_OUTPUT_DIMENSION / Math.max(croppedAreaPixels.width, croppedAreaPixels.height),
+  )
+  const outputCanvas = document.createElement('canvas')
+  outputCanvas.width = Math.max(1, Math.round(croppedAreaPixels.width * scale))
+  outputCanvas.height = Math.max(1, Math.round(croppedAreaPixels.height * scale))
+
+  const outputContext = outputCanvas.getContext('2d')
+  outputContext.imageSmoothingEnabled = true
+  outputContext.imageSmoothingQuality = 'high'
+  outputContext.drawImage(
+    sourceCanvas,
     croppedAreaPixels.x,
     croppedAreaPixels.y,
     croppedAreaPixels.width,
     croppedAreaPixels.height,
     0,
     0,
-    croppedAreaPixels.width,
-    croppedAreaPixels.height
+    outputCanvas.width,
+    outputCanvas.height,
   )
 
-  return new Promise((resolve) => {
-    canvas.toBlob(
+  return new Promise((resolve, reject) => {
+    outputCanvas.toBlob(
       (blob) => {
-        resolve(blob)
+        if (blob) resolve(blob)
+        else reject(new Error('Could not create cropped image'))
       },
       'image/jpeg',
       0.92
@@ -56,6 +94,17 @@ function ImageCropModal({ isOpen, onClose, imageSrc, onCropComplete, aspect = 1 
   const [rotation, setRotation] = useState(0)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    setCrop({ x: 0, y: 0 })
+    setZoom(1)
+    setRotation(0)
+    setCroppedAreaPixels(null)
+    setError('')
+  }, [imageSrc, isOpen])
 
   const onCropChange = useCallback((crop) => setCrop(crop), [])
   const onZoomChange = useCallback((zoom) => setZoom(zoom), [])
@@ -67,13 +116,15 @@ function ImageCropModal({ isOpen, onClose, imageSrc, onCropComplete, aspect = 1 
   const handleSave = async () => {
     if (!croppedAreaPixels) return
     setIsSaving(true)
+    setError('')
     try {
-      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels)
+      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels, rotation)
       const file = new File([croppedBlob], 'photo.jpg', { type: 'image/jpeg' })
       await onCropComplete(file)
       onClose()
     } catch (err) {
       console.error('Error cropping image:', err)
+      setError(t('image_crop.error'))
     } finally {
       setIsSaving(false)
     }
@@ -81,6 +132,12 @@ function ImageCropModal({ isOpen, onClose, imageSrc, onCropComplete, aspect = 1 
 
   const handleRotate = () => {
     setRotation((prev) => (prev + 90) % 360)
+  }
+
+  const handleReset = () => {
+    setCrop({ x: 0, y: 0 })
+    setZoom(1)
+    setRotation(0)
   }
 
   return (
@@ -97,14 +154,14 @@ function ImageCropModal({ isOpen, onClose, imageSrc, onCropComplete, aspect = 1 
             {t('common.cancel')}
           </Button>
           <Button onClick={handleSave} isLoading={isSaving}>
-            {t('common.save')}
+            {t('image_crop.apply')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         {/* Crop area */}
-        <div className="relative w-full h-[400px] bg-slate-900 rounded-xl overflow-hidden">
+        <div className="relative h-[min(400px,52vh)] min-h-72 w-full overflow-hidden rounded-xl bg-slate-900">
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -123,31 +180,57 @@ function ImageCropModal({ isOpen, onClose, imageSrc, onCropComplete, aspect = 1 
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-4">
+        <div className="space-y-3">
           {/* Zoom */}
-          <div className="flex items-center gap-3 flex-1">
-            <ZoomOut className="w-4 h-4 text-slate-400 flex-shrink-0" />
-            <input
-              type="range"
-              min={1}
-              max={3}
-              step={0.05}
-              value={zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
-              className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-teal-500"
-            />
-            <ZoomIn className="w-4 h-4 text-slate-400 flex-shrink-0" />
+          <div>
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-medium text-slate-700">{t('image_crop.zoom')}</span>
+              <span className="tabular-nums text-slate-500">{Math.round(zoom * 100)}%</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <ZoomOut className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.05}
+                value={zoom}
+                aria-label={t('image_crop.zoom')}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-teal-500"
+              />
+              <ZoomIn className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            </div>
           </div>
 
-          {/* Rotate */}
-          <button
-            onClick={handleRotate}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-          >
-            <RotateCw className="w-4 h-4" />
-            {t('image_crop.rotate')}
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-slate-500">{t('image_crop.move_hint')}</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleReset}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              >
+                <RotateCcw className="w-4 h-4" />
+                {t('image_crop.reset')}
+              </button>
+              <button
+                type="button"
+                onClick={handleRotate}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-teal-50 hover:text-teal-600"
+              >
+                <RotateCw className="w-4 h-4" />
+                {t('image_crop.rotate')}
+              </button>
+            </div>
+          </div>
         </div>
+
+        {error && (
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {error}
+          </p>
+        )}
       </div>
     </Modal>
   )

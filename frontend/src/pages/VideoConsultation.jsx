@@ -75,6 +75,7 @@ const MINI_CALL_MARGIN = 12
 const MINI_CALL_MOBILE_WIDTH = 224
 const MINI_CALL_MOBILE_HEIGHT = 172
 const MINI_CALL_MOBILE_BOTTOM_RESERVE = 96
+const SHOW_STRUCTURED_NOTES = false
 
 const getMiniCallBottomReserve = () => {
   if (typeof window === 'undefined') return 0
@@ -1853,29 +1854,31 @@ function VideoConsultation({
         {/* Notes Tab (Doctor only) */}
         {sidebarTab === 'notes' && isDoctor && (
           <div className="flex-1 overflow-y-auto">
-            {/* Notes Sub-tabs */}
-            <div className="flex items-center gap-1.5 p-4 border-b border-slate-100 overflow-x-auto">
-              {[
-                { id: 'diagnosis', label: t('video.tab_diagnosis'), icon: Stethoscope },
-                { id: 'plan', label: t('video.tab_plan'), icon: ClipboardList },
-                { id: 'prescriptions', label: t('video.tab_prescriptions'), icon: Pill },
-                { id: 'documents', label: t('video.tab_documents'), icon: FolderOpen },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setNotesTab(tab.id)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                    notesTab === tab.id
-                      ? "bg-teal-50 text-teal-700"
-                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                  )}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            {/* Structured note tabs are kept in code for a later release. */}
+            {SHOW_STRUCTURED_NOTES && (
+              <div className="flex items-center gap-1.5 p-4 border-b border-slate-100 overflow-x-auto">
+                {[
+                  { id: 'diagnosis', label: t('video.tab_diagnosis'), icon: Stethoscope },
+                  { id: 'plan', label: t('video.tab_plan'), icon: ClipboardList },
+                  { id: 'prescriptions', label: t('video.tab_prescriptions'), icon: Pill },
+                  { id: 'documents', label: t('video.tab_documents'), icon: FolderOpen },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setNotesTab(tab.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      notesTab === tab.id
+                        ? "bg-teal-50 text-teal-700"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                    )}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="p-4 space-y-4">
               {notesSaveError && (
@@ -1913,7 +1916,7 @@ function VideoConsultation({
                         setNotesSaveError('')
                       }}
                       className="w-full h-48 px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      placeholder={t('video.diagnosis_placeholder')}
+                      placeholder={t('video.conclusion_placeholder')}
                     />
                     {diagnosisFile && (
                       <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg text-sm">

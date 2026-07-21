@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Camera, Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { Camera, Crop, Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -98,6 +98,7 @@ function AdminDoctors() {
   const [doctorRoleId, setDoctorRoleId] = useState(null)
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState('')
+  const [photoEditSource, setPhotoEditSource] = useState('')
   const [removePhoto, setRemovePhoto] = useState(false)
   const [cropModalOpen, setCropModalOpen] = useState(false)
   const [cropImageSrc, setCropImageSrc] = useState(null)
@@ -278,6 +279,8 @@ function AdminDoctors() {
     })
     setPhotoFile(null)
     setPhotoPreview('')
+    setPhotoEditSource('')
+    setCropImageSrc(null)
     setRemovePhoto(false)
     setIsModalOpen(true)
   }
@@ -344,8 +347,11 @@ function AdminDoctors() {
       workingDays: doctor.workingDays || '1,2,3,4,5',
       workingIntervals: getDoctorWorkingIntervals(doctor),
     })
+    const photoUrl = getMediaUrl(doctor.photo) || ''
     setPhotoFile(null)
-    setPhotoPreview(getMediaUrl(doctor.photo) || '')
+    setPhotoPreview(photoUrl)
+    setPhotoEditSource(photoUrl)
+    setCropImageSrc(null)
     setRemovePhoto(false)
     setIsModalOpen(true)
   }
@@ -376,12 +382,25 @@ function AdminDoctors() {
   const handleCroppedPhoto = async (croppedFile) => {
     setPhotoFile(croppedFile)
     setPhotoPreview(URL.createObjectURL(croppedFile))
+    setPhotoEditSource(cropImageSrc)
     setRemovePhoto(false)
+  }
+
+  const handlePhotoEdit = () => {
+    if (!photoPreview) {
+      photoInputRef.current?.click()
+      return
+    }
+
+    setCropImageSrc(photoEditSource || photoPreview)
+    setCropModalOpen(true)
   }
 
   const handleRemovePhoto = () => {
     setPhotoFile(null)
     setPhotoPreview('')
+    setPhotoEditSource('')
+    setCropImageSrc(null)
     setRemovePhoto(true)
   }
 
@@ -499,6 +518,8 @@ function AdminDoctors() {
       })
       setPhotoFile(null)
       setPhotoPreview('')
+      setPhotoEditSource('')
+      setCropImageSrc(null)
       setRemovePhoto(false)
       await loadData()
     } catch (error) {
@@ -789,9 +810,9 @@ function AdminDoctors() {
             />
             <button
               type='button'
-              onClick={() => photoInputRef.current?.click()}
-              aria-label={t('admin_doc.change_photo')}
-              title={t('admin_doc.change_photo')}
+              onClick={handlePhotoEdit}
+              aria-label={photoPreview ? t('admin_doc.adjust_photo') : t('admin_doc.upload_photo')}
+              title={photoPreview ? t('admin_doc.adjust_photo') : t('admin_doc.upload_photo')}
               className='group relative h-20 w-20 shrink-0 overflow-hidden rounded-full bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2'>
               {photoPreview ? (
                 <img src={photoPreview} alt={t('admin_doc.photo_alt')} className='w-full h-full object-cover' />
@@ -806,12 +827,21 @@ function AdminDoctors() {
             </button>
             <div>
               <div className='flex flex-wrap gap-2'>
+                {photoPreview && (
+                  <Button
+                    type='button'
+                    variant='secondary'
+                    onClick={handlePhotoEdit}
+                    leftIcon={<Crop className='w-4 h-4' />}>
+                    {t('admin_doc.adjust_photo')}
+                  </Button>
+                )}
                 <Button
                   type='button'
                   variant='secondary'
                   onClick={() => photoInputRef.current?.click()}
                   leftIcon={<Camera className='w-4 h-4' />}>
-                  {photoPreview ? t('admin_doc.change_photo') : t('admin_doc.upload_photo')}
+                  {photoPreview ? t('admin_doc.replace_photo') : t('admin_doc.upload_photo')}
                 </Button>
                 {photoPreview && (
                   <Button type='button' variant='secondary' onClick={handleRemovePhoto} leftIcon={<X className='w-4 h-4' />}>
@@ -819,7 +849,9 @@ function AdminDoctors() {
                   </Button>
                 )}
               </div>
-              <p className='mt-2 text-xs text-slate-500'>{t('admin_doc.click_photo_hint')}</p>
+              <p className='mt-2 text-xs text-slate-500'>
+                {photoPreview ? t('admin_doc.adjust_photo_hint') : t('admin_doc.click_photo_hint')}
+              </p>
             </div>
           </div>
 

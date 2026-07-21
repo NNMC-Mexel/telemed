@@ -34,6 +34,7 @@ import { DOCUMENT_STATUS, getAppointmentPreparation } from '../utils/appointment
 
 // 48-hour window for post-consultation notes
 const WINDOW_HOURS = 48
+const SHOW_STRUCTURED_NOTES = false
 
 function AppointmentDetail() {
   const { id } = useParams()
@@ -538,22 +539,24 @@ function AppointmentDetail() {
                   </div>
                 )}
 
-                {/* Tabs */}
-                <div className="grid grid-cols-3 gap-1 mb-4 bg-slate-100 p-1 rounded-xl">
-                  {notesTabs.map(tab => (
-                    <button
-                      key={tab.key}
-                      onClick={() => setActiveNotesTab(tab.key)}
-                      className={`min-h-11 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium leading-tight transition-colors ${
-                        activeNotesTab === tab.key
-                          ? 'bg-white text-slate-900 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
+                {/* Structured note tabs are kept in code for a later release. */}
+                {SHOW_STRUCTURED_NOTES && (
+                  <div className="grid grid-cols-3 gap-1 mb-4 bg-slate-100 p-1 rounded-xl">
+                    {notesTabs.map(tab => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setActiveNotesTab(tab.key)}
+                        className={`min-h-11 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium leading-tight transition-colors ${
+                          activeNotesTab === tab.key
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {/* Diagnosis tab */}
                 {activeNotesTab === 'diagnosis' && (
@@ -562,7 +565,7 @@ function AppointmentDetail() {
                       value={diagnosisText}
                       onChange={e => setDiagnosisText(e.target.value)}
                       disabled={!isWithinWindow}
-                      placeholder={t('appointment_detail.diagnosis_placeholder')}
+                      placeholder={t('appointment_detail.conclusion_placeholder')}
                       rows={5}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                     />
