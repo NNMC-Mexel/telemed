@@ -1,0 +1,40 @@
+config:
+  target: "https://medconnectrtc.nnmc.kz"
+  phases:
+    - name: "warm up"
+      duration: 120
+      arrivalRate: 1
+      rampTo: 5
+    - name: "hold"
+      duration: 300
+      arrivalRate: 5
+    - name: "higher load"
+      duration: 300
+      arrivalRate: 5
+      rampTo: 20
+  engines:
+    socketio:
+      transports:
+        - websocket
+  payload:
+    path: "./load-tests/slot-watchers.sample.csv"
+    fields:
+      - doctorId
+      - date
+    order: sequence
+    skipHeader: true
+scenarios:
+  - name: "slot watchers"
+    engine: socketio
+    flow:
+      - emit:
+          channel: "join-slot-watch"
+          data:
+            doctorId: "{{ doctorId }}"
+            date: "{{ date }}"
+      - think: 60
+      - emit:
+          channel: "leave-slot-watch"
+          data:
+            doctorId: "{{ doctorId }}"
+            date: "{{ date }}"

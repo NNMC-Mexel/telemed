@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal'
 import Badge from '../../components/ui/Badge'
 import { doctorsAPI, normalizeResponse, promotionsAPI, specializationsAPI } from '../../services/api'
 import { formatPrice } from '../../utils/helpers'
+import { useDialog } from '../../components/ui/Dialog'
 
 const defaultForm = {
   title: '',
@@ -41,6 +42,7 @@ const toIsoOrNull = (value) => {
 const relationIds = (items) => (Array.isArray(items) ? items.map((item) => String(item.id)) : [])
 
 function AdminPromotions() {
+  const dialog = useDialog()
   const [promotions, setPromotions] = useState([])
   const [doctors, setDoctors] = useState([])
   const [specializations, setSpecializations] = useState([])
@@ -145,7 +147,7 @@ function AdminPromotions() {
   const handleSave = async () => {
     const validationError = validate()
     if (validationError) {
-      alert(validationError)
+      dialog.alert(validationError)
       return
     }
 
@@ -163,7 +165,7 @@ function AdminPromotions() {
       await loadData()
     } catch (error) {
       console.error('Error saving promotion:', error)
-      alert(error?.response?.data?.error?.message || 'Не удалось сохранить акцию')
+      dialog.alert(error?.response?.data?.error?.message || 'Не удалось сохранить акцию')
     } finally {
       setIsSaving(false)
     }
@@ -171,13 +173,13 @@ function AdminPromotions() {
 
   const handleDelete = async (promotion) => {
     if (!promotion?.documentId) return
-    if (!window.confirm(`Удалить акцию "${promotion.title}"?`)) return
+    if (!await dialog.confirm(`Удалить акцию "${promotion.title}"?`)) return
     try {
       await promotionsAPI.delete(promotion.documentId)
       await loadData()
     } catch (error) {
       console.error('Error deleting promotion:', error)
-      alert('Не удалось удалить акцию')
+      dialog.alert('Не удалось удалить акцию')
     }
   }
 

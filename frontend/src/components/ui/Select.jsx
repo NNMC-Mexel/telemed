@@ -1,4 +1,4 @@
-import { forwardRef } from 'react'
+import { forwardRef, useId } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/helpers'
@@ -10,14 +10,17 @@ const Select = forwardRef(({
   placeholder,
   className,
   containerClassName,
+  id,
   ...props
 }, ref) => {
   const { t } = useTranslation()
+  const generatedId = useId()
+  const selectId = id || generatedId
   const resolvedPlaceholder = placeholder ?? t('common.select_placeholder')
   return (
     <div className={cn('space-y-1.5', containerClassName)}>
       {label && (
-        <label className="block text-sm font-medium text-slate-700">
+        <label htmlFor={selectId} className="block text-sm font-medium text-slate-700">
           {label}
           {props.required && <span className="text-rose-500 ml-0.5">*</span>}
         </label>
@@ -26,6 +29,7 @@ const Select = forwardRef(({
       <div className="relative">
         <select
           ref={ref}
+          id={selectId}
           className={cn(
             'w-full px-4 py-2.5 pr-10 rounded-xl border bg-white transition-all duration-200 appearance-none cursor-pointer',
             'focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent',

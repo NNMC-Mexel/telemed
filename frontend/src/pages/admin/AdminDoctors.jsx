@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Camera, Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+import SearchableSelect from '../../components/ui/SearchableSelect'
 import Textarea from '../../components/ui/Textarea'
 import Modal from '../../components/ui/Modal'
 import Badge from '../../components/ui/Badge'
 import ImageCropModal from '../../components/ui/ImageCropModal'
 import Pagination from '../../components/ui/Pagination'
 import Avatar from '../../components/ui/Avatar'
+import { useDialog } from '../../components/ui/Dialog'
 import AdminCreateUserModal from '../../components/admin/AdminCreateUserModal'
 import api, { doctorsAPI, getMediaUrl, normalizeResponse, specializationsAPI, uploadFile } from '../../services/api'
 import {
@@ -44,6 +46,8 @@ const defaultForm = {
 }
 
 const DOCTORS_PER_PAGE = 10
+const DEFAULT_WORKPLACES = ['ННМЦ', 'ТОО MEXEL HEALTH']
+const STANDARD_SLOT_DURATIONS = [15, 30, 45, 60]
 
 function toPayload(form) {
   const validation = validateWorkingIntervals(form.workingIntervals)
@@ -79,10 +83,12 @@ function toPayload(form) {
 
 function AdminDoctors() {
   const { t } = useTranslation()
+  const dialog = useDialog()
   const [doctors, setDoctors] = useState([])
   const [specializations, setSpecializations] = useState([])
   const [search, setSearch] = useState('')
   const [specFilter, setSpecFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
@@ -96,6 +102,7 @@ function AdminDoctors() {
   const [cropModalOpen, setCropModalOpen] = useState(false)
   const [cropImageSrc, setCropImageSrc] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const photoInputRef = useRef(null)
 
   const extractUser = (value) => {
     if (!value) return null
@@ -200,6 +207,38 @@ function AdminDoctors() {
     [specializations],
   )
 
+  const specializationFilterOptions = useMemo(() => [
+    { value: 'all', label: t('admin_doc.filter_all') },
+    ...specializationOptions,
+  ], [specializationOptions, t])
+
+  const workplaceOptions = useMemo(() => {
+    const workplaces = new Set(DEFAULT_WORKPLACES)
+    doctors.forEach((doctor) => {
+      const workplace = doctor.workplace?.trim()
+      if (workplace) workplaces.add(workplace)
+    })
+    if (form.workplace?.trim()) workplaces.add(form.workplace.trim())
+
+    return [...workplaces].map((workplace) => ({
+      value: workplace,
+      label: workplace,
+    }))
+  }, [doctors, form.workplace])
+
+  const slotDurationOptions = useMemo(() => {
+    const durations = new Set(STANDARD_SLOT_DURATIONS)
+    const currentDuration = Number(form.slotDuration)
+    if (Number.isFinite(currentDuration) && currentDuration > 0) durations.add(currentDuration)
+
+    return [...durations]
+      .sort((a, b) => a - b)
+      .map((duration) => ({
+        value: String(duration),
+        label: t(`schedule.min_${duration}`, { defaultValue: `${duration} ${t('schedule.min_abbr')}` }),
+      }))
+  }, [form.slotDuration, t])
+
   const filteredDoctors = useMemo(() => {
     return (doctors || []).filter((doctor) => {
       const matchesSearch =
@@ -210,14 +249,19 @@ function AdminDoctors() {
       const doctorSpecId =
         typeof doctor.specialization === 'object' ? String(doctor.specialization?.id) : String(doctor.specialization || '')
       const matchesSpec = specFilter === 'all' || doctorSpecId === specFilter
+      const isActive = doctor.isActive !== false
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && isActive) ||
+        (statusFilter === 'inactive' && !isActive)
 
-      return matchesSearch && matchesSpec
+      return matchesSearch && matchesSpec && matchesStatus
     })
-  }, [doctors, search, specFilter])
+  }, [doctors, search, specFilter, statusFilter])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, specFilter])
+  }, [search, specFilter, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredDoctors.length / DOCTORS_PER_PAGE))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -311,12 +355,12 @@ function AdminDoctors() {
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      alert(t('admin_doc.err_image_only'))
+      dialog.alert(t('admin_doc.err_image_only'))
       return
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert(t('admin_doc.err_size'))
+      dialog.alert(t('admin_doc.err_size'))
       return
     }
 
@@ -345,47 +389,47 @@ function AdminDoctors() {
     e.preventDefault()
 
     if (!form.username.trim()) {
-      alert(t('admin_doc.err_login'))
+      dialog.alert(t('admin_doc.err_login'))
       return
     }
 
     if (!form.email.trim()) {
-      alert(t('admin_doc.err_email'))
+      dialog.alert(t('admin_doc.err_email'))
       return
     }
 
     if (!form.fullName.trim()) {
-      alert(t('admin_doc.err_name'))
+      dialog.alert(t('admin_doc.err_name'))
       return
     }
 
     if (!form.price || Number(form.price) < 0) {
-      alert(t('admin_doc.err_price'))
+      dialog.alert(t('admin_doc.err_price'))
       return
     }
 
     if (!form.licenseNumber.trim()) {
-      alert(t('admin_doc.err_license'))
+      dialog.alert(t('admin_doc.err_license'))
       return
     }
 
     if ((!editingDoctor || !(extractUser(editingDoctor.users_permissions_user)?.id)) && !form.password) {
-      alert(t('admin_doc.err_password'))
+      dialog.alert(t('admin_doc.err_password'))
       return
     }
 
     if (!doctorRoleId && (!editingDoctor || !(extractUser(editingDoctor.users_permissions_user)?.id))) {
-      alert(t('admin_doc.err_no_role'))
+      dialog.alert(t('admin_doc.err_no_role'))
       return
     }
 
     if (form.password && form.password.length < 6) {
-      alert(t('admin_doc.err_short_password'))
+      dialog.alert(t('admin_doc.err_short_password'))
       return
     }
 
     if (form.password !== form.confirmPassword) {
-      alert(t('admin_doc.err_password_mismatch'))
+      dialog.alert(t('admin_doc.err_password_mismatch'))
       return
     }
 
@@ -396,7 +440,7 @@ function AdminDoctors() {
         invalid: t('admin_doc.err_interval_invalid'),
         overlap: t('admin_doc.err_interval_overlap'),
       }
-      alert(messages[intervalValidation.error] || t('admin_doc.err_schedule'))
+      dialog.alert(messages[intervalValidation.error] || t('admin_doc.err_schedule'))
       return
     }
 
@@ -460,7 +504,7 @@ function AdminDoctors() {
     } catch (error) {
       console.error('Error saving doctor:', error)
       const message = error?.response?.data?.error?.message || error?.message || t('admin_doc.err_save')
-      alert(t('admin_doc.err_save_msg', { message }))
+      dialog.alert(t('admin_doc.err_save_msg', { message }))
     } finally {
       setIsSaving(false)
     }
@@ -469,7 +513,7 @@ function AdminDoctors() {
   const handleDelete = async (doctor) => {
     if (!doctor?.documentId) return
 
-    const confirmed = window.confirm(t('admin_doc.confirm_delete', { name: doctor.fullName }))
+    const confirmed = await dialog.confirm(t('admin_doc.confirm_delete', { name: doctor.fullName }))
     if (!confirmed) return
 
     try {
@@ -477,7 +521,7 @@ function AdminDoctors() {
       await loadData()
     } catch (error) {
       console.error('Error deleting doctor:', error)
-      alert(t('admin_doc.err_delete'))
+      dialog.alert(t('admin_doc.err_delete'))
     }
   }
 
@@ -506,21 +550,32 @@ function AdminDoctors() {
         </div>
       </div>
 
-      <div className='grid md:grid-cols-2 gap-4'>
+      <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_minmax(260px,1fr)_minmax(200px,0.7fr)]'>
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t('admin_doc.search_placeholder')}
           leftIcon={<Search className='w-4 h-4' />}
         />
-        <Select
+        <SearchableSelect
           value={specFilter}
-          onChange={(e) => setSpecFilter(e.target.value)}
-          options={[
-            { value: 'all', label: t('admin_doc.filter_all') },
-            ...specializationOptions,
-          ]}
+          onChange={setSpecFilter}
+          options={specializationFilterOptions}
           placeholder={t('admin_doc.filter_placeholder')}
+          ariaLabel={t('admin_doc.filter_placeholder')}
+          searchPlaceholder={t('admin_doc.filter_search_placeholder')}
+          noResultsText={t('admin_doc.filter_no_results')}
+        />
+        <Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          options={[
+            { value: 'all', label: t('admin_doc.status_filter_all') },
+            { value: 'active', label: t('admin_doc.status_filter_active') },
+            { value: 'inactive', label: t('admin_doc.status_filter_inactive') },
+          ]}
+          aria-label={t('admin_doc.status_filter_placeholder')}
+          placeholder={t('admin_doc.status_filter_placeholder')}
         />
       </div>
 
@@ -725,25 +780,46 @@ function AdminDoctors() {
           </div>
 
           <div className='flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200'>
-            <div className='w-20 h-20 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center'>
+            <input
+              ref={photoInputRef}
+              type='file'
+              accept='image/*'
+              className='hidden'
+              onChange={handlePhotoSelect}
+            />
+            <button
+              type='button'
+              onClick={() => photoInputRef.current?.click()}
+              aria-label={t('admin_doc.change_photo')}
+              title={t('admin_doc.change_photo')}
+              className='group relative h-20 w-20 shrink-0 overflow-hidden rounded-full bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2'>
               {photoPreview ? (
                 <img src={photoPreview} alt={t('admin_doc.photo_alt')} className='w-full h-full object-cover' />
               ) : (
-                <Camera className='w-8 h-8 text-slate-500' />
-              )}
-            </div>
-            <div className='flex flex-wrap gap-2'>
-              <label className='inline-flex'>
-                <input type='file' accept='image/*' className='hidden' onChange={handlePhotoSelect} />
-                <span className='inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer transition-colors'>
-                  {t('admin_doc.upload_photo')}
+                <span className='flex h-full w-full items-center justify-center'>
+                  <Camera className='w-8 h-8 text-slate-500' />
                 </span>
-              </label>
-              {photoPreview && (
-                <Button type='button' variant='secondary' onClick={handleRemovePhoto} leftIcon={<X className='w-4 h-4' />}>
-                  {t('admin_doc.remove_photo')}
-                </Button>
               )}
+              <span className='absolute inset-0 flex items-center justify-center bg-slate-950/55 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'>
+                <Camera className='h-6 w-6' />
+              </span>
+            </button>
+            <div>
+              <div className='flex flex-wrap gap-2'>
+                <Button
+                  type='button'
+                  variant='secondary'
+                  onClick={() => photoInputRef.current?.click()}
+                  leftIcon={<Camera className='w-4 h-4' />}>
+                  {photoPreview ? t('admin_doc.change_photo') : t('admin_doc.upload_photo')}
+                </Button>
+                {photoPreview && (
+                  <Button type='button' variant='secondary' onClick={handleRemovePhoto} leftIcon={<X className='w-4 h-4' />}>
+                    {t('admin_doc.remove_photo')}
+                  </Button>
+                )}
+              </div>
+              <p className='mt-2 text-xs text-slate-500'>{t('admin_doc.click_photo_hint')}</p>
             </div>
           </div>
 
@@ -778,11 +854,12 @@ function AdminDoctors() {
               onChange={(e) => setForm((prev) => ({ ...prev, position: e.target.value }))}
               placeholder={t('admin_doc.placeholder_position')}
             />
-            <Input
+            <Select
               label={t('admin_doc.label_workplace')}
               value={form.workplace}
               onChange={(e) => setForm((prev) => ({ ...prev, workplace: e.target.value }))}
-              placeholder='ТОО MEXEL HEALTH'
+              options={workplaceOptions}
+              placeholder={t('admin_doc.placeholder_workplace')}
             />
           </div>
 
@@ -802,12 +879,11 @@ function AdminDoctors() {
               value={form.price}
               onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
             />
-            <Input
+            <Select
               label={t('admin_doc.label_duration')}
-              type='number'
-              min='10'
               value={form.slotDuration}
               onChange={(e) => setForm((prev) => ({ ...prev, slotDuration: e.target.value }))}
+              options={slotDurationOptions}
             />
           </div>
 

@@ -7,6 +7,7 @@ import Input from '../../components/ui/Input'
 import Textarea from '../../components/ui/Textarea'
 import Modal from '../../components/ui/Modal'
 import { normalizeResponse, specializationsAPI } from '../../services/api'
+import { useDialog } from '../../components/ui/Dialog'
 
 const defaultForm = {
   name: '',
@@ -39,6 +40,7 @@ const arrayMove = (arr, fromIndex, toIndex) => {
 
 function AdminSpecializations() {
   const { t } = useTranslation()
+  const dialog = useDialog()
   const [items, setItems] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -119,7 +121,7 @@ function AdminSpecializations() {
       )
     } catch (error) {
       console.error('Error updating specialization order:', error)
-      alert(t('admin_spec.err_save_order'))
+      dialog.alert(t('admin_spec.err_save_order'))
       await loadData()
     } finally {
       setIsReordering(false)
@@ -150,7 +152,7 @@ function AdminSpecializations() {
     e.preventDefault()
 
     if (!form.name.trim()) {
-      alert(t('admin_spec.err_name'))
+      dialog.alert(t('admin_spec.err_name'))
       return
     }
 
@@ -176,7 +178,7 @@ function AdminSpecializations() {
       await loadData()
     } catch (error) {
       console.error('Error saving specialization:', error)
-      alert(t('admin_spec.err_save'))
+      dialog.alert(t('admin_spec.err_save'))
     } finally {
       setIsSaving(false)
     }
@@ -185,7 +187,7 @@ function AdminSpecializations() {
   const handleDelete = async (item) => {
     if (!item?.documentId) return
 
-    const confirmed = window.confirm(t('admin_spec.confirm_delete', { name: item.name }))
+    const confirmed = await dialog.confirm(t('admin_spec.confirm_delete', { name: item.name }))
     if (!confirmed) return
 
     try {
@@ -193,7 +195,7 @@ function AdminSpecializations() {
       await loadData()
     } catch (error) {
       console.error('Error deleting specialization:', error)
-      alert(t('admin_spec.err_delete'))
+      dialog.alert(t('admin_spec.err_delete'))
     }
   }
 

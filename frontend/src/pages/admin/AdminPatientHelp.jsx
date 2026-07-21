@@ -7,6 +7,7 @@ import Input from '../../components/ui/Input'
 import Textarea from '../../components/ui/Textarea'
 import { contentAPI, normalizeResponse } from '../../services/api'
 import { getVideoEmbedUrl, mergePatientGuideConfig } from '../../utils/patientGuide'
+import { useDialog } from '../../components/ui/Dialog'
 
 function createEmptyStep() {
   return {
@@ -20,6 +21,7 @@ function createEmptyStep() {
 
 function AdminPatientHelp() {
   const { t } = useTranslation()
+  const dialog = useDialog()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [guideConfig, setGuideConfig] = useState(() => mergePatientGuideConfig())
@@ -64,13 +66,13 @@ function AdminPatientHelp() {
 
   const handleSave = async () => {
     if (!guideConfig.title.trim()) {
-      alert(t('admin_patient_help.err_title'))
+      dialog.alert(t('admin_patient_help.err_title'))
       return
     }
 
     const activeSteps = guideConfig.steps.filter((step) => step.isActive !== false)
     if (activeSteps.some((step) => !step.title.trim())) {
-      alert(t('admin_patient_help.err_step_title'))
+      dialog.alert(t('admin_patient_help.err_step_title'))
       return
     }
 
@@ -93,10 +95,10 @@ function AdminPatientHelp() {
         },
       })
       await loadGuide()
-      alert(t('admin_patient_help.saved'))
+      dialog.alert(t('admin_patient_help.saved'), { variant: 'success' })
     } catch (error) {
       console.error('Error saving patient guide:', error)
-      alert(t('admin_patient_help.err_save'))
+      dialog.alert(t('admin_patient_help.err_save'))
     } finally {
       setIsSaving(false)
     }

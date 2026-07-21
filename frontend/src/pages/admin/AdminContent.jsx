@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Textarea from '../../components/ui/Textarea'
 import { contentAPI, normalizeResponse } from '../../services/api'
+import { useDialog } from '../../components/ui/Dialog'
 
 const defaultLandingConfig = {
   hero: {
@@ -197,6 +198,7 @@ function arrayToLines(value) {
 
 function AdminContent() {
   const { t } = useTranslation()
+  const dialog = useDialog()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -271,7 +273,7 @@ function AdminContent() {
 
   const handleSave = async () => {
     if (!siteName.trim()) {
-      alert(t('admin_content.err_name'))
+      dialog.alert(t('admin_content.err_name'))
       return
     }
 
@@ -290,10 +292,10 @@ function AdminContent() {
       })
 
       await loadContent()
-      alert(t('admin_content.saved'))
+      dialog.alert(t('admin_content.saved'), { variant: 'success' })
     } catch (error) {
       console.error('Error saving content:', error)
-      alert(t('admin_content.err_save'))
+      dialog.alert(t('admin_content.err_save'))
     } finally {
       setIsSaving(false)
     }

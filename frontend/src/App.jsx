@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, usePa
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ToastProvider } from './components/ui/Toast'
+import { DialogProvider } from './components/ui/Dialog'
 
 // Layouts
 import { PublicLayout, DashboardLayout } from './components/layout'
@@ -251,6 +252,7 @@ function App() {
 
   return (
     <ToastProvider>
+    <DialogProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<AppHomeRoute />} />
@@ -386,6 +388,7 @@ function App() {
       </Routes>
       <ActiveConsultation />
     </BrowserRouter>
+    </DialogProvider>
     </ToastProvider>
   )
 }

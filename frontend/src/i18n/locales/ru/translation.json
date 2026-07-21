@@ -37,6 +37,13 @@
     "cam_off": "Выключить камеру",
     "leave_call": "Выйти из звонка"
   },
+  "dialog": {
+    "error_title": "Проверьте данные",
+    "success_title": "Готово",
+    "warning_title": "Подтвердите действие",
+    "info_title": "Информация",
+    "ok": "Понятно"
+  },
   "nav": {
     "home": "Главная",
     "doctors": "Врачи",
@@ -1390,6 +1397,12 @@
     "search_placeholder": "Поиск по ФИО или био...",
     "filter_all": "Все специализации",
     "filter_placeholder": "Фильтр по специализации",
+    "filter_search_placeholder": "Поиск специализации...",
+    "filter_no_results": "Специализации не найдены",
+    "status_filter_placeholder": "Фильтр по статусу",
+    "status_filter_all": "Все статусы",
+    "status_filter_active": "Активные",
+    "status_filter_inactive": "Неактивные",
     "list_title": "Список врачей ({{count}})",
     "col_name": "ФИО",
     "col_spec": "Специализация",
@@ -1418,6 +1431,8 @@
     "label_confirm_new": "Подтверждение нового пароля",
     "placeholder_confirm": "Повторите пароль",
     "photo_alt": "Фото врача",
+    "change_photo": "Изменить фото",
+    "click_photo_hint": "Нажмите на фото, чтобы выбрать новое изображение",
     "label_name": "ФИО",
     "placeholder_name": "Например: Иванов Иван Иванович",
     "label_spec": "Специализация",
@@ -1429,6 +1444,7 @@
     "label_position": "Должность",
     "placeholder_position": "Например: врач-кардиолог",
     "label_workplace": "Место работы",
+    "placeholder_workplace": "Выберите медицинскую организацию",
     "label_duration": "Длительность слота (мин)",
     "label_start": "Рабочее время: начало",
     "label_end": "Рабочее время: конец",

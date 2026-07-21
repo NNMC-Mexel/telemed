@@ -20,12 +20,11 @@ import {
     Pill,
     Users,
     Award,
-    Zap,
     Loader2,
     Phone,
     Mail,
     MapPin,
-    Play,
+    Building2,
     HeartPulse,
     UserCheck,
     Headphones,
@@ -68,6 +67,231 @@ const specializationIcons = {
     Эндокринолог: Pill,
     default: Stethoscope,
 };
+
+function CinematicHero({ config, t }) {
+    const sectionRef = useRef(null);
+    const videoRef = useRef(null);
+    const cardRef = useRef(null);
+    const pointerFrameRef = useRef(null);
+    const [cardTransform, setCardTransform] = useState({
+        rotateX: 0,
+        rotateY: 0,
+        scale: 1,
+    });
+
+    useEffect(() => {
+        const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+        const syncMotionPreference = () => {
+            const video = videoRef.current;
+            if (!video) return;
+
+            if (motionPreference.matches) {
+                video.pause();
+            } else if (video.paused) {
+                video.play().catch(() => {});
+            }
+        };
+
+        syncMotionPreference();
+        motionPreference.addEventListener?.("change", syncMotionPreference);
+
+        return () => {
+            motionPreference.removeEventListener?.("change", syncMotionPreference);
+            if (pointerFrameRef.current) cancelAnimationFrame(pointerFrameRef.current);
+        };
+    }, []);
+
+    const handleHeroPointerMove = (event) => {
+        if (!sectionRef.current || event.pointerType === "touch") return;
+        const { clientX, clientY } = event;
+
+        if (pointerFrameRef.current) cancelAnimationFrame(pointerFrameRef.current);
+        pointerFrameRef.current = requestAnimationFrame(() => {
+            if (!sectionRef.current) return;
+            const rect = sectionRef.current.getBoundingClientRect();
+            const x = (clientX - rect.left) / rect.width - 0.5;
+            const y = (clientY - rect.top) / rect.height - 0.5;
+            sectionRef.current.style.setProperty("--hero-video-x", `${x * -18}px`);
+            sectionRef.current.style.setProperty("--hero-video-y", `${y * -12}px`);
+            sectionRef.current.style.setProperty("--hero-glow-x", `${x * 34}px`);
+            sectionRef.current.style.setProperty("--hero-glow-y", `${y * 24}px`);
+        });
+    };
+
+    const resetHeroPointer = () => {
+        if (!sectionRef.current) return;
+        sectionRef.current.style.setProperty("--hero-video-x", "0px");
+        sectionRef.current.style.setProperty("--hero-video-y", "0px");
+        sectionRef.current.style.setProperty("--hero-glow-x", "0px");
+        sectionRef.current.style.setProperty("--hero-glow-y", "0px");
+    };
+
+    const handleCardPointerMove = (event) => {
+        if (!cardRef.current || event.pointerType === "touch") return;
+        const rect = cardRef.current.getBoundingClientRect();
+        const mouseX = event.clientX - (rect.left + rect.width / 2);
+        const mouseY = event.clientY - (rect.top + rect.height / 2);
+        setCardTransform({
+            rotateX: -(mouseY / (rect.height / 2)) * 5,
+            rotateY: (mouseX / (rect.width / 2)) * 6,
+            scale: 1.012,
+        });
+    };
+
+    const resetCardTransform = () => {
+        setCardTransform({ rotateX: 0, rotateY: 0, scale: 1 });
+    };
+
+    return (
+        <section
+            ref={sectionRef}
+            aria-labelledby='landing-hero-title'
+            className='hero-cinematic relative min-h-[100svh] overflow-hidden bg-slate-950'
+            onPointerMove={handleHeroPointerMove}
+            onPointerLeave={resetHeroPointer}>
+            <div className='absolute inset-0' aria-hidden='true'>
+                <video
+                    ref={videoRef}
+                    className='hero-cinematic__video h-full w-full object-cover'
+                    src='/nnmc-campus-hero.mp4'
+                    poster='/nnmc-campus-hero-poster.jpg'
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload='metadata'
+                />
+                <div className='hero-cinematic__scrim absolute inset-0' />
+                <div className='hero-cinematic__aurora absolute inset-0' />
+                <div className='hero-cinematic__grid absolute inset-0' />
+                <div className='hero-cinematic__vignette absolute inset-0' />
+            </div>
+
+            <div className='relative z-10 mx-auto flex min-h-[100svh] max-w-7xl items-center px-4 pb-24 pt-28 sm:px-6 sm:pb-28 sm:pt-32 lg:px-8'>
+                <div className='grid w-full items-end gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.72fr)] lg:gap-16'>
+                    <div className='text-white'>
+                        <span className='hero-enter hero-enter--1 inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium shadow-lg shadow-black/10 backdrop-blur-md'>
+                            <span className='relative flex h-2.5 w-2.5'>
+                                <span className='hero-cinematic__status-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-70' />
+                                <span className='relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300' />
+                            </span>
+                            {config.hero.badge}
+                        </span>
+
+                        <h1
+                            id='landing-hero-title'
+                            className='hero-enter hero-enter--2 mt-6 max-w-3xl text-4xl font-bold leading-[1.05] tracking-[-0.035em] sm:text-5xl lg:text-[4.25rem]'>
+                            {config.hero.titlePrefix}{" "}
+                            <span className='hero-cinematic__highlight text-transparent bg-clip-text'>
+                                {config.hero.titleHighlight}
+                            </span>
+                        </h1>
+
+                        <p className='hero-enter hero-enter--3 mt-6 max-w-xl text-lg leading-relaxed text-white/75 sm:text-xl'>
+                            {config.hero.description}
+                        </p>
+
+                        <div className='hero-enter hero-enter--4 mt-8 flex flex-col gap-3 sm:flex-row sm:items-center'>
+                            <Link to='/doctors' className='group'>
+                                <Button
+                                    size='lg'
+                                    className='hero-cinematic__primary-cta w-full bg-white text-teal-900 shadow-xl shadow-black/20 hover:bg-teal-50 sm:w-auto'>
+                                    {config.hero.primaryButtonLabel}
+                                    <ArrowRight className='ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1' />
+                                </Button>
+                            </Link>
+                            <Link to='/register'>
+                                <Button
+                                    size='lg'
+                                    className='w-full border border-white/25 bg-white/10 text-white shadow-lg shadow-black/10 backdrop-blur-md hover:bg-white/20 sm:w-auto'>
+                                    {config.hero.secondaryButtonLabel}
+                                </Button>
+                            </Link>
+                        </div>
+
+                        <div className='hero-enter hero-enter--5 mt-10 grid max-w-2xl grid-cols-2 gap-x-7 gap-y-5 border-t border-white/15 pt-8 sm:grid-cols-4'>
+                            {(config.stats || []).slice(0, 4).map((item, idx) => (
+                                <div key={`${item.label}-${idx}`}>
+                                    <div className='text-2xl font-bold tracking-tight text-white sm:text-3xl'>{item.value}</div>
+                                    <div className='mt-1 text-xs leading-snug text-white/55 sm:text-sm'>{item.label}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className='hero-enter hero-enter--4 hidden lg:block' style={{ perspective: "1200px" }}>
+                        <div
+                            ref={cardRef}
+                            onPointerMove={handleCardPointerMove}
+                            onPointerLeave={resetCardTransform}
+                            className='hero-cinematic__card relative overflow-hidden rounded-[1.75rem] border border-white/20 bg-slate-950/35 p-6 shadow-2xl shadow-black/35 backdrop-blur-xl'
+                            style={{
+                                transform: `rotateX(${cardTransform.rotateX}deg) rotateY(${cardTransform.rotateY}deg) scale(${cardTransform.scale})`,
+                                transition: "transform 160ms ease-out",
+                                transformStyle: "preserve-3d",
+                            }}>
+                            <div className='hero-cinematic__card-glow pointer-events-none absolute inset-0' />
+
+                            <div className='relative' style={{ transform: "translateZ(20px)" }}>
+                                <div className='mb-6 flex items-center gap-3'>
+                                    <div className='flex items-center gap-3'>
+                                        <div className='flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/10'>
+                                            <Building2 className='h-5 w-5 text-teal-200' />
+                                        </div>
+                                        <div>
+                                            <p className='text-xs font-semibold uppercase tracking-[0.18em] text-teal-200'>NNMC campus</p>
+                                            <p className='mt-0.5 text-sm text-white/55'>{config.heroCard.subtitle}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h2 className='max-w-sm text-2xl font-semibold leading-tight text-white'>
+                                    {config.heroCard.title}
+                                </h2>
+
+                                <div className='mt-5 space-y-2.5'>
+                                    {(config.heroCard.items || []).slice(0, 3).map((item, idx) => {
+                                        const AdvantageIcon = advantageIcons[idx] || advantageIcons[0];
+                                        return (
+                                            <div key={`${item.title}-${idx}`} className='flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] px-3.5 py-3'>
+                                                <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-300/15'>
+                                                    <AdvantageIcon className='h-4 w-4 text-teal-200' />
+                                                </div>
+                                                <div className='min-w-0'>
+                                                    <p className='truncate text-sm font-medium text-white/90'>{item.title}</p>
+                                                    <p className='truncate text-xs text-white/45'>{item.description}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <Link to='/doctors' className='mt-6 block'>
+                                    <Button className='w-full bg-teal-400 text-teal-950 shadow-none hover:bg-teal-300'>
+                                        {config.heroCard.buttonLabel}
+                                        <ArrowRight className='ml-2 h-4 w-4' />
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button
+                type='button'
+                onClick={() => document.querySelector("#features")?.scrollIntoView({ behavior: "smooth" })}
+                className='hero-scroll-cue absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2 text-white/55 transition-colors hover:text-white sm:bottom-7'
+                aria-label={t('landing.hero.scroll_more')}>
+                <span className='hidden text-[11px] font-semibold uppercase tracking-[0.18em] sm:block'>{t('landing.hero.scroll_more')}</span>
+                <span className='flex h-9 w-6 justify-center rounded-full border border-white/30 p-1.5'>
+                    <span className='hero-scroll-cue__dot h-1.5 w-1.5 rounded-full bg-white/70' />
+                </span>
+            </button>
+        </section>
+    );
+}
 
 
 
@@ -346,13 +570,6 @@ function LandingPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [landingContent, setLandingContent] = useState(null);
 
-    const cardRef = useRef(null);
-    const [cardTransform, setCardTransform] = useState({
-        rotateX: 0,
-        rotateY: 0,
-        scale: 1,
-    });
-
     const defaultLandingConfig = useMemo(() => ({
         hero: {
             badge: t('landing.hero.badge'),
@@ -452,23 +669,6 @@ function LandingPage() {
         { name: "Динара М.", text: t('landing.testimonials.review_2'), rating: 5, avatar: "ДМ" },
     ], [t]);
 
-    const handleCardMouseMove = (e) => {
-        if (!cardRef.current) return;
-        const card = cardRef.current;
-        const rect = card.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        const mouseX = e.clientX - centerX;
-        const mouseY = e.clientY - centerY;
-        const rotateY = (mouseX / (rect.width / 2)) * 12;
-        const rotateX = -(mouseY / (rect.height / 2)) * 12;
-        setCardTransform({ rotateX, rotateY, scale: 1.02 });
-    };
-
-    const handleCardMouseLeave = () => {
-        setCardTransform({ rotateX: 0, rotateY: 0, scale: 1 });
-    };
-
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -563,125 +763,10 @@ function LandingPage() {
                 url="/"
                 structuredData={seoStructuredData}
             />
-            {/* Hero Section */}
-            <section className='relative min-h-screen flex items-center'>
-                <div className='absolute inset-0'>
-                    <img src='/background.png' alt='' className='w-full h-full object-cover' />
-                    <div className='absolute inset-0 bg-gradient-to-r from-teal-800/85 via-teal-700/75 to-sky-800/65' />
-                </div>
-                <div className='absolute inset-0 overflow-hidden pointer-events-none'>
-                    <div className='absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl' />
-                    <div className='absolute bottom-20 right-20 w-96 h-96 bg-sky-300/10 rounded-full blur-3xl' />
-                </div>
-
-                <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32'>
-                    <div className='grid lg:grid-cols-2 gap-12 items-center'>
-                        <div className='text-white'>
-                            <span className='inline-flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full text-sm font-medium mb-6 backdrop-blur-sm border border-white/20'>
-                                <Zap className='w-4 h-4 text-amber-400' />
-                                {config.hero.badge}
-                            </span>
-                            <h1 className='text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6'>
-                                {config.hero.titlePrefix}{" "}
-                                <span className='text-transparent bg-clip-text bg-gradient-to-r from-teal-200 to-cyan-200'>
-                                    {config.hero.titleHighlight}
-                                </span>
-                            </h1>
-                            <p className='text-xl text-white/80 mb-8 max-w-lg leading-relaxed'>
-                                {config.hero.description}
-                            </p>
-                            <div className='flex flex-col sm:flex-row gap-4'>
-                                <Link to='/doctors'>
-                                    <Button size='lg' className='text-teal-700 hover:bg-teal-50 shadow-lg shadow-black/10 font-semibold'>
-                                        {config.hero.primaryButtonLabel}
-                                        <ArrowRight className='w-5 h-5 ml-2' />
-                                    </Button>
-                                </Link>
-                                <Link to='/register'>
-                                    <Button size='lg' className='bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg font-semibold'>
-                                        {config.hero.secondaryButtonLabel}
-                                    </Button>
-                                </Link>
-                            </div>
-
-                            <div className='grid grid-cols-2 sm:grid-cols-4 gap-6 mt-12 pt-12 border-t border-white/20'>
-                                {(config.stats || []).slice(0, 4).map((item, idx) => (
-                                    <div key={idx}>
-                                        <div className='text-3xl font-bold text-white'>{item.value}</div>
-                                        <div className='text-sm text-white/60'>{item.label}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* 3D Floating Card */}
-                        <div className='hidden lg:block relative' style={{ perspective: "1000px" }}>
-                            <div className='absolute -top-10 -right-10 w-72 h-72 bg-teal-500/30 rounded-full blur-3xl' />
-                            <div
-                                ref={cardRef}
-                                onMouseMove={handleCardMouseMove}
-                                onMouseLeave={handleCardMouseLeave}
-                                className='relative'
-                                style={{
-                                    transform: `rotateX(${cardTransform.rotateX}deg) rotateY(${cardTransform.rotateY}deg) scale(${cardTransform.scale})`,
-                                    transition: "transform 0.15s ease-out",
-                                    transformStyle: "preserve-3d",
-                                }}>
-                                <Card className='relative bg-white/70 backdrop-blur-md shadow-2xl border-0 overflow-hidden'>
-                                    <div
-                                        className='absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none'
-                                        style={{
-                                            background: `linear-gradient(${105 + cardTransform.rotateY * 2}deg, transparent 40%, rgba(255,255,255,0.1) 45%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.1) 55%, transparent 60%)`,
-                                        }}
-                                    />
-                                    <CardContent className='p-8'>
-                                        <div className='flex items-center gap-4 mb-6'>
-                                            <div className='w-16 h-16 bg-gradient-to-br from-teal-500 to-sky-500 rounded-2xl flex items-center justify-center shadow-lg' style={{ transform: "translateZ(30px)" }}>
-                                                <Video className='w-8 h-8 text-white' />
-                                            </div>
-                                            <div style={{ transform: "translateZ(20px)" }}>
-                                                <h3 className='text-lg font-semibold text-slate-900'>{config.heroCard.title}</h3>
-                                                <p className='text-slate-500'>{config.heroCard.subtitle}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className='space-y-4 mb-6'>
-                                            {(config.heroCard.items || []).slice(0, 3).map((adv, idx) => {
-                                                const AdvantageIcon = advantageIcons[idx] || advantageIcons[0];
-                                                return (
-                                                    <div key={idx} className='flex items-center gap-3' style={{ transform: `translateZ(${15 - idx * 3}px)` }}>
-                                                        <div className='w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center flex-shrink-0'>
-                                                            <AdvantageIcon className='w-5 h-5 text-teal-600' />
-                                                        </div>
-                                                        <div>
-                                                            <p className='font-medium text-slate-900 text-sm'>{adv.title}</p>
-                                                            <p className='text-xs text-slate-500'>{adv.description}</p>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        <Link to='/doctors' className='block' style={{ transform: "translateZ(25px)" }}>
-                                            <Button className='w-full'>{config.heroCard.buttonLabel}</Button>
-                                        </Link>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className='absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce'>
-                    <span className='text-white/60 text-sm mb-2'>{t('landing.hero.scroll_more')}</span>
-                    <div className='w-6 h-10 border-2 border-white/30 rounded-full flex items-start justify-center p-1'>
-                        <div className='w-1.5 h-3 bg-white/60 rounded-full' />
-                    </div>
-                </div>
-            </section>
+            <CinematicHero config={config} t={t} />
 
             {/* Features Section */}
-            <section className='py-24 bg-white'>
+            <section id='features' className='py-24 bg-white'>
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='text-center mb-16'>
                         <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>

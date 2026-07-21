@@ -37,6 +37,13 @@
     "cam_off": "Turn off camera",
     "leave_call": "Leave call"
   },
+  "dialog": {
+    "error_title": "Check the details",
+    "success_title": "Done",
+    "warning_title": "Confirm action",
+    "info_title": "Information",
+    "ok": "Got it"
+  },
   "nav": {
     "home": "Home",
     "doctors": "Doctors",
@@ -1390,6 +1397,12 @@
     "search_placeholder": "Search by name or bio...",
     "filter_all": "All specializations",
     "filter_placeholder": "Filter by specialization",
+    "filter_search_placeholder": "Search specializations...",
+    "filter_no_results": "No specializations found",
+    "status_filter_placeholder": "Filter by status",
+    "status_filter_all": "All statuses",
+    "status_filter_active": "Active",
+    "status_filter_inactive": "Inactive",
     "list_title": "Doctor list ({{count}})",
     "col_name": "Full name",
     "col_spec": "Specialization",
@@ -1418,6 +1431,8 @@
     "label_confirm_new": "Confirm new password",
     "placeholder_confirm": "Repeat password",
     "photo_alt": "Doctor photo",
+    "change_photo": "Change photo",
+    "click_photo_hint": "Click the photo to choose a new image",
     "label_name": "Full name",
     "placeholder_name": "E.g.: John Smith",
     "label_spec": "Specialization",
@@ -1429,6 +1444,7 @@
     "label_position": "Position",
     "placeholder_position": "E.g.: cardiologist",
     "label_workplace": "Workplace",
+    "placeholder_workplace": "Choose a medical organization",
     "label_duration": "Slot duration (min)",
     "label_start": "Work start time",
     "label_end": "Work end time",

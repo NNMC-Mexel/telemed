@@ -37,6 +37,13 @@
     "cam_off": "Камераны өшіру",
     "leave_call": "Қоңыраудан шығу"
   },
+  "dialog": {
+    "error_title": "Деректерді тексеріңіз",
+    "success_title": "Дайын",
+    "warning_title": "Әрекетті растаңыз",
+    "info_title": "Ақпарат",
+    "ok": "Түсінікті"
+  },
   "nav": {
     "home": "Басты бет",
     "doctors": "Дәрігерлер",
@@ -1390,6 +1397,12 @@
     "search_placeholder": "Аты немесе биографиясы бойынша іздеу...",
     "filter_all": "Барлық мамандықтар",
     "filter_placeholder": "Мамандық бойынша сүзу",
+    "filter_search_placeholder": "Мамандықты іздеу...",
+    "filter_no_results": "Мамандықтар табылмады",
+    "status_filter_placeholder": "Мәртебе бойынша сүзу",
+    "status_filter_all": "Барлық мәртебелер",
+    "status_filter_active": "Белсенді",
+    "status_filter_inactive": "Белсенді емес",
     "list_title": "Дәрігерлер тізімі ({{count}})",
     "col_name": "Аты-жөні",
     "col_spec": "Мамандық",
@@ -1418,6 +1431,8 @@
     "label_confirm_new": "Жаңа құпиясөзді растау",
     "placeholder_confirm": "Құпиясөзді қайталаңыз",
     "photo_alt": "Дәрігер фотосы",
+    "change_photo": "Фотоны өзгерту",
+    "click_photo_hint": "Жаңа суретті таңдау үшін фотоны басыңыз",
     "label_name": "Аты-жөні",
     "placeholder_name": "Мысалы: Иванов Иван Иванович",
     "label_spec": "Мамандық",
@@ -1429,6 +1444,7 @@
     "label_position": "Лауазымы",
     "placeholder_position": "Мысалы: кардиолог дәрігері",
     "label_workplace": "Жұмыс орны",
+    "placeholder_workplace": "Медициналық ұйымды таңдаңыз",
     "label_duration": "Слот ұзақтығы (мин)",
     "label_start": "Жұмыс уақыты: басталуы",
     "label_end": "Жұмыс уақыты: аяқталуы",
