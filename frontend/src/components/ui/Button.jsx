@@ -10,6 +10,11 @@ const variants = {
   ghost: 'text-slate-600 hover:bg-slate-100 active:bg-slate-200',
   danger: 'bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 shadow-md shadow-rose-600/20',
   success: 'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 shadow-md shadow-emerald-600/20',
+  // For dark surfaces. `cn` is a plain join with no class-conflict resolution,
+  // so inverted buttons need their own variant rather than className overrides.
+  inverse: 'bg-white text-teal-800 hover:bg-teal-50 active:bg-teal-100 shadow-lg shadow-teal-950/25',
+  inverseGhost:
+    'border border-white/30 bg-white/10 text-white backdrop-blur hover:bg-white/20 active:bg-white/25',
 }
 
 const sizes = {

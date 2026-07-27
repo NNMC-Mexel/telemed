@@ -15,6 +15,8 @@
     "delete": "Delete",
     "confirm": "Confirm",
     "close": "Close",
+    "previous": "Previous",
+    "next": "Next",
     "yes": "Yes",
     "no": "No",
     "or": "or",
@@ -45,6 +47,7 @@
     "ok": "Got it"
   },
   "nav": {
+    "open_menu": "Open menu",
     "home": "Home",
     "doctors": "Doctors",
     "specializations": "Specializations",
@@ -203,24 +206,31 @@
   },
   "landing": {
     "hero": {
-      "badge": "Fast and convenient medical care",
-      "title_prefix": "Consult a doctor",
-      "title_highlight": "online",
-      "description": "Get qualified medical care without leaving home. Our specialists are ready to help you right now.",
-      "find_doctor": "Find a Doctor",
+      "badge": "Telemedicine by the National Scientific Medical Center",
+      "title_prefix": "An NNMC doctor",
+      "title_highlight": "wherever you are",
+      "description": "Speak with the right specialist by video — without travelling to the clinic or waiting in line.",
+      "find_doctor": "Choose a Doctor",
       "register": "Sign Up",
-      "scroll_more": "Learn More"
+      "scroll_more": "Learn More",
+      "how_it_works": "How a consultation works",
+      "trust_title": "Private and secure",
+      "trust_description": "Your medical information is available only to you and your doctor.",
+      "organization": "National Scientific Medical Center",
+      "video_format": "Video visit",
+      "verified_title": "Verified specialists",
+      "verified_description": "Credentials confirmed"
     },
     "hero_card": {
-      "title": "Online Consultation",
-      "subtitle": "Choose a convenient time",
+      "title": "A consultation at a convenient time",
+      "subtitle": "By video, from home or while travelling",
       "book_now": "Book Now",
-      "item_0_title": "Experienced Doctors",
+      "item_0_title": "NNMC doctors",
       "item_0_desc": "Only certified specialists with verified experience",
-      "item_1_title": "Convenient and Fast",
-      "item_1_desc": "Consultations from anywhere in the world without queues",
-      "item_2_title": "Support 24/7",
-      "item_2_desc": "Support team is always available to resolve your questions"
+      "item_1_title": "Protected data",
+      "item_1_desc": "Medical data is protected in transit and at rest",
+      "item_2_title": "Report in your account",
+      "item_2_desc": "Your doctor's report and recommendations are saved to your account"
     },
     "stats": {
       "consultations": "Consultations",

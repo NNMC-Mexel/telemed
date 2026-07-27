@@ -9,8 +9,6 @@ import {
     Star,
     ArrowRight,
     CheckCircle,
-    Calendar,
-    MessageCircle,
     FileText,
     Heart,
     Brain,
@@ -25,16 +23,16 @@ import {
     Mail,
     MapPin,
     Building2,
-    HeartPulse,
-    UserCheck,
-    Headphones,
     ThumbsUp,
     ChevronLeft,
     Send,
     ExternalLink,
+    Quote,
+    ShieldCheck,
+    Sparkles,
 } from "lucide-react";
 import Button from "../components/ui/Button";
-import { Card, CardContent } from "../components/ui/Card";
+import CountUp from "../components/ui/CountUp";
 import {
     contentAPI,
     doctorsAPI,
@@ -42,6 +40,7 @@ import {
     getMediaUrl,
     normalizeResponse,
 } from "../services/api";
+import { useReveal } from "../hooks/useReveal";
 import { cn, getInitials, isDoctorOnline, getSpecName } from "../utils/helpers";
 
 const doctorCardColors = [
@@ -56,28 +55,109 @@ const doctorCardColors = [
 ];
 
 const featureIcons = [Video, Shield, Clock, FileText];
-const advantageIcons = [HeartPulse, UserCheck, Headphones];
+const advantageIcons = [Stethoscope, Shield, FileText];
+const impactIcons = [Users, Stethoscope, Award, Heart];
 
-const specializationIcons = {
-    Терапевт: Stethoscope,
-    Кардиолог: Heart,
-    Невролог: Brain,
-    Офтальмолог: Eye,
-    Педиатр: Baby,
-    Эндокринолог: Pill,
-    default: Stethoscope,
+// Each speciality carries its own hue so the directory reads as a colour-coded
+// taxonomy instead of six identical teal tiles. Class strings are spelled out
+// in full so Tailwind's scanner picks them up.
+const specializationPalette = [
+    { gradient: "from-teal-500 to-emerald-500", ring: "group-hover:border-teal-300", glow: "group-hover:shadow-teal-500/20", label: "group-hover:text-teal-700" },
+    { gradient: "from-rose-500 to-red-500", ring: "group-hover:border-rose-300", glow: "group-hover:shadow-rose-500/20", label: "group-hover:text-rose-700" },
+    { gradient: "from-violet-500 to-purple-500", ring: "group-hover:border-violet-300", glow: "group-hover:shadow-violet-500/20", label: "group-hover:text-violet-700" },
+    { gradient: "from-sky-500 to-cyan-500", ring: "group-hover:border-sky-300", glow: "group-hover:shadow-sky-500/20", label: "group-hover:text-sky-700" },
+    { gradient: "from-amber-500 to-orange-500", ring: "group-hover:border-amber-300", glow: "group-hover:shadow-amber-500/20", label: "group-hover:text-amber-700" },
+    { gradient: "from-fuchsia-500 to-pink-500", ring: "group-hover:border-fuchsia-300", glow: "group-hover:shadow-fuchsia-500/20", label: "group-hover:text-fuchsia-700" },
+];
+
+const specializationMeta = {
+    Терапевт: { Icon: Stethoscope, hue: 0 },
+    Кардиолог: { Icon: Heart, hue: 1 },
+    Невролог: { Icon: Brain, hue: 2 },
+    Офтальмолог: { Icon: Eye, hue: 3 },
+    Педиатр: { Icon: Baby, hue: 4 },
+    Эндокринолог: { Icon: Pill, hue: 5 },
 };
 
-function CinematicHero({ config, t }) {
-    const sectionRef = useRef(null);
+// Specialities coming from the CMS still get a stable hue instead of
+// falling back to grey.
+function getSpecializationStyle(name, index) {
+    const meta = specializationMeta[name];
+    const hue = meta ? meta.hue : index % specializationPalette.length;
+    return { Icon: meta?.Icon || Stethoscope, ...specializationPalette[hue] };
+}
+
+// Lets `.spotlight` follow the cursor inside a card.
+function trackSpotlight(event) {
+    const target = event.currentTarget;
+    const rect = target.getBoundingClientRect();
+    target.style.setProperty("--mx", `${event.clientX - rect.left}px`);
+    target.style.setProperty("--my", `${event.clientY - rect.top}px`);
+}
+
+// Small helper so stagger delays stay readable at the call site.
+const delay = (ms) => ({ "--reveal-delay": `${ms}ms` });
+
+/* -------------------------------------------------------------------------- */
+/*  Shared section furniture                                                   */
+/* -------------------------------------------------------------------------- */
+
+function Eyebrow({ children, tone = "light", className }) {
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center gap-3 text-xs font-bold uppercase tracking-[0.22em]",
+                tone === "ink" ? "text-teal-300" : "text-teal-700",
+                className,
+            )}>
+            <span
+                aria-hidden='true'
+                className={cn("h-px w-8", tone === "ink" ? "bg-teal-400/70" : "bg-teal-600/50")}
+            />
+            {children}
+        </span>
+    );
+}
+
+function SectionHeading({ eyebrow, title, subtitle, tone = "light", align = "center", className }) {
+    const isCentered = align === "center";
+    return (
+        <div className={cn(isCentered ? "mx-auto max-w-3xl text-center" : "max-w-2xl", className)}>
+            {eyebrow && (
+                <div data-reveal className={cn(isCentered && "flex justify-center")}>
+                    <Eyebrow tone={tone}>{eyebrow}</Eyebrow>
+                </div>
+            )}
+            <h2
+                data-reveal
+                style={delay(80)}
+                className={cn(
+                    "mt-5 text-3xl font-semibold leading-[1.12] tracking-[-0.03em] sm:text-4xl lg:text-[2.7rem]",
+                    tone === "ink" ? "text-white" : "text-slate-950",
+                )}>
+                {title}
+            </h2>
+            {subtitle && (
+                <p
+                    data-reveal
+                    style={delay(160)}
+                    className={cn(
+                        "mt-4 text-lg leading-relaxed",
+                        tone === "ink" ? "text-teal-50/70" : "text-slate-600",
+                    )}>
+                    {subtitle}
+                </p>
+            )}
+        </div>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Hero                                                                       */
+/* -------------------------------------------------------------------------- */
+
+function ClinicalHero({ config, t, trustItems }) {
     const videoRef = useRef(null);
-    const cardRef = useRef(null);
-    const pointerFrameRef = useRef(null);
-    const [cardTransform, setCardTransform] = useState({
-        rotateX: 0,
-        rotateY: 0,
-        scale: 1,
-    });
 
     useEffect(() => {
         const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -98,62 +178,22 @@ function CinematicHero({ config, t }) {
 
         return () => {
             motionPreference.removeEventListener?.("change", syncMotionPreference);
-            if (pointerFrameRef.current) cancelAnimationFrame(pointerFrameRef.current);
         };
     }, []);
 
-    const handleHeroPointerMove = (event) => {
-        if (!sectionRef.current || event.pointerType === "touch") return;
-        const { clientX, clientY } = event;
-
-        if (pointerFrameRef.current) cancelAnimationFrame(pointerFrameRef.current);
-        pointerFrameRef.current = requestAnimationFrame(() => {
-            if (!sectionRef.current) return;
-            const rect = sectionRef.current.getBoundingClientRect();
-            const x = (clientX - rect.left) / rect.width - 0.5;
-            const y = (clientY - rect.top) / rect.height - 0.5;
-            sectionRef.current.style.setProperty("--hero-video-x", `${x * -18}px`);
-            sectionRef.current.style.setProperty("--hero-video-y", `${y * -12}px`);
-            sectionRef.current.style.setProperty("--hero-glow-x", `${x * 34}px`);
-            sectionRef.current.style.setProperty("--hero-glow-y", `${y * 24}px`);
-        });
-    };
-
-    const resetHeroPointer = () => {
-        if (!sectionRef.current) return;
-        sectionRef.current.style.setProperty("--hero-video-x", "0px");
-        sectionRef.current.style.setProperty("--hero-video-y", "0px");
-        sectionRef.current.style.setProperty("--hero-glow-x", "0px");
-        sectionRef.current.style.setProperty("--hero-glow-y", "0px");
-    };
-
-    const handleCardPointerMove = (event) => {
-        if (!cardRef.current || event.pointerType === "touch") return;
-        const rect = cardRef.current.getBoundingClientRect();
-        const mouseX = event.clientX - (rect.left + rect.width / 2);
-        const mouseY = event.clientY - (rect.top + rect.height / 2);
-        setCardTransform({
-            rotateX: -(mouseY / (rect.height / 2)) * 5,
-            rotateY: (mouseX / (rect.width / 2)) * 6,
-            scale: 1.012,
-        });
-    };
-
-    const resetCardTransform = () => {
-        setCardTransform({ rotateX: 0, rotateY: 0, scale: 1 });
-    };
+    const allStats = config.stats || [];
+    const visibleStats = allStats.length >= 4
+        ? [allStats[0], allStats[2], allStats[3]].filter(Boolean)
+        : allStats.slice(0, 3);
 
     return (
         <section
-            ref={sectionRef}
             aria-labelledby='landing-hero-title'
-            className='hero-cinematic relative min-h-[100svh] overflow-hidden bg-slate-950'
-            onPointerMove={handleHeroPointerMove}
-            onPointerLeave={resetHeroPointer}>
-            <div className='absolute inset-0' aria-hidden='true'>
+            className='hero-clinical relative flex min-h-svh flex-col overflow-hidden bg-slate-100'>
+            <div className='absolute inset-0 overflow-hidden' aria-hidden='true'>
                 <video
                     ref={videoRef}
-                    className='hero-cinematic__video h-full w-full object-cover'
+                    className='hero-clinical__background-video h-full w-full object-cover'
                     src='/nnmc-campus-hero.mp4'
                     poster='/nnmc-campus-hero-poster.jpg'
                     autoPlay
@@ -161,141 +201,445 @@ function CinematicHero({ config, t }) {
                     loop
                     playsInline
                     preload='metadata'
+                    tabIndex={-1}
                 />
-                <div className='hero-cinematic__scrim absolute inset-0' />
-                <div className='hero-cinematic__aurora absolute inset-0' />
-                <div className='hero-cinematic__grid absolute inset-0' />
-                <div className='hero-cinematic__vignette absolute inset-0' />
+                <div className='hero-clinical__background-scrim absolute inset-0' />
             </div>
 
-            <div className='relative z-10 mx-auto flex min-h-[100svh] max-w-7xl items-center px-4 pb-24 pt-28 sm:px-6 sm:pb-28 sm:pt-32 lg:px-8'>
-                <div className='grid w-full items-end gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.72fr)] lg:gap-16'>
-                    <div className='text-white'>
-                        <span className='hero-enter hero-enter--1 inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium shadow-lg shadow-black/10 backdrop-blur-md'>
-                            <span className='relative flex h-2.5 w-2.5'>
-                                <span className='hero-cinematic__status-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-70' />
-                                <span className='relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300' />
+            <div className='relative z-10 mx-auto grid w-full max-w-7xl flex-1 items-center gap-12 px-4 pb-12 pt-32 sm:px-6 sm:pb-14 sm:pt-36 lg:grid-cols-[minmax(0,0.92fr)_minmax(500px,1.08fr)] lg:gap-16 lg:px-8 lg:pb-4 lg:pt-28'>
+                <div className='max-w-2xl'>
+                        <span className='hero-enter hero-enter--1 inline-flex items-center gap-2.5 rounded-full border border-teal-200/80 bg-white px-4 py-2 text-sm font-semibold text-teal-800 shadow-sm shadow-teal-900/5'>
+                            <span className='flex h-7 w-7 items-center justify-center rounded-full bg-teal-50'>
+                                <Building2 className='h-4 w-4 text-teal-700' />
                             </span>
                             {config.hero.badge}
                         </span>
 
                         <h1
                             id='landing-hero-title'
-                            className='hero-enter hero-enter--2 mt-6 max-w-3xl text-4xl font-bold leading-[1.05] tracking-[-0.035em] sm:text-5xl lg:text-[4.25rem]'>
-                            {config.hero.titlePrefix}{" "}
-                            <span className='hero-cinematic__highlight text-transparent bg-clip-text'>
+                            className='hero-enter hero-enter--2 mt-7 max-w-2xl text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-slate-950 sm:text-5xl lg:text-[3.8rem]'>
+                            {config.hero.titlePrefix}<br />
+                            <span className='text-teal-700'>
                                 {config.hero.titleHighlight}
                             </span>
                         </h1>
 
-                        <p className='hero-enter hero-enter--3 mt-6 max-w-xl text-lg leading-relaxed text-white/75 sm:text-xl'>
+                        <p className='hero-enter hero-enter--3 mt-6 max-w-xl text-lg leading-relaxed text-slate-600 sm:text-xl'>
                             {config.hero.description}
                         </p>
 
                         <div className='hero-enter hero-enter--4 mt-8 flex flex-col gap-3 sm:flex-row sm:items-center'>
-                            <Link to='/doctors' className='group'>
+                            <Link to='/doctors' className='group sm:w-auto'>
                                 <Button
-                                    size='lg'
-                                    className='hero-cinematic__primary-cta w-full bg-white text-teal-900 shadow-xl shadow-black/20 hover:bg-teal-50 sm:w-auto'>
+                                    size='xl'
+                                    className='hero-clinical__primary-cta w-full rounded-2xl px-7 shadow-lg shadow-teal-700/20 sm:w-auto'>
                                     {config.hero.primaryButtonLabel}
                                     <ArrowRight className='ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1' />
                                 </Button>
                             </Link>
-                            <Link to='/register'>
-                                <Button
-                                    size='lg'
-                                    className='w-full border border-white/25 bg-white/10 text-white shadow-lg shadow-black/10 backdrop-blur-md hover:bg-white/20 sm:w-auto'>
-                                    {config.hero.secondaryButtonLabel}
-                                </Button>
-                            </Link>
+                            <button
+                                type='button'
+                                onClick={() => document.querySelector("#features")?.scrollIntoView({ behavior: "smooth" })}
+                                className='inline-flex min-h-14 items-center justify-center rounded-2xl px-5 text-base font-semibold text-slate-700 transition-colors hover:bg-white hover:text-teal-800'>
+                                {t('landing.hero.how_it_works')}
+                                <ArrowRight className='ml-2 h-4 w-4' />
+                            </button>
                         </div>
 
-                        <div className='hero-enter hero-enter--5 mt-10 grid max-w-2xl grid-cols-2 gap-x-7 gap-y-5 border-t border-white/15 pt-8 sm:grid-cols-4'>
-                            {(config.stats || []).slice(0, 4).map((item, idx) => (
-                                <div key={`${item.label}-${idx}`}>
-                                    <div className='text-2xl font-bold tracking-tight text-white sm:text-3xl'>{item.value}</div>
-                                    <div className='mt-1 text-xs leading-snug text-white/55 sm:text-sm'>{item.label}</div>
-                                </div>
-                            ))}
+                        <div className='hero-enter hero-enter--5 mt-9 flex max-w-xl items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/75 p-4 shadow-sm shadow-slate-900/5'>
+                            <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50'>
+                                <Shield className='h-5 w-5 text-emerald-700' />
+                            </div>
+                            <div>
+                                <p className='font-semibold text-slate-900'>{t('landing.hero.trust_title')}</p>
+                                <p className='mt-0.5 text-sm leading-relaxed text-slate-500'>{t('landing.hero.trust_description')}</p>
+                            </div>
+                        </div>
+
+                        {visibleStats.length > 0 && (
+                            <div className='hero-enter hero-enter--5 mt-8 grid max-w-xl grid-cols-3 border-t border-slate-200 pt-6 lg:mt-6 lg:pt-4'>
+                                {visibleStats.map((item, idx) => (
+                                    <div
+                                        key={`${item.label}-${idx}`}
+                                        className={cn("pr-4", idx > 0 && "border-l border-slate-200 pl-5")}>
+                                        <div className='text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl'>
+                                            <CountUp value={item.value} />
+                                        </div>
+                                        <div className='mt-1 text-xs leading-snug text-slate-500 sm:text-sm'>{item.label}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                </div>
+
+                <div className='hero-enter hero-enter--3 relative mx-auto w-full max-w-[540px] lg:mx-0 lg:justify-self-end'>
+                    <div className='hero-clinical__service-card relative rounded-[2rem] border border-white bg-white p-5 shadow-2xl shadow-slate-900/15 sm:p-7 lg:p-8'>
+                        <div className='flex items-center gap-3 border-b border-slate-100 pb-5'>
+                            <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-700 text-white'>
+                                <Building2 className='h-5 w-5' />
+                            </div>
+                            <div>
+                                <p className='text-[11px] font-bold uppercase tracking-[0.14em] text-teal-700'>NNMC</p>
+                                <p className='text-sm font-semibold leading-snug text-slate-900'>{t('landing.hero.organization')}</p>
+                            </div>
+                        </div>
+
+                        <div className='mt-7 flex items-start justify-between gap-4'>
+                            <div>
+                                <h2 className='text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl'>{config.heroCard.title}</h2>
+                                <p className='mt-2 text-sm leading-relaxed text-slate-500 sm:text-base'>{config.heroCard.subtitle}</p>
+                            </div>
+                            <span className='hidden shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:inline-flex'>
+                                <span className='h-2 w-2 rounded-full bg-emerald-500' />
+                                {t('landing.hero.video_format')}
+                            </span>
+                        </div>
+
+                        <div className='mt-6 space-y-3'>
+                            {(config.heroCard.items || []).slice(0, 3).map((item, idx) => {
+                                const AdvantageIcon = advantageIcons[idx] || advantageIcons[0];
+                                return (
+                                    <div key={`${item.title}-${idx}`} className='flex items-start gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4'>
+                                        <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50'>
+                                            <AdvantageIcon className='h-5 w-5 text-teal-700' />
+                                        </div>
+                                        <div>
+                                            <p className='font-semibold text-slate-900'>{item.title}</p>
+                                            <p className='mt-0.5 text-sm leading-relaxed text-slate-500'>{item.description}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    <div className='hero-enter hero-enter--4 hidden lg:block' style={{ perspective: "1200px" }}>
-                        <div
-                            ref={cardRef}
-                            onPointerMove={handleCardPointerMove}
-                            onPointerLeave={resetCardTransform}
-                            className='hero-cinematic__card relative overflow-hidden rounded-[1.75rem] border border-white/20 bg-slate-950/35 p-6 shadow-2xl shadow-black/35 backdrop-blur-xl'
-                            style={{
-                                transform: `rotateX(${cardTransform.rotateX}deg) rotateY(${cardTransform.rotateY}deg) scale(${cardTransform.scale})`,
-                                transition: "transform 160ms ease-out",
-                                transformStyle: "preserve-3d",
-                            }}>
-                            <div className='hero-cinematic__card-glow pointer-events-none absolute inset-0' />
-
-                            <div className='relative' style={{ transform: "translateZ(20px)" }}>
-                                <div className='mb-6 flex items-center gap-3'>
-                                    <div className='flex items-center gap-3'>
-                                        <div className='flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/10'>
-                                            <Building2 className='h-5 w-5 text-teal-200' />
-                                        </div>
-                                        <div>
-                                            <p className='text-xs font-semibold uppercase tracking-[0.18em] text-teal-200'>NNMC campus</p>
-                                            <p className='mt-0.5 text-sm text-white/55'>{config.heroCard.subtitle}</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <h2 className='max-w-sm text-2xl font-semibold leading-tight text-white'>
-                                    {config.heroCard.title}
-                                </h2>
-
-                                <div className='mt-5 space-y-2.5'>
-                                    {(config.heroCard.items || []).slice(0, 3).map((item, idx) => {
-                                        const AdvantageIcon = advantageIcons[idx] || advantageIcons[0];
-                                        return (
-                                            <div key={`${item.title}-${idx}`} className='flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] px-3.5 py-3'>
-                                                <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-300/15'>
-                                                    <AdvantageIcon className='h-4 w-4 text-teal-200' />
-                                                </div>
-                                                <div className='min-w-0'>
-                                                    <p className='truncate text-sm font-medium text-white/90'>{item.title}</p>
-                                                    <p className='truncate text-xs text-white/45'>{item.description}</p>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                <Link to='/doctors' className='mt-6 block'>
-                                    <Button className='w-full bg-teal-400 text-teal-950 shadow-none hover:bg-teal-300'>
-                                        {config.heroCard.buttonLabel}
-                                        <ArrowRight className='ml-2 h-4 w-4' />
-                                    </Button>
-                                </Link>
-                            </div>
+                    <div className='hero-clinical__seal absolute -bottom-5 -left-3 hidden items-center gap-3 rounded-2xl border border-teal-100 bg-white px-4 py-3 shadow-lg shadow-slate-900/10 sm:flex lg:-left-7'>
+                        <div className='flex h-10 w-10 items-center justify-center rounded-full bg-teal-50'>
+                            <CheckCircle className='h-5 w-5 text-teal-700' />
+                        </div>
+                        <div>
+                            <p className='text-sm font-semibold text-slate-900'>{t('landing.hero.verified_title')}</p>
+                            <p className='text-xs text-slate-500'>{t('landing.hero.verified_description')}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <button
-                type='button'
-                onClick={() => document.querySelector("#features")?.scrollIntoView({ behavior: "smooth" })}
-                className='hero-scroll-cue absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2 text-white/55 transition-colors hover:text-white sm:bottom-7'
-                aria-label={t('landing.hero.scroll_more')}>
-                <span className='hidden text-[11px] font-semibold uppercase tracking-[0.18em] sm:block'>{t('landing.hero.scroll_more')}</span>
-                <span className='flex h-9 w-6 justify-center rounded-full border border-white/30 p-1.5'>
-                    <span className='hero-scroll-cue__dot h-1.5 w-1.5 rounded-full bg-white/70' />
-                </span>
-            </button>
+            {/* Rides the bottom edge of the first screen rather than sitting
+                below the fold, so it reads as the hero's base line. */}
+            <TrustMarquee items={trustItems} label={config.aboutSection.badge} />
         </section>
     );
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Trust marquee — the dark base line of the hero                             */
+/* -------------------------------------------------------------------------- */
 
+function TrustMarquee({ items, label }) {
+    if (items.length === 0) return null;
 
-// Doctors Carousel Component
+    const group = (hidden) => (
+        <ul
+            className='marquee-group gap-12 pr-12'
+            aria-hidden={hidden || undefined}>
+            {items.map((item, idx) => (
+                <li key={`${item}-${idx}`} className='flex shrink-0 items-center gap-3'>
+                    <ShieldCheck className='h-4 w-4 shrink-0 text-teal-400' />
+                    <span className='whitespace-nowrap text-sm font-medium text-teal-50/85'>{item}</span>
+                </li>
+            ))}
+        </ul>
+    );
+
+    return (
+        <section
+            aria-label={label}
+            className='surface-ink-flat relative z-10 mt-auto overflow-hidden border-y border-white/10 py-5'>
+            <div className='marquee-viewport'>
+                {/* The list is duplicated so the -50% translate loops seamlessly;
+                    the copy is hidden from assistive tech. */}
+                <div className='marquee-track'>
+                    {group(false)}
+                    {group(true)}
+                </div>
+            </div>
+            <div
+                aria-hidden='true'
+                className='pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-ink-900 to-transparent sm:w-28'
+            />
+            <div
+                aria-hidden='true'
+                className='pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-ink-900 to-transparent sm:w-28'
+            />
+        </section>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Features — asymmetric bento                                                */
+/* -------------------------------------------------------------------------- */
+
+// Only applied when the CMS supplies the full set of four cards; otherwise the
+// grid degrades to equal columns.
+const bentoSpans = [
+    "lg:col-span-2 lg:row-span-2",
+    "lg:col-span-2",
+    "lg:col-span-1",
+    "lg:col-span-1",
+];
+
+function FeatureBento({ section }) {
+    const cards = (section.cards || []).slice(0, 4);
+    const isBento = cards.length === 4;
+
+    return (
+        <section id='features' className='relative overflow-hidden bg-white py-24'>
+            <div
+                aria-hidden='true'
+                className='absolute inset-x-0 top-0 h-[520px] bg-gradient-to-b from-teal-50/70 via-sky-50/30 to-transparent'
+            />
+            <div aria-hidden='true' className='texture-grid absolute inset-x-0 top-0 h-[620px] text-teal-900' />
+
+            <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+                <SectionHeading
+                    eyebrow={section.badge}
+                    title={section.title}
+                    subtitle={section.subtitle}
+                    className='mb-14'
+                />
+
+                <div className={cn("grid gap-5", isBento ? "lg:grid-cols-4 lg:grid-rows-2" : "md:grid-cols-2 lg:grid-cols-4")}>
+                    {cards.map((feature, index) => {
+                        const FeatureIcon = featureIcons[index] || featureIcons[0];
+                        const isLead = isBento && index === 0;
+
+                        if (isLead) {
+                            return (
+                                <article
+                                    key={index}
+                                    data-reveal='scale'
+                                    onMouseMove={trackSpotlight}
+                                    className={cn(
+                                        bentoSpans[index],
+                                        "surface-ink spotlight spotlight--ink lift relative flex flex-col justify-between overflow-hidden rounded-3xl p-8 text-white sm:p-10",
+                                    )}>
+                                    <div aria-hidden='true' className='texture-noise absolute inset-0' />
+                                    {/* Fills the tall card's middle so the composition
+                                        doesn't read as a gap between icon and copy. */}
+                                    <FeatureIcon
+                                        aria-hidden='true'
+                                        className='pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 text-white/5.5'
+                                        strokeWidth={0.75}
+                                    />
+
+                                    <div className='relative'>
+                                        <div className='ambient-pulse relative flex h-14 w-14 items-center justify-center rounded-2xl border border-teal-400/40 bg-teal-400/10 text-teal-300'>
+                                            <FeatureIcon className='h-7 w-7' />
+                                        </div>
+                                    </div>
+
+                                    <div className='relative mt-10'>
+                                        <h3 className='text-2xl font-semibold tracking-[-0.02em] text-white sm:text-3xl'>
+                                            {feature.title}
+                                        </h3>
+                                        <p className='mt-4 max-w-md text-base leading-relaxed text-teal-50/70'>
+                                            {feature.description}
+                                        </p>
+                                    </div>
+                                </article>
+                            );
+                        }
+
+                        const isWide = isBento && index === 1;
+
+                        return (
+                            <article
+                                key={index}
+                                data-reveal
+                                style={delay(80 * index)}
+                                onMouseMove={trackSpotlight}
+                                className={cn(
+                                    isBento ? bentoSpans[index] : "",
+                                    "spotlight lift elevate-sm hover:elevate-lg group relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-7 hover:border-teal-200",
+                                    isWide && "sm:flex sm:items-center sm:gap-7",
+                                )}>
+                                <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-sky-500 text-white shadow-lg shadow-teal-500/25 transition-transform duration-500 group-hover:scale-105'>
+                                    <FeatureIcon className='h-7 w-7' />
+                                </div>
+                                <div className={cn(!isWide && "mt-6")}>
+                                    <h3 className='text-lg font-semibold tracking-[-0.01em] text-slate-950'>
+                                        {feature.title}
+                                    </h3>
+                                    <p className='mt-2 text-[0.95rem] leading-relaxed text-slate-600'>
+                                        {feature.description}
+                                    </p>
+                                </div>
+                            </article>
+                        );
+                    })}
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Specializations — colour-coded directory                                   */
+/* -------------------------------------------------------------------------- */
+
+function SpecializationTile({ name, label, count, index, countLabel }) {
+    const { Icon, gradient, ring, glow, label: labelHover } = getSpecializationStyle(name, index);
+
+    return (
+        <Link
+            to={`/doctors?specialization=${encodeURIComponent(name)}`}
+            data-reveal='scale'
+            style={delay(60 * index)}
+            onMouseMove={trackSpotlight}
+            className={cn(
+                "spotlight lift elevate-sm group relative flex flex-col items-center overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 text-center transition-shadow hover:shadow-2xl",
+                ring,
+                glow,
+            )}>
+            <div
+                className={cn(
+                    "flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg transition-transform duration-500 group-hover:-translate-y-0.5 group-hover:scale-105",
+                    gradient,
+                )}>
+                <Icon className='h-8 w-8' />
+            </div>
+            <h3 className={cn("mt-5 font-semibold text-slate-900 transition-colors", labelHover)}>
+                {label}
+            </h3>
+            {count > 0 && (
+                <p className='mt-1 text-sm text-slate-500'>{countLabel}</p>
+            )}
+            <ArrowRight
+                aria-hidden='true'
+                className='mt-3 h-4 w-4 -translate-y-1 text-slate-300 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100'
+            />
+        </Link>
+    );
+}
+
+function SpecializationsSection({ isLoading, specializations, t, language }) {
+    const fallback = useMemo(
+        () => Object.keys(specializationMeta).map((name) => ({ id: name, name })),
+        [],
+    );
+    const items = specializations.length > 0 ? specializations : fallback;
+
+    return (
+        <section id='specializations' className='relative overflow-hidden bg-slate-50/70 py-24'>
+            <div
+                aria-hidden='true'
+                className='absolute left-1/2 top-0 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-teal-200/20 blur-3xl'
+            />
+
+            <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+                <SectionHeading
+                    eyebrow={t('landing.specializations.badge')}
+                    title={t('landing.specializations.title')}
+                    subtitle={t('landing.specializations.subtitle')}
+                    className='mb-14'
+                />
+
+                {isLoading ? (
+                    <div className='flex justify-center py-12'>
+                        <Loader2 className='h-8 w-8 animate-spin text-teal-600' />
+                    </div>
+                ) : (
+                    <div className='grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6'>
+                        {items.map((spec, index) => (
+                            <SpecializationTile
+                                key={spec.id || spec.name}
+                                name={spec.name}
+                                label={getSpecName(spec, language) || spec.name}
+                                count={spec.doctorsCount}
+                                countLabel={t('landing.specializations.doctors_count', { count: spec.doctorsCount })}
+                                index={index}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                <div data-reveal className='mt-12 text-center'>
+                    <Link to='/doctors'>
+                        <Button variant='outline' size='lg' rightIcon={<ArrowRight className='h-5 w-5' />}>
+                            {t('landing.specializations.all_specs')}
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Process — dark section with a connecting spine                             */
+/* -------------------------------------------------------------------------- */
+
+function ProcessSection({ section }) {
+    const steps = (section.steps || []).slice(0, 4);
+    if (steps.length === 0) return null;
+
+    return (
+        <section className='surface-ink relative overflow-hidden py-24 text-white sm:py-28'>
+            <div aria-hidden='true' className='texture-noise absolute inset-0' />
+            <div aria-hidden='true' className='texture-grid absolute inset-0 text-teal-100' />
+
+            <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+                <SectionHeading
+                    eyebrow={section.badge}
+                    title={section.title}
+                    subtitle={section.subtitle}
+                    tone='ink'
+                    className='mb-16'
+                />
+
+                <div className='relative'>
+                    {/* The rail sits behind the numbered markers and fades at both ends. */}
+                    <div
+                        aria-hidden='true'
+                        className='process-rail absolute left-0 right-0 top-7 hidden h-px lg:block'
+                    />
+                    <div
+                        aria-hidden='true'
+                        className='process-rail--vertical absolute bottom-0 left-7 top-0 w-px lg:hidden'
+                    />
+
+                    <ol className='grid gap-10 lg:grid-cols-4 lg:gap-8'>
+                        {steps.map((step, index) => (
+                            <li
+                                key={index}
+                                data-reveal
+                                style={delay(120 * index)}
+                                className='relative flex gap-6 lg:block'>
+                                <div className='relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-teal-400/30 bg-ink-900 text-lg font-bold tracking-tight text-teal-300 shadow-lg shadow-teal-950/50'>
+                                    {String(index + 1).padStart(2, "0")}
+                                </div>
+                                <div className='pb-1 lg:mt-7 lg:pr-6'>
+                                    <h3 className='text-xl font-semibold tracking-[-0.01em] text-white'>
+                                        {step.title}
+                                    </h3>
+                                    <p className='mt-2 leading-relaxed text-teal-50/65'>
+                                        {step.description}
+                                    </p>
+                                </div>
+                            </li>
+                        ))}
+                    </ol>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Doctors carousel                                                           */
+/* -------------------------------------------------------------------------- */
+
 function DoctorsCarousel({ doctors }) {
     const { t, i18n } = useTranslation();
     const carouselRef = useRef(null);
@@ -351,39 +695,43 @@ function DoctorsCarousel({ doctors }) {
     };
 
     return (
-        <section className='py-24 bg-gradient-to-b from-slate-50 to-white'>
-            <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                <div className='flex flex-col sm:flex-row items-center justify-between mb-12 gap-4'>
-                    <div className='text-center sm:text-left'>
-                        <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
-                            {t('landing.doctors.badge')}
-                        </span>
-                        <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-2'>
-                            {t('landing.doctors.title')}
-                        </h2>
-                        <p className='text-slate-600'>
-                            {t('landing.doctors.subtitle')}
-                        </p>
-                    </div>
-                    <div className='flex items-center gap-3'>
+        <section className='relative overflow-hidden bg-white py-24'>
+            <div
+                aria-hidden='true'
+                className='absolute right-0 top-24 h-[380px] w-[380px] rounded-full bg-sky-100/40 blur-3xl'
+            />
+
+            <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+                <div className='mb-12 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between'>
+                    <SectionHeading
+                        eyebrow={t('landing.doctors.badge')}
+                        title={t('landing.doctors.title')}
+                        subtitle={t('landing.doctors.subtitle')}
+                        align='left'
+                    />
+                    <div data-reveal className='flex items-center gap-3'>
                         {totalPages > 1 && (
                             <>
                                 <button
+                                    type='button'
                                     onClick={goPrev}
-                                    className='w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-600 transition-colors'>
-                                    <ChevronLeft className='w-5 h-5' />
+                                    aria-label={t('common.previous')}
+                                    className='flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition-all hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700'>
+                                    <ChevronLeft className='h-5 w-5' />
                                 </button>
                                 <button
+                                    type='button'
                                     onClick={goNext}
-                                    className='w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-600 transition-colors'>
-                                    <ArrowRight className='w-5 h-5' />
+                                    aria-label={t('common.next')}
+                                    className='flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition-all hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700'>
+                                    <ArrowRight className='h-5 w-5' />
                                 </button>
                             </>
                         )}
                         <Link to='/doctors'>
                             <Button
                                 variant='outline'
-                                rightIcon={<ArrowRight className='w-4 h-4' />}>
+                                rightIcon={<ArrowRight className='h-4 w-4' />}>
                                 {t('landing.doctors.all_doctors')}
                             </Button>
                         </Link>
@@ -391,6 +739,7 @@ function DoctorsCarousel({ doctors }) {
                 </div>
 
                 <div
+                    data-reveal
                     className='relative'
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}>
@@ -438,55 +787,59 @@ function DoctorsCarousel({ doctors }) {
                                         <Link
                                             to={`/doctors/${doctor.documentId || doctor.id}`}
                                             className='group block h-full'>
-                                            <div className='bg-white rounded-2xl border border-slate-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-slate-200 hover:-translate-y-1 h-full flex flex-col'>
+                                            <div className='lift elevate-sm flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white group-hover:border-teal-200 group-hover:shadow-2xl group-hover:shadow-teal-900/10'>
                                                 <div className='relative'>
-                                                    <div className='aspect-square sm:aspect-[4/5] overflow-hidden bg-slate-100'>
+                                                    <div className='aspect-square overflow-hidden bg-slate-100 sm:aspect-[4/5]'>
                                                         {photoUrl ? (
                                                             <img
                                                                 src={photoUrl}
                                                                 alt={doctor.fullName}
-                                                                className='w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105'
+                                                                className='h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-105'
                                                             />
                                                         ) : (
                                                             <div
                                                                 className={cn(
-                                                                    "w-full h-full flex items-center justify-center text-white text-4xl font-bold",
+                                                                    "flex h-full w-full items-center justify-center text-4xl font-bold text-white",
                                                                     bgColor,
                                                                 )}>
                                                                 {initials}
                                                             </div>
                                                         )}
                                                     </div>
+                                                    <div
+                                                        aria-hidden='true'
+                                                        className='absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/45 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100'
+                                                    />
                                                     {isOnline && (
-                                                        <span className='absolute bottom-3 right-3 px-2.5 py-1 bg-emerald-500 text-white text-xs font-medium rounded-full flex items-center gap-1.5 shadow-lg'>
-                                                            <span className='w-1.5 h-1.5 bg-white rounded-full animate-pulse' />
+                                                        <span className='absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-emerald-500 px-2.5 py-1 text-xs font-medium text-white shadow-lg'>
+                                                            <span className='h-1.5 w-1.5 animate-pulse rounded-full bg-white' />
                                                             {t('common.online')}
                                                         </span>
                                                     )}
                                                 </div>
 
-                                                <div className='p-5 flex flex-col flex-1'>
+                                                <div className='flex flex-1 flex-col p-5'>
                                                     <div className='mb-3'>
-                                                        <h3 className='text-lg font-semibold text-slate-900 group-hover:text-teal-600 transition-colors line-clamp-1'>
+                                                        <h3 className='line-clamp-1 text-lg font-semibold text-slate-900 transition-colors group-hover:text-teal-700'>
                                                             {doctor.fullName}
                                                         </h3>
-                                                        <p className='text-teal-600 font-medium text-sm'>
+                                                        <p className='text-sm font-medium text-teal-600'>
                                                             {specName}
                                                         </p>
                                                     </div>
 
-                                                    <div className='flex flex-wrap items-center gap-x-4 gap-y-1 mb-3'>
+                                                    <div className='mb-3 flex flex-wrap items-center gap-x-4 gap-y-1'>
                                                         <div className='flex items-center gap-1'>
-                                                            <Star className='w-4 h-4 text-amber-400 fill-amber-400' />
+                                                            <Star className='h-4 w-4 fill-amber-400 text-amber-400' />
                                                             <span className='font-semibold text-slate-900'>
                                                                 {rating.toFixed(1)}
                                                             </span>
-                                                            <span className='text-slate-500 text-sm'>
+                                                            <span className='text-sm text-slate-500'>
                                                                 ({reviewsCount})
                                                             </span>
                                                         </div>
-                                                        <div className='flex items-center gap-1 text-slate-600 text-sm'>
-                                                            <Clock className='w-4 h-4' />
+                                                        <div className='flex items-center gap-1 text-sm text-slate-600'>
+                                                            <Clock className='h-4 w-4' />
                                                             <span>
                                                                 {experience}{" "}
                                                                 {getYearWord(experience)}
@@ -494,18 +847,18 @@ function DoctorsCarousel({ doctors }) {
                                                         </div>
                                                     </div>
 
-                                                    <div className='h-6 mb-3'>
+                                                    <div className='mb-3 h-6'>
                                                         {recommendPercent && (
                                                             <div className='flex items-center gap-1.5'>
-                                                                <ThumbsUp className='w-4 h-4 text-emerald-500' />
-                                                                <span className='text-sm text-emerald-600 font-medium'>
+                                                                <ThumbsUp className='h-4 w-4 text-emerald-500' />
+                                                                <span className='text-sm font-medium text-emerald-600'>
                                                                     {recommendPercent}{t('common.recommend_pct')}
                                                                 </span>
                                                             </div>
                                                         )}
                                                     </div>
 
-                                                    <div className='flex items-center justify-between pt-4 border-t border-slate-100 mt-auto'>
+                                                    <div className='mt-auto flex items-center justify-between border-t border-slate-100 pt-4'>
                                                         <div>
                                                             <p className='text-xl font-bold text-slate-900'>
                                                                 {(doctor.price || 0).toLocaleString("ru-RU")}{" "}
@@ -532,10 +885,12 @@ function DoctorsCarousel({ doctors }) {
                 </div>
 
                 {totalPages > 1 && (
-                    <div className='flex items-center justify-center gap-2 mt-8'>
+                    <div className='mt-8 flex items-center justify-center gap-2'>
                         {Array.from({ length: totalPages }).map((_, i) => (
                             <button
                                 key={i}
+                                type='button'
+                                aria-label={`${i + 1}`}
                                 onClick={() => goToPage(i)}
                                 className={cn(
                                     "h-2 rounded-full transition-all duration-300",
@@ -551,6 +906,370 @@ function DoctorsCarousel({ doctors }) {
         </section>
     );
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Testimonials — editorial                                                   */
+/* -------------------------------------------------------------------------- */
+
+const testimonialAccents = [
+    { avatar: "bg-teal-100 text-teal-700", quote: "text-teal-500/25" },
+    { avatar: "bg-sky-100 text-sky-700", quote: "text-sky-500/25" },
+    { avatar: "bg-amber-100 text-amber-700", quote: "text-amber-500/25" },
+];
+
+function TestimonialsSection({ testimonials, t }) {
+    return (
+        <section className='relative overflow-hidden bg-slate-50/70 py-24'>
+            <div
+                aria-hidden='true'
+                className='absolute -left-24 top-1/3 h-[360px] w-[360px] rounded-full bg-teal-200/25 blur-3xl'
+            />
+
+            <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+                <SectionHeading
+                    eyebrow={t('landing.testimonials.badge')}
+                    title={t('landing.testimonials.title')}
+                    subtitle={t('landing.testimonials.subtitle')}
+                    className='mb-14'
+                />
+
+                <div className='grid gap-6 md:grid-cols-3 md:pb-8'>
+                    {testimonials.map((testimonial, idx) => {
+                        const accent = testimonialAccents[idx % testimonialAccents.length];
+                        return (
+                            <figure
+                                key={idx}
+                                data-reveal
+                                style={delay(100 * idx)}
+                                onMouseMove={trackSpotlight}
+                                className={cn(
+                                    "spotlight lift elevate-sm flex h-full flex-col rounded-3xl border border-slate-200/80 bg-white p-8 hover:border-teal-200 hover:shadow-2xl hover:shadow-teal-900/5",
+                                    // Raising the middle card breaks the flat three-in-a-row grid.
+                                    idx === 1 && "md:-translate-y-8",
+                                )}>
+                                <Quote aria-hidden='true' className={cn("h-10 w-10 shrink-0", accent.quote)} />
+
+                                <div className='mt-4 flex items-center gap-1'>
+                                    {[...Array(testimonial.rating)].map((_, i) => (
+                                        <Star key={i} className='h-4 w-4 fill-amber-400 text-amber-400' />
+                                    ))}
+                                </div>
+
+                                <blockquote className='mt-4 flex-1 text-[1.05rem] leading-relaxed text-slate-700'>
+                                    {testimonial.text}
+                                </blockquote>
+
+                                <figcaption className='mt-6 flex items-center gap-3 border-t border-slate-100 pt-6'>
+                                    <span
+                                        className={cn(
+                                            "flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold",
+                                            accent.avatar,
+                                        )}>
+                                        {testimonial.avatar}
+                                    </span>
+                                    <span className='font-semibold text-slate-900'>{testimonial.name}</span>
+                                </figcaption>
+                            </figure>
+                        );
+                    })}
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Impact — campus photography under ink                                      */
+/* -------------------------------------------------------------------------- */
+
+function ImpactSection({ section, stats }) {
+    return (
+        <section id='about' className='surface-ink relative overflow-hidden py-24 text-white sm:py-28'>
+            {/* The real campus, dropped to a texture rather than a photo block. */}
+            <div aria-hidden='true' className='absolute inset-0 opacity-[0.16] mix-blend-luminosity'>
+                <img
+                    src='/nnmc-campus-hero-poster.jpg'
+                    alt=''
+                    className='h-full w-full object-cover'
+                    loading='lazy'
+                />
+            </div>
+            <div
+                aria-hidden='true'
+                className='absolute inset-0 bg-gradient-to-r from-ink-900 via-ink-900/90 to-ink-900/55'
+            />
+            <div aria-hidden='true' className='texture-noise absolute inset-0' />
+
+            <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+                <div className='grid items-center gap-14 lg:grid-cols-2'>
+                    <div>
+                        <div data-reveal='left'>
+                            <Eyebrow tone='ink'>{section.badge}</Eyebrow>
+                        </div>
+                        <h2
+                            data-reveal='left'
+                            style={delay(80)}
+                            className='mt-5 text-3xl font-semibold leading-[1.12] tracking-[-0.03em] sm:text-4xl lg:text-[2.7rem]'>
+                            {section.title}
+                        </h2>
+                        <p
+                            data-reveal='left'
+                            style={delay(160)}
+                            className='mt-5 text-lg leading-relaxed text-teal-50/70'>
+                            {section.description}
+                        </p>
+
+                        <ul className='mt-8 space-y-4'>
+                            {(section.bullets || []).map((item, idx) => (
+                                <li
+                                    key={idx}
+                                    data-reveal='left'
+                                    style={delay(220 + 70 * idx)}
+                                    className='flex items-center gap-3'>
+                                    <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-400/15 text-teal-300'>
+                                        <CheckCircle className='h-4 w-4' />
+                                    </span>
+                                    <span className='text-teal-50/90'>{item}</span>
+                                </li>
+                            ))}
+                        </ul>
+
+                        <div data-reveal='left' style={delay(520)} className='mt-10'>
+                            <Link to='/register' className='group inline-block'>
+                                <Button
+                                    variant='inverse'
+                                    size='lg'
+                                    rightIcon={
+                                        <ArrowRight className='h-5 w-5 transition-transform duration-300 group-hover:translate-x-1' />
+                                    }>
+                                    {section.buttonLabel}
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className='grid grid-cols-2 gap-4 sm:gap-5'>
+                        {(stats || []).slice(0, 4).map((stat, idx) => {
+                            const StatIcon = impactIcons[idx] || impactIcons[0];
+                            return (
+                                <div
+                                    key={`${stat.label}-${idx}`}
+                                    data-reveal='scale'
+                                    style={delay(120 * idx)}
+                                    onMouseMove={trackSpotlight}
+                                    className={cn(
+                                        "spotlight spotlight--ink lift rounded-3xl border border-white/12 bg-white/[0.06] p-6 backdrop-blur-sm hover:border-teal-300/30 sm:p-7",
+                                        // A slight vertical stagger keeps the 2×2 from reading as a table.
+                                        idx % 2 === 1 && "sm:translate-y-6",
+                                    )}>
+                                    <StatIcon className='h-7 w-7 text-teal-300' />
+                                    <div className='mt-6 text-4xl font-bold tracking-[-0.03em] text-white sm:text-5xl'>
+                                        <CountUp value={stat.value} />
+                                    </div>
+                                    <p className='mt-1.5 text-sm text-teal-50/60'>{stat.label}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Contact                                                                    */
+/* -------------------------------------------------------------------------- */
+
+const contactAccents = [
+    { tile: "bg-gradient-to-br from-teal-500 to-emerald-500", value: "text-teal-700", border: "hover:border-teal-200" },
+    { tile: "bg-gradient-to-br from-sky-500 to-cyan-500", value: "text-sky-700", border: "hover:border-sky-200" },
+    { tile: "bg-gradient-to-br from-violet-500 to-purple-500", value: "text-violet-700", border: "hover:border-violet-200" },
+];
+
+function ContactSection({ section }) {
+    const channels = [
+        { ...section.phone, Icon: Phone, href: `tel:${(section.phone.value || "").replace(/[^\d+]/g, "")}` },
+        { ...section.email, Icon: Mail, href: `mailto:${section.email.value}` },
+        { ...section.address, Icon: MapPin, href: null },
+    ];
+
+    return (
+        <section id='contact' className='relative overflow-hidden bg-white py-24'>
+            <div
+                aria-hidden='true'
+                className='absolute inset-x-0 bottom-0 h-[420px] bg-gradient-to-t from-slate-50 to-transparent'
+            />
+
+            <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+                <SectionHeading
+                    eyebrow={section.badge}
+                    title={section.title}
+                    subtitle={section.subtitle}
+                    className='mb-14'
+                />
+
+                <div className='mb-8 grid gap-5 lg:grid-cols-3'>
+                    {channels.map((channel, idx) => {
+                        const accent = contactAccents[idx % contactAccents.length];
+                        const { Icon } = channel;
+                        return (
+                            <div
+                                key={channel.title}
+                                data-reveal
+                                style={delay(90 * idx)}
+                                onMouseMove={trackSpotlight}
+                                className={cn(
+                                    "spotlight lift elevate-sm group relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-8 hover:shadow-2xl hover:shadow-teal-900/5",
+                                    accent.border,
+                                )}>
+                                <div
+                                    className={cn(
+                                        "flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-lg transition-transform duration-500 group-hover:scale-105",
+                                        accent.tile,
+                                    )}>
+                                    <Icon className='h-7 w-7' />
+                                </div>
+                                <h3 className='mt-6 text-lg font-semibold text-slate-900'>{channel.title}</h3>
+                                <p className='mt-1.5 text-sm text-slate-500'>{channel.note}</p>
+                                {channel.href ? (
+                                    <a
+                                        href={channel.href}
+                                        className={cn(
+                                            "mt-4 inline-flex items-center gap-2 text-lg font-semibold transition-colors",
+                                            accent.value,
+                                        )}>
+                                        {channel.value}
+                                        <ExternalLink className='h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100' />
+                                    </a>
+                                ) : (
+                                    <p className={cn("mt-4 text-lg font-semibold", accent.value)}>
+                                        {channel.value}
+                                    </p>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className='grid gap-5 lg:grid-cols-5'>
+                    <div
+                        data-reveal
+                        className='elevate-md min-h-[340px] overflow-hidden rounded-3xl border border-slate-200 lg:col-span-3'>
+                        <iframe
+                            title='MedConnect Location'
+                            src={section.mapEmbedUrl}
+                            width='100%'
+                            height='100%'
+                            style={{ border: 0, minHeight: "340px" }}
+                            allowFullScreen=''
+                            loading='lazy'
+                            referrerPolicy='no-referrer-when-downgrade'
+                            className='h-full w-full'
+                        />
+                    </div>
+
+                    <div
+                        data-reveal
+                        style={delay(120)}
+                        className='surface-ink relative flex flex-col justify-between overflow-hidden rounded-3xl p-8 text-white lg:col-span-2'>
+                        <div aria-hidden='true' className='texture-noise absolute inset-0' />
+                        <div className='relative'>
+                            <h3 className='text-2xl font-semibold tracking-[-0.02em]'>
+                                {section.quickCard.title}
+                            </h3>
+                            <p className='mt-4 leading-relaxed text-teal-50/70'>
+                                {section.quickCard.description}
+                            </p>
+                            <ul className='mt-7 space-y-3'>
+                                {(section.quickCard.bullets || []).map((item, idx) => (
+                                    <li className='flex items-center gap-3' key={idx}>
+                                        <CheckCircle className='h-5 w-5 shrink-0 text-teal-300' />
+                                        <span className='text-sm text-teal-50/85'>{item}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        <Link to='/doctors' className='relative mt-8 block'>
+                            <Button
+                                variant='inverse'
+                                size='lg'
+                                className='w-full'
+                                rightIcon={<Send className='h-5 w-5' />}>
+                                {section.quickCard.buttonLabel}
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Closing CTA — full-bleed finale                                            */
+/* -------------------------------------------------------------------------- */
+
+function ClosingCTA({ t }) {
+    return (
+        <section className='surface-ink relative overflow-hidden py-28 sm:py-32'>
+            <div aria-hidden='true' className='texture-noise absolute inset-0' />
+            <div aria-hidden='true' className='texture-grid absolute inset-0 text-teal-100' />
+            <div
+                aria-hidden='true'
+                className='absolute left-1/2 top-1/2 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400/10 blur-3xl'
+            />
+
+            <div className='relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8'>
+                <div data-reveal='scale' className='flex justify-center'>
+                    <span className='ambient-pulse relative flex h-16 w-16 items-center justify-center rounded-2xl border border-teal-400/40 bg-teal-400/10 text-teal-300'>
+                        <Sparkles className='h-8 w-8' />
+                    </span>
+                </div>
+
+                <h2
+                    data-reveal
+                    style={delay(100)}
+                    className='mt-9 text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-white sm:text-5xl lg:text-6xl'>
+                    {t('landing.cta.title')}
+                </h2>
+
+                <p
+                    data-reveal
+                    style={delay(180)}
+                    className='mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-teal-50/70 sm:text-xl'>
+                    {t('landing.cta.description')}
+                </p>
+
+                <div
+                    data-reveal
+                    style={delay(260)}
+                    className='mt-10 flex flex-col justify-center gap-3 sm:flex-row'>
+                    <Link to='/register' className='group'>
+                        <Button
+                            variant='inverse'
+                            size='xl'
+                            className='w-full rounded-2xl sm:w-auto'
+                            rightIcon={
+                                <ArrowRight className='h-5 w-5 transition-transform duration-300 group-hover:translate-x-1' />
+                            }>
+                            {t('landing.cta.register')}
+                        </Button>
+                    </Link>
+                    <Link to='/doctors'>
+                        <Button variant='inverseGhost' size='xl' className='w-full rounded-2xl sm:w-auto'>
+                            {t('landing.cta.view_doctors')}
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Page                                                                       */
+/* -------------------------------------------------------------------------- */
 
 function LandingPage() {
     const { t, i18n } = useTranslation();
@@ -755,6 +1474,16 @@ function LandingPage() {
         },
     }), [defaultLandingConfig, incomingConfig]);
 
+    // Credentials for the marquee are assembled from copy that already exists
+    // elsewhere on the page, so the strip never asserts anything new.
+    const trustItems = useMemo(() => {
+        const bullets = config.aboutSection.bullets || [];
+        const featureTitles = (config.featuresSection.cards || []).map((card) => card.title);
+        return [...bullets, ...featureTitles].filter(Boolean);
+    }, [config.aboutSection.bullets, config.featuresSection.cards]);
+
+    useReveal([isLoading, doctors.length, specializations.length, i18n.language]);
+
     return (
         <div className='overflow-hidden'>
             <SEOHead
@@ -763,371 +1492,29 @@ function LandingPage() {
                 url="/"
                 structuredData={seoStructuredData}
             />
-            <CinematicHero config={config} t={t} />
 
-            {/* Features Section */}
-            <section id='features' className='py-24 bg-white'>
-                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                    <div className='text-center mb-16'>
-                        <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
-                            {config.featuresSection.badge}
-                        </span>
-                        <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-4'>
-                            {config.featuresSection.title}
-                        </h2>
-                        <p className='text-xl text-slate-600 max-w-2xl mx-auto'>
-                            {config.featuresSection.subtitle}
-                        </p>
-                    </div>
+            <ClinicalHero config={config} t={t} trustItems={trustItems} />
 
-                    <div className='grid md:grid-cols-2 lg:grid-cols-4 gap-8'>
-                        {(config.featuresSection.cards || []).slice(0, 4).map((feature, index) => {
-                            const FeatureIcon = featureIcons[index] || featureIcons[0];
-                            return (
-                                <Card key={index} hover className='text-center border-0 shadow-lg shadow-slate-200/50'>
-                                    <CardContent className='pt-8'>
-                                        <div className='w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-teal-500 to-sky-500 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/30'>
-                                            <FeatureIcon className='w-8 h-8 text-white' />
-                                        </div>
-                                        <h3 className='text-lg font-semibold text-slate-900 mb-2'>{feature.title}</h3>
-                                        <p className='text-slate-600'>{feature.description}</p>
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
-                    </div>
-                </div>
-            </section>
+            <FeatureBento section={config.featuresSection} />
 
-            {/* Specializations Section */}
-            <section id='specializations' className='py-24 bg-gradient-to-b from-slate-50 to-white'>
-                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                    <div className='text-center mb-16'>
-                        <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
-                            {t('landing.specializations.badge')}
-                        </span>
-                        <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-4'>
-                            {t('landing.specializations.title')}
-                        </h2>
-                        <p className='text-xl text-slate-600'>
-                            {t('landing.specializations.subtitle')}
-                        </p>
-                    </div>
+            <SpecializationsSection
+                isLoading={isLoading}
+                specializations={specializations}
+                language={i18n.language}
+                t={t}
+            />
 
-                    {isLoading ? (
-                        <div className='flex justify-center py-12'>
-                            <Loader2 className='w-8 h-8 text-teal-600 animate-spin' />
-                        </div>
-                    ) : specializations.length > 0 ? (
-                        <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6'>
-                            {specializations.map((spec) => {
-                                const IconComponent = specializationIcons[spec.name] || specializationIcons.default;
-                                return (
-                                    <Link key={spec.id} to={`/doctors?specialization=${spec.name}`} className='group'>
-                                        <Card hover className='text-center transition-all group-hover:border-teal-500 group-hover:shadow-lg'>
-                                            <CardContent className='py-8'>
-                                                <div className='w-16 h-16 mx-auto mb-4 bg-teal-100 rounded-2xl flex items-center justify-center group-hover:bg-teal-500 transition-colors'>
-                                                    <IconComponent className='w-8 h-8 text-teal-600 group-hover:text-white transition-colors' />
-                                                </div>
-                                                <h3 className='font-medium text-slate-900 group-hover:text-teal-600 transition-colors'>
-                                                    {getSpecName(spec, i18n.language)}
-                                                </h3>
-                                                {spec.doctorsCount > 0 && (
-                                                    <p className='text-sm text-slate-500 mt-1'>
-                                                        {t('landing.specializations.doctors_count', { count: spec.doctorsCount })}
-                                                    </p>
-                                                )}
-                                            </CardContent>
-                                        </Card>
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6'>
-                            {Object.entries(specializationIcons)
-                                .filter(([k]) => k !== "default")
-                                .map(([name, Icon]) => (
-                                    <Link key={name} to={`/doctors?specialization=${name}`} className='group'>
-                                        <Card hover className='text-center transition-all group-hover:border-teal-500'>
-                                            <CardContent className='py-8'>
-                                                <div className='w-16 h-16 mx-auto mb-4 bg-teal-100 rounded-2xl flex items-center justify-center group-hover:bg-teal-500 transition-colors'>
-                                                    <Icon className='w-8 h-8 text-teal-600 group-hover:text-white transition-colors' />
-                                                </div>
-                                                <h3 className='font-medium text-slate-900 group-hover:text-teal-600 transition-colors'>
-                                                    {name}
-                                                </h3>
-                                            </CardContent>
-                                        </Card>
-                                    </Link>
-                                ))}
-                        </div>
-                    )}
+            <ProcessSection section={config.stepsSection} />
 
-                    <div className='text-center mt-12'>
-                        <Link to='/doctors'>
-                            <Button variant='outline' size='lg' rightIcon={<ArrowRight className='w-5 h-5' />}>
-                                {t('landing.specializations.all_specs')}
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
-            </section>
-
-            {/* How It Works */}
-            <section className='py-24 bg-white'>
-                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                    <div className='text-center mb-16'>
-                        <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
-                            {config.stepsSection.badge}
-                        </span>
-                        <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-4'>
-                            {config.stepsSection.title}
-                        </h2>
-                        <p className='text-xl text-slate-600'>{config.stepsSection.subtitle}</p>
-                    </div>
-
-                    <div className='grid md:grid-cols-2 lg:grid-cols-4 gap-8'>
-                        {(config.stepsSection.steps || []).slice(0, 4).map((step, index) => (
-                            <div key={index} className='relative text-center lg:text-left'>
-                                <div className='text-7xl font-bold text-teal-100 mb-4'>
-                                    {String(index + 1).padStart(2, "0")}
-                                </div>
-                                <h3 className='text-xl font-semibold text-slate-900 mb-2'>{step.title}</h3>
-                                <p className='text-slate-600'>{step.description}</p>
-                                {index < (config.stepsSection.steps || []).slice(0, 4).length - 1 && (
-                                    <ArrowRight className='hidden lg:block absolute top-8 -right-4 w-8 h-8 text-teal-300' />
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Top Doctors Carousel */}
             {doctors.length > 0 && <DoctorsCarousel doctors={doctors} />}
 
-            {/* Testimonials */}
-            <section className='py-24 bg-white'>
-                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                    <div className='text-center mb-16'>
-                        <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
-                            {t('landing.testimonials.badge')}
-                        </span>
-                        <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-4'>
-                            {t('landing.testimonials.title')}
-                        </h2>
-                        <p className='text-xl text-slate-600'>{t('landing.testimonials.subtitle')}</p>
-                    </div>
+            <TestimonialsSection testimonials={testimonials} t={t} />
 
-                    <div className='grid md:grid-cols-3 gap-8'>
-                        {testimonials.map((testimonial, idx) => (
-                            <Card key={idx} className='border-0 shadow-lg'>
-                                <CardContent className='p-8'>
-                                    <div className='flex items-center gap-1 mb-4'>
-                                        {[...Array(testimonial.rating)].map((_, i) => (
-                                            <Star key={i} className='w-5 h-5 text-amber-400 fill-amber-400' />
-                                        ))}
-                                    </div>
-                                    <p className='text-slate-600 mb-6 italic'>"{testimonial.text}"</p>
-                                    <div className='flex items-center gap-3'>
-                                        <div className='w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center text-teal-600 font-semibold'>
-                                            {testimonial.avatar}
-                                        </div>
-                                        <p className='font-medium text-slate-900'>{testimonial.name}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-            </section>
+            <ImpactSection section={config.aboutSection} stats={config.stats} />
 
-            {/* About Section */}
-            <section id='about' className='py-24 bg-gradient-to-br from-teal-600 to-sky-700'>
-                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                    <div className='grid lg:grid-cols-2 gap-12 items-center'>
-                        <div className='text-white'>
-                            <span className='inline-block px-4 py-1 bg-white/20 text-white rounded-full text-sm font-medium mb-6'>
-                                {config.aboutSection.badge}
-                            </span>
-                            <h2 className='text-3xl sm:text-4xl font-bold mb-6'>{config.aboutSection.title}</h2>
-                            <p className='text-white/80 text-lg mb-6 leading-relaxed'>{config.aboutSection.description}</p>
-                            <div className='space-y-4 mb-8'>
-                                {(config.aboutSection.bullets || []).map((item, idx) => (
-                                    <div className='flex items-center gap-3' key={idx}>
-                                        <CheckCircle className='w-6 h-6 text-teal-300 flex-shrink-0' />
-                                        <span className='text-white/90'>{item}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <Link to='/register'>
-                                <Button size='lg' className='text-teal-700 hover:bg-teal-50'>
-                                    {config.aboutSection.buttonLabel}
-                                    <ArrowRight className='w-5 h-5 ml-2' />
-                                </Button>
-                            </Link>
-                        </div>
-                        <div className='hidden lg:block'>
-                            <div className='grid grid-cols-2 gap-6'>
-                                <Card className='bg-white/10 backdrop-blur border-white/20'>
-                                    <CardContent className='p-6 text-center'>
-                                        <Users className='w-12 h-12 text-white mx-auto mb-4' />
-                                        <div className='text-3xl font-bold text-white mb-1'>{config.stats?.[0]?.value}</div>
-                                        <p className='text-white/70'>{config.stats?.[0]?.label}</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className='bg-white/10 backdrop-blur border-white/20'>
-                                    <CardContent className='p-6 text-center'>
-                                        <Award className='w-12 h-12 text-white mx-auto mb-4' />
-                                        <div className='text-3xl font-bold text-white mb-1'>{config.stats?.[2]?.value}</div>
-                                        <p className='text-white/70'>{config.stats?.[2]?.label}</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className='bg-white/10 backdrop-blur border-white/20'>
-                                    <CardContent className='p-6 text-center'>
-                                        <Stethoscope className='w-12 h-12 text-white mx-auto mb-4' />
-                                        <div className='text-3xl font-bold text-white mb-1'>{config.stats?.[1]?.value}</div>
-                                        <p className='text-white/70'>{config.stats?.[1]?.label}</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className='bg-white/10 backdrop-blur border-white/20'>
-                                    <CardContent className='p-6 text-center'>
-                                        <Heart className='w-12 h-12 text-white mx-auto mb-4' />
-                                        <div className='text-3xl font-bold text-white mb-1'>{config.stats?.[3]?.value}</div>
-                                        <p className='text-white/70'>{config.stats?.[3]?.label}</p>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <ContactSection section={config.contactSection} />
 
-            {/* Contact Section */}
-            <section id='contact' className='py-24 bg-slate-50'>
-                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                    <div className='text-center mb-16'>
-                        <span className='inline-block px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium mb-4'>
-                            {config.contactSection.badge}
-                        </span>
-                        <h2 className='text-3xl sm:text-4xl font-bold text-slate-900 mb-4'>
-                            {config.contactSection.title}
-                        </h2>
-                        <p className='text-xl text-slate-600 max-w-2xl mx-auto'>
-                            {config.contactSection.subtitle}
-                        </p>
-                    </div>
-
-                    <div className='grid lg:grid-cols-3 gap-8 mb-12'>
-                        <div className='group relative bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:border-teal-200'>
-                            <div className='absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-400 to-teal-600 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity' />
-                            <div className='w-14 h-14 bg-teal-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-teal-500 transition-colors'>
-                                <Phone className='w-7 h-7 text-teal-600 group-hover:text-white transition-colors' />
-                            </div>
-                            <h3 className='text-lg font-semibold text-slate-900 mb-2'>{config.contactSection.phone.title}</h3>
-                            <p className='text-slate-500 text-sm mb-4'>{config.contactSection.phone.note}</p>
-                            <a
-                                href={`tel:${(config.contactSection.phone.value || "").replace(/\s+/g, "").replace(/[()\\-]/g, "")}`}
-                                className='text-xl font-semibold text-teal-600 hover:text-teal-700 transition-colors flex items-center gap-2'>
-                                {config.contactSection.phone.value}
-                                <ExternalLink className='w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity' />
-                            </a>
-                        </div>
-
-                        <div className='group relative bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:border-teal-200'>
-                            <div className='absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-400 to-sky-600 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity' />
-                            <div className='w-14 h-14 bg-sky-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-sky-500 transition-colors'>
-                                <Mail className='w-7 h-7 text-sky-600 group-hover:text-white transition-colors' />
-                            </div>
-                            <h3 className='text-lg font-semibold text-slate-900 mb-2'>{config.contactSection.email.title}</h3>
-                            <p className='text-slate-500 text-sm mb-4'>{config.contactSection.email.note}</p>
-                            <a
-                                href={`mailto:${config.contactSection.email.value}`}
-                                className='text-xl font-semibold text-sky-600 hover:text-sky-700 transition-colors flex items-center gap-2'>
-                                {config.contactSection.email.value}
-                                <ExternalLink className='w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity' />
-                            </a>
-                        </div>
-
-                        <div className='group relative bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:border-teal-200'>
-                            <div className='absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-400 to-violet-600 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity' />
-                            <div className='w-14 h-14 bg-violet-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-violet-500 transition-colors'>
-                                <MapPin className='w-7 h-7 text-violet-600 group-hover:text-white transition-colors' />
-                            </div>
-                            <h3 className='text-lg font-semibold text-slate-900 mb-2'>{config.contactSection.address.title}</h3>
-                            <p className='text-slate-500 text-sm mb-4'>{config.contactSection.address.note}</p>
-                            <p className='text-xl font-semibold text-violet-600'>{config.contactSection.address.value}</p>
-                        </div>
-                    </div>
-
-                    <div className='grid lg:grid-cols-5 gap-8'>
-                        <div className='lg:col-span-3 rounded-2xl overflow-hidden shadow-lg border border-slate-200 min-h-[320px]'>
-                            <iframe
-                                title='MedConnect Location'
-                                src={config.contactSection.mapEmbedUrl}
-                                width='100%'
-                                height='100%'
-                                style={{ border: 0, minHeight: "320px" }}
-                                allowFullScreen=''
-                                loading='lazy'
-                                referrerPolicy='no-referrer-when-downgrade'
-                                className='w-full h-full'
-                            />
-                        </div>
-
-                        <div className='lg:col-span-2 bg-gradient-to-br from-teal-600 to-sky-700 rounded-2xl p-8 text-white flex flex-col justify-between'>
-                            <div>
-                                <h3 className='text-2xl font-bold mb-4'>{config.contactSection.quickCard.title}</h3>
-                                <p className='text-white/80 mb-6 leading-relaxed'>{config.contactSection.quickCard.description}</p>
-                                <div className='space-y-3 mb-8'>
-                                    {(config.contactSection.quickCard.bullets || []).map((item, idx) => (
-                                        <div className='flex items-center gap-3' key={idx}>
-                                            <CheckCircle className='w-5 h-5 text-teal-300 flex-shrink-0' />
-                                            <span className='text-white/90 text-sm'>{item}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <Link to='/doctors'>
-                                <Button
-                                    size='lg'
-                                    className='w-full text-teal-700 hover:bg-teal-50 shadow-lg'
-                                    rightIcon={<Send className='w-5 h-5' />}>
-                                    {config.contactSection.quickCard.buttonLabel}
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* CTA Section */}
-            <section className='py-24 bg-white'>
-                <div className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center'>
-                    <div className='bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-12 shadow-2xl'>
-                        <Award className='w-16 h-16 mx-auto mb-6 text-teal-400' />
-                        <h2 className='text-3xl sm:text-4xl font-bold mb-4 text-white'>
-                            {t('landing.cta.title')}
-                        </h2>
-                        <p className='text-xl text-slate-300 mb-8 max-w-2xl mx-auto'>
-                            {t('landing.cta.description')}
-                        </p>
-                        <div className='flex flex-col sm:flex-row gap-4 justify-center'>
-                            <Link to='/register'>
-                                <Button size='lg' className='bg-teal-500 hover:bg-teal-600 text-white shadow-lg'>
-                                    {t('landing.cta.register')}
-                                </Button>
-                            </Link>
-                            <Link to='/doctors'>
-                                <Button size='lg' className='bg-white/20 backdrop-blur border-2 border-white/50 text-white hover:bg-white/30'>
-                                    {t('landing.cta.view_doctors')}
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <ClosingCTA t={t} />
         </div>
     );
 }

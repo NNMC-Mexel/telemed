@@ -34,6 +34,14 @@
   --color-accent-500: #f43f5e;
   --color-accent-600: #e11d48;
 
+  /* Ink - Deep clinical teal used for dark surfaces.
+     Warmer and more branded than neutral slate-900. */
+  --color-ink-950: #03191a;
+  --color-ink-900: #052623;
+  --color-ink-800: #073632;
+  --color-ink-700: #0a4a44;
+  --color-ink-600: #0f625a;
+
   /* Font Families */
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -179,108 +187,41 @@
   }
 }
 
-@keyframes heroStatusPing {
-  0% { transform: scale(0.85); opacity: 0.8; }
-  75%, 100% { transform: scale(2.3); opacity: 0; }
-}
-
-@keyframes heroGridDrift {
-  from { background-position: 0 0; }
-  to { background-position: 72px 36px; }
-}
-
-@keyframes heroScrollDot {
-  0%, 100% { transform: translateY(0); opacity: 0.35; }
-  45% { transform: translateY(12px); opacity: 1; }
-}
-
-@keyframes heroSheen {
-  from { transform: translateX(-180%) skewX(-18deg); }
-  to { transform: translateX(320%) skewX(-18deg); }
-}
-
-.hero-cinematic {
-  --hero-video-x: 0px;
-  --hero-video-y: 0px;
-  --hero-glow-x: 0px;
-  --hero-glow-y: 0px;
+.hero-clinical {
   isolation: isolate;
 }
 
-.hero-cinematic__video {
-  transform: translate3d(var(--hero-video-x), var(--hero-video-y), 0) scale(1.075);
-  transition: transform 650ms cubic-bezier(0.2, 0.75, 0.25, 1);
-  filter: saturate(0.9) contrast(1.05);
-  will-change: transform;
+.hero-clinical__background-video {
+  filter: blur(2px) saturate(0.88) contrast(1) brightness(0.98);
+  transform: scale(1.02);
+  transform-origin: center;
 }
 
-.hero-cinematic__scrim {
+.hero-clinical__background-scrim {
   background:
-    linear-gradient(90deg, rgba(2, 11, 18, 0.94) 0%, rgba(3, 22, 29, 0.82) 40%, rgba(3, 22, 29, 0.45) 70%, rgba(2, 11, 18, 0.4) 100%),
-    linear-gradient(180deg, rgba(2, 8, 15, 0.38) 0%, rgba(2, 8, 15, 0.05) 42%, rgba(2, 8, 15, 0.72) 100%);
+    linear-gradient(90deg, rgba(244, 251, 249, 0.82) 0%, rgba(244, 251, 249, 0.68) 42%, rgba(244, 251, 249, 0.3) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(236, 250, 247, 0.14) 100%);
 }
 
-.hero-cinematic__aurora {
-  background:
-    radial-gradient(circle at 78% 34%, rgba(45, 212, 191, 0.25), transparent 34%),
-    radial-gradient(circle at 48% 104%, rgba(14, 165, 233, 0.22), transparent 36%);
-  transform: translate3d(var(--hero-glow-x), var(--hero-glow-y), 0) scale(1.08);
-  transition: transform 850ms cubic-bezier(0.2, 0.75, 0.25, 1);
-  will-change: transform;
-}
-
-.hero-cinematic__grid {
-  opacity: 0.11;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.32) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.32) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: linear-gradient(to right, black, transparent 78%);
-  animation: heroGridDrift 16s linear infinite;
-}
-
-.hero-cinematic__vignette {
-  box-shadow: inset 0 0 160px 24px rgba(1, 7, 13, 0.5);
-}
-
-.hero-cinematic__highlight {
-  background-image: linear-gradient(105deg, #ccfbf1 0%, #67e8f9 52%, #f0fdfa 100%);
-}
-
-.hero-cinematic__card {
+.hero-clinical__service-card {
   box-shadow:
-    0 28px 90px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 32px 80px rgba(15, 23, 42, 0.16),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
-.hero-cinematic__card-glow {
-  background:
-    radial-gradient(circle at 90% 4%, rgba(94, 234, 212, 0.2), transparent 36%),
-    linear-gradient(120deg, rgba(255, 255, 255, 0.1), transparent 38%);
+.hero-clinical__primary-cta {
+  background: #0f766e !important;
+  color: #fff !important;
 }
 
-.hero-cinematic__primary-cta {
-  position: relative;
-  overflow: hidden;
-  color: #134e4a !important;
-  background-color: #ffffff !important;
+.hero-clinical__primary-cta:hover {
+  background: #115e59 !important;
+  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.24);
+  transform: translateY(-1px);
 }
 
-.hero-cinematic__primary-cta:hover {
-  background-color: #f0fdfa !important;
-}
-
-.hero-cinematic__primary-cta::after {
-  content: "";
-  position: absolute;
-  inset: -30% auto -30% -30%;
-  width: 30%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
-  transform: translateX(-180%) skewX(-18deg);
-}
-
-.hero-cinematic__primary-cta:hover::after {
-  animation: heroSheen 750ms ease-out;
+.hero-clinical__seal {
+  animation: heroEnter 800ms 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .hero-enter {
@@ -294,39 +235,23 @@
 .hero-enter--4 { animation-delay: 450ms; }
 .hero-enter--5 { animation-delay: 560ms; }
 
-.hero-cinematic__status-ping {
-  animation: heroStatusPing 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-.hero-scroll-cue__dot {
-  animation: heroScrollDot 1.8s ease-in-out infinite;
-}
-
 @media (max-width: 1023px) {
-  .hero-cinematic__scrim {
+  .hero-clinical__background-scrim {
     background:
-      linear-gradient(90deg, rgba(2, 11, 18, 0.92) 0%, rgba(3, 22, 29, 0.68) 100%),
-      linear-gradient(180deg, rgba(2, 8, 15, 0.45) 0%, rgba(2, 8, 15, 0.22) 45%, rgba(2, 8, 15, 0.78) 100%);
-  }
-
-  .hero-cinematic__grid {
-    mask-image: linear-gradient(to bottom, black, transparent 90%);
+      linear-gradient(90deg, rgba(244, 251, 249, 0.82), rgba(244, 251, 249, 0.58)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(236, 250, 247, 0.14));
   }
 }
 
 @media (max-width: 639px) {
-  .hero-cinematic__video {
+  .hero-clinical__background-video {
     object-position: 58% center;
+    filter: blur(1.5px) saturate(0.84) contrast(0.98) brightness(1);
+    transform: scale(1.025);
   }
 
-  .hero-cinematic__scrim {
-    background:
-      linear-gradient(90deg, rgba(2, 11, 18, 0.84), rgba(3, 22, 29, 0.68)),
-      linear-gradient(180deg, rgba(2, 8, 15, 0.42) 0%, rgba(2, 8, 15, 0.3) 42%, rgba(2, 8, 15, 0.9) 100%);
-  }
-
-  .hero-cinematic__vignette {
-    box-shadow: inset 0 0 100px 10px rgba(1, 7, 13, 0.48);
+  .hero-clinical__background-scrim {
+    background: rgba(244, 251, 249, 0.74);
   }
 }
 
@@ -336,14 +261,258 @@
     animation: none;
   }
 
-  .hero-cinematic__video,
-  .hero-cinematic__aurora,
-  .hero-cinematic__grid,
-  .hero-cinematic__status-ping,
-  .hero-scroll-cue__dot {
+  .hero-clinical__seal {
     animation: none;
+  }
+}
+
+/* ==========================================================================
+   Landing design system
+   Surfaces, texture, depth and scroll motion shared by the marketing page.
+   ========================================================================== */
+
+/* --- Dark surfaces ------------------------------------------------------ */
+
+/* Deep teal ink with layered aurora. Used for the sections that break up
+   the light rhythm (trust strip, process, impact, closing CTA). */
+.surface-ink {
+  background-color: #052623;
+  background-image:
+    radial-gradient(1100px 620px at 12% -15%, rgba(20, 184, 166, 0.28), transparent 62%),
+    radial-gradient(900px 520px at 92% 8%, rgba(14, 165, 233, 0.22), transparent 58%),
+    radial-gradient(760px 700px at 62% 118%, rgba(45, 212, 191, 0.16), transparent 62%);
+}
+
+.surface-ink-flat {
+  background-color: #052623;
+}
+
+/* --- Texture ------------------------------------------------------------ */
+
+/* Both textures are applied to their own absolutely-positioned overlay element
+   rather than a pseudo-element, so they never fight with Tailwind's
+   `position`/`inset` utilities or with `.spotlight`'s ::after. */
+
+/* Blueprint dot grid. Inherits `currentColor`, so set the dot colour with
+   a text utility on the overlay (e.g. `text-teal-900`). */
+.texture-grid {
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.07;
+  -webkit-mask-image: radial-gradient(ellipse 75% 60% at 50% 40%, #000 35%, transparent 100%);
+  mask-image: radial-gradient(ellipse 75% 60% at 50% 40%, #000 35%, transparent 100%);
+}
+
+/* Fine film grain — keeps large flat gradients from banding and reads as depth. */
+.texture-noise {
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
+}
+
+/* --- Depth -------------------------------------------------------------- */
+
+/* Teal-tinted elevation. Neutral black shadows read as dirt on a teal page. */
+.elevate-sm {
+  box-shadow:
+    0 1px 2px rgba(6, 46, 42, 0.04),
+    0 4px 12px -2px rgba(6, 46, 42, 0.06);
+}
+
+.elevate-md {
+  box-shadow:
+    0 2px 4px rgba(6, 46, 42, 0.04),
+    0 12px 28px -6px rgba(6, 46, 42, 0.10);
+}
+
+.elevate-lg {
+  box-shadow:
+    0 4px 8px rgba(6, 46, 42, 0.04),
+    0 28px 60px -12px rgba(6, 46, 42, 0.16);
+}
+
+/* Cursor-tracked glow. --mx/--my are set from JS on pointer move. */
+.spotlight {
+  position: relative;
+}
+
+.spotlight::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background: radial-gradient(
+    340px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(13, 148, 136, 0.10),
+    transparent 46%
+  );
+}
+
+.spotlight:hover::after {
+  opacity: 1;
+}
+
+.spotlight--ink::after {
+  background: radial-gradient(
+    360px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(94, 234, 212, 0.16),
+    transparent 46%
+  );
+}
+
+/* --- Lift on hover ------------------------------------------------------ */
+
+.lift {
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s ease;
+}
+
+.lift:hover {
+  transform: translateY(-6px);
+}
+
+/* --- Scroll reveal ------------------------------------------------------ */
+
+/* Elements opt in with [data-reveal]; useReveal adds .is-visible on entry.
+   Stagger via --reveal-delay. */
+[data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+  transition:
+    opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+[data-reveal='scale'] {
+  transform: translate3d(0, 28px, 0) scale(0.97);
+}
+
+[data-reveal='left'] {
+  transform: translate3d(-28px, 0, 0);
+}
+
+[data-reveal='right'] {
+  transform: translate3d(28px, 0, 0);
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* --- Marquee ------------------------------------------------------------ */
+
+@keyframes marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 44s linear infinite;
+}
+
+.marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.marquee-viewport:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* --- Process spine ------------------------------------------------------ */
+
+/* Gradient rail connecting the numbered steps. Drawn behind the markers. */
+.process-rail {
+  background: linear-gradient(
+    90deg,
+    rgba(45, 212, 191, 0) 0%,
+    rgba(45, 212, 191, 0.55) 12%,
+    rgba(56, 189, 248, 0.55) 88%,
+    rgba(56, 189, 248, 0) 100%
+  );
+}
+
+.process-rail--vertical {
+  background: linear-gradient(
+    180deg,
+    rgba(45, 212, 191, 0) 0%,
+    rgba(45, 212, 191, 0.55) 10%,
+    rgba(56, 189, 248, 0.55) 90%,
+    rgba(56, 189, 248, 0) 100%
+  );
+}
+
+/* --- Ambient pulse ------------------------------------------------------ */
+
+@keyframes ambientPulse {
+  0% { transform: scale(0.85); opacity: 0.55; }
+  70% { transform: scale(1.7); opacity: 0; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+.ambient-pulse::before,
+.ambient-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid currentColor;
+  animation: ambientPulse 3.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.ambient-pulse::after {
+  animation-delay: 1.7s;
+}
+
+/* --- Motion preferences ------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  [data-reveal='scale'],
+  [data-reveal='left'],
+  [data-reveal='right'] {
+    opacity: 1;
     transform: none;
     transition: none;
+  }
+
+  .marquee-track {
+    animation: none;
+    width: 100%;
+  }
+
+  /* The seamless-loop duplicate is redundant once the track stops moving. */
+  .marquee-track > [aria-hidden='true'] {
+    display: none;
+  }
+
+  .marquee-group {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.75rem;
+    padding-right: 0;
+  }
+
+  .ambient-pulse::before,
+  .ambient-pulse::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  .lift:hover {
+    transform: none;
   }
 }
 

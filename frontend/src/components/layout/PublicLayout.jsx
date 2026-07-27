@@ -22,7 +22,9 @@ function PublicLayout({ children }) {
     const location = useLocation();
     const navigate = useNavigate();
     const { isAuthenticated, user } = useAuthStore();
-    const [isScrolled, setIsScrolled] = useState(false);
+    // Seeded from the current offset so a restored scroll position doesn't
+    // leave the transparent hero header floating over white content.
+    const [isScrolled, setIsScrolled] = useState(() => window.scrollY > 20);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showLoginDropdown, setShowLoginDropdown] = useState(false);
     const loginDropdownRef = useRef(null);
@@ -41,8 +43,7 @@ function PublicLayout({ children }) {
             document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const isDarkHeaderPage = location.pathname === "/";
-    const showDarkHeader = isDarkHeaderPage && !isScrolled;
+    const showDarkHeader = false;
 
     useEffect(() => {
         const handleScroll = () => {
@@ -111,11 +112,13 @@ function PublicLayout({ children }) {
                             <Activity className='w-6 h-6 text-white' />
                         </div>
                         <div>
-                            <h1 className='font-bold text-slate-900'>MedConnect</h1>
+                            <span className='block font-bold text-slate-900'>MedConnect</span>
                             <p className='text-xs text-slate-500'>{t("common.telemedicine")}</p>
                         </div>
                     </Link>
                     <button
+                        type='button'
+                        aria-label={t("common.close")}
                         onClick={() => setIsMobileMenuOpen(false)}
                         className='p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors'
                     >
@@ -123,7 +126,7 @@ function PublicLayout({ children }) {
                     </button>
                 </div>
 
-                <nav className='flex-1 p-4 space-y-1 overflow-y-auto'>
+                <nav id='public-mobile-navigation' className='flex-1 p-4 space-y-1 overflow-y-auto'>
                     {navLinks.map((link) => (
                         <Link
                             key={link.href}
@@ -186,12 +189,23 @@ function PublicLayout({ children }) {
             {/* Header */}
             <header
                 className={cn(
-                    "fixed top-0 left-0 right-0 z-50 pt-[var(--safe-top)] transition-colors duration-300",
-                    isScrolled || !isDarkHeaderPage
-                        ? "bg-white shadow-sm"
-                        : "bg-transparent",
+                    "fixed top-0 left-0 right-0 z-50 border-b pt-[var(--safe-top)] transition-all duration-300",
+                    isScrolled
+                        ? "border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-xl"
+                        : isOnLanding
+                            // Sits directly on the hero instead of banding across it.
+                            ? "border-transparent bg-transparent"
+                            : "border-slate-100 bg-white/95 backdrop-blur-xl",
                 )}>
-                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+                {/* A soft fade — not a filled bar — keeps the nav legible over
+                    whatever frame the hero video happens to be on. */}
+                {isOnLanding && !isScrolled && (
+                    <div
+                        aria-hidden='true'
+                        className='pointer-events-none absolute inset-0 bg-gradient-to-b from-white/75 via-white/35 to-transparent'
+                    />
+                )}
+                <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='flex items-center justify-between h-20'>
                         {/* Logo */}
                         <Link to='/' className='flex items-center gap-3'>
@@ -199,15 +213,15 @@ function PublicLayout({ children }) {
                                 <Activity className='w-6 h-6 text-white' />
                             </div>
                             <div>
-                                <h1
+                                <span
                                     className={cn(
-                                        "font-bold text-lg transition-colors",
+                                        "block font-bold text-lg transition-colors",
                                         showDarkHeader
                                             ? "text-white"
                                             : "text-slate-900",
                                     )}>
                                     MedConnect
-                                </h1>
+                                </span>
                                 <p
                                     className={cn(
                                         "text-xs transition-colors",
@@ -332,6 +346,10 @@ function PublicLayout({ children }) {
 
                         {/* Mobile Menu Button */}
                         <button
+                            type='button'
+                            aria-label={t("nav.open_menu")}
+                            aria-expanded={isMobileMenuOpen}
+                            aria-controls='public-mobile-navigation'
                             onClick={() => setIsMobileMenuOpen(true)}
                             className={cn(
                                 "lg:hidden p-2 rounded-lg transition-colors",
@@ -351,46 +369,56 @@ function PublicLayout({ children }) {
             </main>
 
             {/* Footer */}
-            <footer id='contact' className='bg-slate-900 text-white'>
-                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16'>
+            {/* The landing page owns #contact; anchor nav routes to "/#contact". */}
+            {/* Deliberately light. The closing CTA is the page's single darkest
+                moment; a second dark block right under it flattens that peak and
+                turns the ink accent into the default. Utility content also reads
+                better on light. */}
+            <footer className='relative overflow-hidden border-t border-slate-200/80 bg-slate-100'>
+                <div
+                    aria-hidden='true'
+                    className='pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-teal-50/70 to-transparent'
+                />
+
+                <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16'>
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12'>
                         {/* Brand */}
                         <div>
                             <div className='flex items-center gap-3 mb-6'>
-                                <div className='w-10 h-10 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center'>
+                                <div className='w-10 h-10 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-teal-500/20'>
                                     <Activity className='w-6 h-6 text-white' />
                                 </div>
                                 <div>
-                                    <h3 className='font-bold text-lg'>MedConnect</h3>
-                                    <p className='text-xs text-slate-400'>{t("common.telemedicine")}</p>
+                                    <h3 className='font-bold text-lg text-slate-900'>MedConnect</h3>
+                                    <p className='text-xs text-slate-600'>{t("common.telemedicine")}</p>
                                 </div>
                             </div>
-                            <p className='text-slate-400 text-sm leading-relaxed'>
+                            <p className='text-slate-600 text-sm leading-relaxed'>
                                 {t("footer.description")}
                             </p>
                         </div>
 
                         {/* Quick Links */}
                         <div>
-                            <h4 className='font-semibold mb-6'>{t("footer.navigation")}</h4>
+                            <h4 className='font-semibold mb-6 text-slate-900'>{t("footer.navigation")}</h4>
                             <ul className='space-y-3'>
                                 <li>
-                                    <Link to='/' className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                    <Link to='/' className='text-slate-600 hover:text-teal-700 transition-colors text-sm'>
                                         {t("nav.home")}
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link to='/doctors' className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                    <Link to='/doctors' className='text-slate-600 hover:text-teal-700 transition-colors text-sm'>
                                         {t("nav.doctors")}
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link to='/register' className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                    <Link to='/register' className='text-slate-600 hover:text-teal-700 transition-colors text-sm'>
                                         {t("nav.register")}
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link to='/login' className='text-slate-400 hover:text-white transition-colors text-sm'>
+                                    <Link to='/login' className='text-slate-600 hover:text-teal-700 transition-colors text-sm'>
                                         {t("nav.login")}
                                     </Link>
                                 </li>
@@ -399,31 +427,31 @@ function PublicLayout({ children }) {
 
                         {/* Contact */}
                         <div>
-                            <h4 className='font-semibold mb-6'>{t("footer.contacts")}</h4>
+                            <h4 className='font-semibold mb-6 text-slate-900'>{t("footer.contacts")}</h4>
                             <ul className='space-y-4'>
-                                <li className='flex items-center gap-3 text-slate-400'>
-                                    <Phone className='w-5 h-5 text-teal-500' />
+                                <li className='flex items-center gap-3 text-slate-600'>
+                                    <Phone className='w-5 h-5 text-teal-600' />
                                     <span className='text-sm'>+7 (7172) 123-456</span>
                                 </li>
-                                <li className='flex items-center gap-3 text-slate-400'>
-                                    <Mail className='w-5 h-5 text-teal-500' />
+                                <li className='flex items-center gap-3 text-slate-600'>
+                                    <Mail className='w-5 h-5 text-teal-600' />
                                     <span className='text-sm'>info@medconnect.kz</span>
                                 </li>
-                                <li className='flex items-start gap-3 text-slate-400'>
-                                    <MapPin className='w-5 h-5 text-teal-500 flex-shrink-0' />
+                                <li className='flex items-start gap-3 text-slate-600'>
+                                    <MapPin className='w-5 h-5 text-teal-600 shrink-0' />
                                     <span className='text-sm'>{t('footer.address')}</span>
                                 </li>
                             </ul>
                         </div>
                     </div>
 
-                    <div className='mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4'>
-                        <p className='text-slate-500 text-sm'>{t("footer.copyright")}</p>
+                    <div className='mt-12 pt-8 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4'>
+                        <p className='text-slate-600 text-sm'>{t("footer.copyright")}</p>
                         <div className='flex items-center gap-6'>
-                            <Link to='/privacy' className='text-slate-500 hover:text-white text-sm transition-colors'>
+                            <Link to='/privacy' className='text-slate-600 hover:text-teal-700 text-sm transition-colors'>
                                 {t("footer.privacy")}
                             </Link>
-                            <Link to='/terms' className='text-slate-500 hover:text-white text-sm transition-colors'>
+                            <Link to='/terms' className='text-slate-600 hover:text-teal-700 text-sm transition-colors'>
                                 {t("footer.terms")}
                             </Link>
                         </div>
