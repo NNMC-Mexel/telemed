@@ -25,8 +25,17 @@ frontend/dist/
 *.tar.gz
 *.rar
 
-# Security reports
+# Security reports — these describe unremediated vulnerabilities, the threat
+# model and medical-data flows, so they stay out of the repository.
 SECURITY_FIXES.txt
+AUDIT.md
+SECURITY_AUDIT*.md
+SECURITY_TEST_PLAN*.md
+THREAT_MODEL*.md
+REMEDIATION_PLAN*.md
+REMEDIATION_ROADMAP*.md
+DATA_FLOW*.md
+TEST_PLAN*.md
 
 # Personal legal notes
 LEGAL_NOTES.md
