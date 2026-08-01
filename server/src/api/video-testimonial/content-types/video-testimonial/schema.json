@@ -1,0 +1,77 @@
+{
+  "kind": "collectionType",
+  "collectionName": "video_testimonials",
+  "info": {
+    "singularName": "video-testimonial",
+    "pluralName": "video-testimonials",
+    "displayName": "Video testimonial",
+    "description": "Согласованные видеоотзывы пациентов для публичного лендинга"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "patientName": {
+      "type": "string",
+      "required": true,
+      "maxLength": 80
+    },
+    "patientInitials": {
+      "type": "string",
+      "maxLength": 4
+    },
+    "title": {
+      "type": "string",
+      "required": true,
+      "maxLength": 120
+    },
+    "quote": {
+      "type": "text",
+      "maxLength": 280
+    },
+    "specialty": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "video": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": ["videos"]
+    },
+    "poster": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": ["images"]
+    },
+    "durationSeconds": {
+      "type": "integer",
+      "min": 1,
+      "max": 3600
+    },
+    "consentConfirmed": {
+      "type": "boolean",
+      "required": true,
+      "default": false
+    },
+    "consentRecordedAt": {
+      "type": "datetime"
+    },
+    "publishAt": {
+      "type": "datetime"
+    },
+    "expiresAt": {
+      "type": "datetime"
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": false
+    },
+    "priority": {
+      "type": "integer",
+      "default": 0
+    }
+  }
+}

@@ -1361,6 +1361,75 @@ export interface ApiTimeSlotTimeSlot extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiVideoTestimonialVideoTestimonial
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'video_testimonials';
+  info: {
+    description: '\u0421\u043E\u0433\u043B\u0430\u0441\u043E\u0432\u0430\u043D\u043D\u044B\u0435 \u0432\u0438\u0434\u0435\u043E\u043E\u0442\u0437\u044B\u0432\u044B \u043F\u0430\u0446\u0438\u0435\u043D\u0442\u043E\u0432 \u0434\u043B\u044F \u043F\u0443\u0431\u043B\u0438\u0447\u043D\u043E\u0433\u043E \u043B\u0435\u043D\u0434\u0438\u043D\u0433\u0430';
+    displayName: 'Video testimonial';
+    pluralName: 'video-testimonials';
+    singularName: 'video-testimonial';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    consentConfirmed: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<false>;
+    consentRecordedAt: Schema.Attribute.DateTime;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    durationSeconds: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 3600;
+          min: 1;
+        },
+        number
+      >;
+    expiresAt: Schema.Attribute.DateTime;
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::video-testimonial.video-testimonial'
+    > &
+      Schema.Attribute.Private;
+    patientInitials: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 4;
+      }>;
+    patientName: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    poster: Schema.Attribute.Media<'images'>;
+    priority: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    publishAt: Schema.Attribute.DateTime;
+    publishedAt: Schema.Attribute.DateTime;
+    quote: Schema.Attribute.Text &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 280;
+      }>;
+    specialty: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    title: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 120;
+      }>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    video: Schema.Attribute.Media<'videos'> & Schema.Attribute.Required;
+  };
+}
+
 export interface PluginContentReleasesRelease
   extends Struct.CollectionTypeSchema {
   collectionName: 'strapi_releases';
@@ -1919,6 +1988,7 @@ declare module '@strapi/strapi' {
       'api::specialization.specialization': ApiSpecializationSpecialization;
       'api::story.story': ApiStoryStory;
       'api::time-slot.time-slot': ApiTimeSlotTimeSlot;
+      'api::video-testimonial.video-testimonial': ApiVideoTestimonialVideoTestimonial;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

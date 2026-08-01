@@ -25,6 +25,8 @@ import {
     Building2,
     ThumbsUp,
     ChevronLeft,
+    ChevronRight,
+    Play,
     Send,
     ExternalLink,
     Quote,
@@ -35,11 +37,13 @@ import {
 import Button from "../components/ui/Button";
 import CountUp from "../components/ui/CountUp";
 import MedicalAmbient from "../components/ui/MedicalAmbient";
+import Modal from "../components/ui/Modal";
 import {
     contentAPI,
     doctorsAPI,
     newsAPI,
     storiesAPI,
+    videoTestimonialsAPI,
     specializationsAPI,
     getMediaUrl,
     normalizeResponse,
@@ -1297,7 +1301,141 @@ const testimonialAccents = [
     { avatar: "bg-amber-100 text-amber-700", quote: "text-amber-500/25" },
 ];
 
-function TestimonialsSection({ testimonials, t }) {
+const formatTestimonialDuration = (seconds) => {
+    const value = Number(seconds);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    const minutes = Math.floor(value / 60);
+    const rest = Math.floor(value % 60);
+    return `${minutes}:${String(rest).padStart(2, "0")}`;
+};
+
+function VideoTestimonialCard({ item, onOpen, t }) {
+    const poster = getMediaUrl(item.poster?.formats?.medium || item.poster);
+    const initials = item.patientInitials || getInitials(item.patientName);
+    const duration = formatTestimonialDuration(item.durationSeconds);
+
+    return (
+        <button
+            type='button'
+            onClick={() => onOpen(item)}
+            aria-label={t('landing.testimonials.play_video', { name: item.patientName })}
+            className='lift elevate-sm group w-[82vw] max-w-[350px] shrink-0 snap-start overflow-hidden rounded-3xl border border-slate-200/80 bg-white text-left transition-shadow hover:border-teal-200 hover:shadow-2xl hover:shadow-teal-900/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-4 sm:w-[330px] lg:w-[calc(33.333%_-_1rem)] lg:max-w-none'>
+            <span className='relative block aspect-[4/5] overflow-hidden bg-gradient-to-br from-ink-900 via-teal-700 to-sky-600'>
+                {poster ? (
+                    <img
+                        src={poster}
+                        alt=''
+                        loading='lazy'
+                        decoding='async'
+                        className='h-full w-full object-cover transition-transform duration-700 group-hover:scale-105'
+                    />
+                ) : (
+                    <span className='flex h-full w-full items-center justify-center text-7xl font-semibold text-white/18'>
+                        {initials}
+                    </span>
+                )}
+                <span aria-hidden='true' className='absolute inset-0 bg-gradient-to-t from-ink-950/90 via-ink-950/10 to-transparent' />
+                {duration && (
+                    <span className='absolute right-4 top-4 rounded-full border border-white/20 bg-ink-950/55 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm'>
+                        {duration}
+                    </span>
+                )}
+                <span className='absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/60 bg-white/90 text-teal-700 shadow-xl transition-transform duration-300 group-hover:scale-110'>
+                    <Play aria-hidden='true' className='ml-1 h-7 w-7 fill-current' />
+                </span>
+                <span className='absolute inset-x-0 bottom-0 p-5 text-white'>
+                    {item.specialty && (
+                        <span className='text-xs font-semibold uppercase tracking-[0.14em] text-sky-200'>
+                            {item.specialty}
+                        </span>
+                    )}
+                    <span className='mt-1.5 block text-xl font-semibold leading-snug'>{item.title}</span>
+                </span>
+            </span>
+            <span className='block p-5'>
+                {item.quote && (
+                    <span className='line-clamp-2 block text-sm leading-relaxed text-slate-600'>“{item.quote}”</span>
+                )}
+                <span className={cn("flex items-center gap-3", item.quote && "mt-4")}>
+                    <span className='flex h-10 w-10 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700'>
+                        {initials}
+                    </span>
+                    <span className='font-semibold text-slate-900'>{item.patientName}</span>
+                </span>
+            </span>
+        </button>
+    );
+}
+
+function VideoTestimonialPlayer({ item, onClose, t }) {
+    if (!item) return null;
+
+    const video = getMediaUrl(item.video);
+    const poster = getMediaUrl(item.poster?.formats?.large || item.poster);
+
+    return (
+        <Modal
+            isOpen
+            onClose={onClose}
+            title={item.patientName}
+            description={item.specialty || item.title}
+            size='xl'>
+            <div className='grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.55fr)]'>
+                <div className='flex min-h-[240px] items-center justify-center overflow-hidden rounded-2xl bg-ink-950'>
+                    <video
+                        src={video}
+                        poster={poster || undefined}
+                        controls
+                        autoPlay
+                        playsInline
+                        preload='metadata'
+                        aria-label={t('landing.testimonials.video_dialog_label', { name: item.patientName })}
+                        className='max-h-[68dvh] w-full object-contain'
+                    />
+                </div>
+                <div className='flex flex-col justify-center'>
+                    <span className='text-xs font-bold uppercase tracking-[0.18em] text-teal-700'>
+                        {t('landing.testimonials.video_tab')}
+                    </span>
+                    <h3 className='mt-3 text-2xl font-semibold leading-tight tracking-[-0.02em] text-slate-950'>
+                        {item.title}
+                    </h3>
+                    {item.quote && (
+                        <blockquote className='mt-5 border-l-2 border-sky-400 pl-4 leading-relaxed text-slate-600'>
+                            “{item.quote}”
+                        </blockquote>
+                    )}
+                </div>
+            </div>
+        </Modal>
+    );
+}
+
+function TestimonialsSection({ testimonials, videoTestimonials = [], t }) {
+    const [activeTab, setActiveTab] = useState("text");
+    const [activeVideo, setActiveVideo] = useState(null);
+    const videoTrackRef = useRef(null);
+
+    const selectTabFromKeyboard = (event) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const nextTab = event.key === "ArrowLeft" || event.key === "Home" ? "text" : "video";
+        setActiveTab(nextTab);
+        event.currentTarget.parentElement
+            ?.querySelector(`[data-testimonial-tab="${nextTab}"]`)
+            ?.focus();
+    };
+
+    const scrollVideos = (direction) => {
+        const track = videoTrackRef.current;
+        if (!track) return;
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        track.scrollBy({
+            left: direction * Math.max(track.clientWidth * 0.82, 300),
+            behavior: reducedMotion ? "auto" : "smooth",
+        });
+    };
+
     return (
         <section className='relative overflow-hidden bg-slate-50/70 py-24'>
             <div
@@ -1311,10 +1449,62 @@ function TestimonialsSection({ testimonials, t }) {
                     eyebrow={t('landing.testimonials.badge')}
                     title={t('landing.testimonials.title')}
                     subtitle={t('landing.testimonials.subtitle')}
-                    className='mb-14'
+                    className='mb-8'
                 />
 
-                <div className='grid gap-6 md:grid-cols-3 md:pb-8'>
+                <div
+                    role='tablist'
+                    aria-label={t('landing.testimonials.badge')}
+                    className='mx-auto mb-12 flex w-fit rounded-2xl border border-teal-200/80 bg-teal-50/80 p-1.5 shadow-sm'>
+                    <button
+                        id='testimonial-tab-text'
+                        type='button'
+                        role='tab'
+                        data-testimonial-tab='text'
+                        aria-selected={activeTab === "text"}
+                        aria-controls='testimonial-panel-text'
+                        tabIndex={activeTab === "text" ? 0 : -1}
+                        onClick={() => setActiveTab("text")}
+                        onKeyDown={selectTabFromKeyboard}
+                        className={cn(
+                            "min-w-28 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600",
+                            activeTab === "text"
+                                ? "bg-white text-teal-800 shadow-sm"
+                                : "text-slate-600 hover:text-teal-800",
+                        )}>
+                        {t('landing.testimonials.text_tab')}
+                    </button>
+                    <button
+                        id='testimonial-tab-video'
+                        type='button'
+                        role='tab'
+                        data-testimonial-tab='video'
+                        aria-selected={activeTab === "video"}
+                        aria-controls='testimonial-panel-video'
+                        tabIndex={activeTab === "video" ? 0 : -1}
+                        onClick={() => setActiveTab("video")}
+                        onKeyDown={selectTabFromKeyboard}
+                        className={cn(
+                            "flex min-w-36 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600",
+                            activeTab === "video"
+                                ? "bg-white text-teal-800 shadow-sm"
+                                : "text-slate-600 hover:text-teal-800",
+                        )}>
+                        {t('landing.testimonials.video_tab')}
+                        {videoTestimonials.length > 0 && (
+                            <span className='rounded-full bg-teal-100 px-2 py-0.5 text-[0.68rem] text-teal-700'>
+                                {videoTestimonials.length}
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                <div
+                    id='testimonial-panel-text'
+                    role='tabpanel'
+                    aria-labelledby='testimonial-tab-text'
+                    hidden={activeTab !== "text"}
+                    className='grid gap-6 md:grid-cols-3 md:pb-8'>
                     {testimonials.map((testimonial, idx) => {
                         const accent = testimonialAccents[idx % testimonialAccents.length];
                         return (
@@ -1354,7 +1544,60 @@ function TestimonialsSection({ testimonials, t }) {
                         );
                     })}
                 </div>
+
+                <div
+                    id='testimonial-panel-video'
+                    role='tabpanel'
+                    aria-labelledby='testimonial-tab-video'
+                    hidden={activeTab !== "video"}>
+                    {videoTestimonials.length === 0 ? (
+                        <div className='elevate-sm mx-auto max-w-2xl rounded-3xl border border-slate-200/80 bg-white px-6 py-12 text-center sm:px-10'>
+                            <span className='mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-50 text-teal-700'>
+                                <Video aria-hidden='true' className='h-8 w-8' />
+                            </span>
+                            <h3 className='mt-5 text-xl font-semibold text-slate-950'>
+                                {t('landing.testimonials.video_empty_title')}
+                            </h3>
+                            <p className='mx-auto mt-3 max-w-lg leading-relaxed text-slate-600'>
+                                {t('landing.testimonials.video_empty_desc')}
+                            </p>
+                        </div>
+                    ) : (
+                        <div>
+                            <div className='mb-5 flex justify-end gap-2'>
+                                <button
+                                    type='button'
+                                    onClick={() => scrollVideos(-1)}
+                                    aria-label={t('landing.testimonials.previous_video')}
+                                    className='flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-teal-300 hover:text-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600'>
+                                    <ChevronLeft className='h-5 w-5' />
+                                </button>
+                                <button
+                                    type='button'
+                                    onClick={() => scrollVideos(1)}
+                                    aria-label={t('landing.testimonials.next_video')}
+                                    className='flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-teal-300 hover:text-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600'>
+                                    <ChevronRight className='h-5 w-5' />
+                                </button>
+                            </div>
+                            <div
+                                ref={videoTrackRef}
+                                className='flex snap-x snap-mandatory gap-6 overflow-x-auto pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'>
+                                {videoTestimonials.map((item) => (
+                                    <VideoTestimonialCard
+                                        key={item.id}
+                                        item={item}
+                                        onOpen={setActiveVideo}
+                                        t={t}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
+
+            <VideoTestimonialPlayer item={activeVideo} onClose={() => setActiveVideo(null)} t={t} />
         </section>
     );
 }
@@ -1683,6 +1926,7 @@ function LandingPage() {
     const [landingContent, setLandingContent] = useState(null);
     const [news, setNews] = useState([]);
     const [stories, setStories] = useState([]);
+    const [videoTestimonials, setVideoTestimonials] = useState([]);
 
     const defaultLandingConfig = useMemo(() => ({
         hero: {
@@ -1821,6 +2065,11 @@ function LandingPage() {
             .getPublic(12)
             .then((res) => setStories(normalizeResponse(res).data || []))
             .catch((error) => console.error("Error fetching landing stories:", error));
+
+        videoTestimonialsAPI
+            .getPublic(9)
+            .then((res) => setVideoTestimonials(normalizeResponse(res).data || []))
+            .catch((error) => console.error("Error fetching video testimonials:", error));
     }, []);
 
     // Merge CMS content with i18n defaults
@@ -1922,7 +2171,11 @@ function LandingPage() {
 
             {doctors.length > 0 && <DoctorsCarousel doctors={doctors} />}
 
-            <TestimonialsSection testimonials={testimonials} t={t} />
+            <TestimonialsSection
+                testimonials={testimonials}
+                videoTestimonials={videoTestimonials}
+                t={t}
+            />
 
             <ImpactSection section={config.aboutSection} stats={config.stats} />
 

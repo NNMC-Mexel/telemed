@@ -70,6 +70,7 @@ export const ADMIN_NAV_ITEMS = [
   { path: '/admin/promotions', label: 'nav.admin_promotions', icon: 'tags' },
   { path: '/admin/news', label: 'nav.admin_news', icon: 'newspaper' },
   { path: '/admin/stories', label: 'nav.admin_stories', icon: 'clapperboard' },
+  { path: '/admin/video-testimonials', label: 'nav.admin_video_testimonials', icon: 'video' },
   { path: '/admin/appointments', label: 'nav.admin_appointments', icon: 'calendar' },
   { path: '/admin/specializations', label: 'nav.admin_specializations', icon: 'tags' },
   { path: '/admin/support', label: 'nav.support', icon: 'life-buoy' },

@@ -6,7 +6,8 @@
  * отклоняются и по расширению, и по MIME-типу — клиентской проверки недостаточно.
  *
  * Видео (mp4/webm, до 60 МБ) разрешено отдельно и только администраторам —
- * оно нужно лишь для маркетинговых сторис. Для остальных ролей список прежний.
+ * оно нужно лишь для маркетинговых сторис и видеоотзывов. Для остальных ролей
+ * список прежний.
  */
 
 const ALLOWED_EXTENSIONS = new Set([
@@ -23,7 +24,7 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ])
 
-// Video is only ever needed by the marketing story reel, which is admin-only.
+// Video is only ever needed by admin-managed marketing content.
 // It stays out of the default list so a patient account cannot be used to park
 // large media on the server.
 const ADMIN_ONLY_EXTENSIONS = new Set(['mp4', 'webm'])

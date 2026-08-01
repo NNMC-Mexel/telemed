@@ -18,6 +18,7 @@ import {
   LifeBuoy,
   Newspaper,
   Clapperboard,
+  Video,
   X,
 } from 'lucide-react'
 import { cn } from '../../utils/helpers'
@@ -44,6 +45,7 @@ const iconMap = {
   'life-buoy': LifeBuoy,
   newspaper: Newspaper,
   clapperboard: Clapperboard,
+  video: Video,
 }
 
 function Sidebar({ navItems, onNavClick }) {

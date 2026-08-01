@@ -255,9 +255,9 @@ export const normalizeResponse = (response) => {
 const UPLOAD_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
 const UPLOAD_MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 
-// Video is only ever uploaded from the admin story editor. It stays opt-in
-// rather than widening the default, so patient-facing document uploads keep
-// their narrow allow-list.
+// Video is only ever uploaded from admin-managed marketing editors. It stays
+// opt-in rather than widening the default, so patient-facing document uploads
+// keep their narrow allow-list.
 export const UPLOAD_STORY_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm']
 const UPLOAD_STORY_MAX_SIZE_BYTES = 60 * 1024 * 1024 // 60 MB
 
@@ -557,6 +557,37 @@ export const storiesAPI = {
     update: (id, data) => api.put(`/api/stories/${id}`, { data }),
 
     delete: (id) => api.delete(`/api/stories/${id}`),
+};
+
+// ===========================================
+// API для видеоотзывов
+// ===========================================
+
+export const videoTestimonialsAPI = {
+    getPublic: (limit = 9) =>
+        api.get(`/api/video-testimonials/public/list?limit=${limit}`),
+
+    getAll: () =>
+        api.get(
+            `/api/video-testimonials?populate=*&sort=priority:desc,publishAt:desc&pagination[limit]=${LARGE_COLLECTION_LIMIT}`
+        ),
+
+    create: async (data) => {
+        try {
+            return await api.post("/api/video-testimonials?status=published", { data });
+        } catch (error) {
+            if (error?.response?.status === 400 || error?.response?.status === 404) {
+                return api.post("/api/video-testimonials", {
+                    data: { ...data, publishedAt: new Date().toISOString() },
+                });
+            }
+            throw error;
+        }
+    },
+
+    update: (id, data) => api.put(`/api/video-testimonials/${id}`, { data }),
+
+    delete: (id) => api.delete(`/api/video-testimonials/${id}`),
 };
 
 // ===========================================

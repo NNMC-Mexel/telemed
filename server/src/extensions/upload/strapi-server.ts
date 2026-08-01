@@ -15,9 +15,9 @@ const ALLOWED_UPLOAD_TYPES = new Map<string, Set<string>>([
   ],
 ]);
 
-// Video is needed only by the admin-managed story reel. Kept separate from the
-// list above so it is never reachable from a patient or doctor account — this
-// mirrors the same restriction in the upload-guard middleware.
+// Video is needed only by admin-managed stories and testimonials. Kept
+// separate from the list above so it is never reachable from a patient or
+// doctor account — this mirrors the upload-guard middleware.
 const ADMIN_ONLY_UPLOAD_TYPES = new Map<string, Set<string>>([
   ['.mp4', new Set(['video/mp4'])],
   ['.webm', new Set(['video/webm'])],

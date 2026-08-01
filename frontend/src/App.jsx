@@ -41,6 +41,7 @@ import AdminDoctors from './pages/admin/AdminDoctors'
 import AdminPromotions from './pages/admin/AdminPromotions'
 import AdminNews from './pages/admin/AdminNews'
 import AdminStories from './pages/admin/AdminStories'
+import AdminVideoTestimonials from './pages/admin/AdminVideoTestimonials'
 import NewsPostPage from './pages/NewsPostPage'
 import NewsPostModal from './components/news/NewsPostModal'
 import AdminAppointments from './pages/admin/AdminAppointments'
@@ -373,6 +374,7 @@ function AppRoutes() {
           <Route path="promotions" element={<AdminPromotions />} />
           <Route path="news" element={<AdminNews />} />
           <Route path="stories" element={<AdminStories />} />
+          <Route path="video-testimonials" element={<AdminVideoTestimonials />} />
           <Route path="appointments" element={<AdminAppointments />} />
           <Route path="specializations" element={<AdminSpecializations />} />
           <Route path="patient-help" element={<AdminPatientHelp />} />
