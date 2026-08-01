@@ -1075,6 +1075,7 @@ function DoctorsCarousel({ doctors }) {
                 aria-hidden='true'
                 className='absolute right-0 top-24 h-[380px] w-[380px] rounded-full bg-sky-100/40 blur-3xl'
             />
+            <MedicalAmbient tone='brand' />
 
             <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
                 <div className='mb-12 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between'>
@@ -1303,6 +1304,7 @@ function TestimonialsSection({ testimonials, t }) {
                 aria-hidden='true'
                 className='absolute -left-24 top-1/3 h-[360px] w-[360px] rounded-full bg-teal-200/25 blur-3xl'
             />
+            <MedicalAmbient tone='brand' />
 
             <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
                 <SectionHeading
@@ -1387,6 +1389,7 @@ function ImpactSection({ section, stats }) {
                 className='absolute inset-0 bg-gradient-to-r from-ink-900 via-ink-900/90 to-ink-900/55'
             />
             <div aria-hidden='true' className='texture-noise absolute inset-0' />
+            <MedicalAmbient tone='light' />
 
             <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
                 <div className='grid items-center gap-14 lg:grid-cols-2'>
@@ -1488,6 +1491,7 @@ function ContactSection({ section }) {
                 aria-hidden='true'
                 className='absolute inset-x-0 bottom-0 h-[420px] bg-gradient-to-t from-slate-50 to-transparent'
             />
+            <MedicalAmbient tone='brand' />
 
             <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
                 <SectionHeading
@@ -1603,6 +1607,7 @@ function ClosingCTA({ t }) {
         <section className='surface-ink relative overflow-hidden py-28 sm:py-32'>
             <div aria-hidden='true' className='texture-noise absolute inset-0' />
             <div aria-hidden='true' className='texture-grid absolute inset-0 text-teal-100' />
+            <MedicalAmbient tone='light' />
             <div
                 aria-hidden='true'
                 className='absolute left-1/2 top-1/2 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-400/10 blur-3xl'
