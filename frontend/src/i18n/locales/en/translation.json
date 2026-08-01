@@ -68,6 +68,8 @@
     "admin_users": "Users",
     "admin_appointments": "Appointments",
     "admin_promotions": "Promotions",
+    "admin_news": "News",
+    "admin_stories": "Stories",
     "admin_specializations": "Specializations",
     "admin_settings": "Site Content",
     "admin_patient_help": "Patient Help",
@@ -250,6 +252,16 @@
       "card_2_desc": "Book a convenient time or get an urgent consultation at any moment.",
       "card_3_title": "Electronic Documents",
       "card_3_desc": "Prescriptions, conclusions and referrals in electronic form right after consultation."
+    },
+    "news": {
+      "badge": "News",
+      "title": "What is new at NNMC",
+      "subtitle": "Promotions, announcements and events at the centre — everything worth knowing right now",
+      "read_more": "Read more",
+      "kind_promo": "Promo",
+      "kind_news": "News",
+      "kind_event": "Event",
+      "kind_announcement": "Announcement"
     },
     "specializations": {
       "badge": "Specializations",
@@ -1746,5 +1758,22 @@
     "select_ticket": "Select a request",
     "select_ticket_hint": "Choose a request from the list on the left",
     "pinned_subtitle": "Service, booking and payment questions"
+  },
+  "news": {
+    "not_found_title": "Article not found",
+    "not_found_text": "It may have been unpublished or its display period has ended.",
+    "back_home": "Go to homepage",
+    "back_to_news": "All news",
+    "read_more": "Read more",
+    "dialog_label": "News article"
+  },
+  "stories": {
+    "label": "Watch",
+    "viewer_label": "Story viewer",
+    "next": "Next story",
+    "previous": "Previous story",
+    "open": "Open",
+    "mute": "Mute",
+    "unmute": "Unmute"
   }
 }

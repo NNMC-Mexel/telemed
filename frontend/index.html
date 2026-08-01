@@ -9,8 +9,11 @@
     <meta name="description" content="MedConnect — платформа телемедицины Национального научного медицинского центра (ННМЦ). Онлайн-консультации с врачами: терапевт, кардиолог, невролог, педиатр и другие специалисты. Видеоконсультации, чат, запись на приём." />
     <meta name="keywords" content="телемедицина, онлайн врач, консультация врача онлайн, ННМЦ, MedConnect, видеоконсультация, запись к врачу, Казахстан, Астана" />
     <meta name="author" content="NNMC MedConnect" />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://medconnect.nnmc.kz/" />
+    <!-- No static robots or canonical here: SEOHead sets both per route via
+         Helmet. Hard-coding them would leave every page with two of each — the
+         first canonical always pointing at the homepage, and a stray
+         "index, follow" contradicting pages that ask to be excluded. -->
+
 
     <!-- Language alternates -->
     <link rel="alternate" hreflang="ru" href="https://medconnect.nnmc.kz/?lang=ru" />
@@ -41,7 +44,7 @@
     <link rel="icon" type="image/svg+xml" href="/medconnect-icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#0d9488" />
+    <meta name="theme-color" content="#1c3e70" />
 
     <!-- Structured Data — MedicalOrganization -->
     <script type="application/ld+json">
@@ -117,6 +120,26 @@
     <link rel="preconnect" href="https://medconnectserver.nnmc.kz" />
     <link rel="dns-prefetch" href="https://medconnectserver.nnmc.kz" />
 
+    <!-- LCP: the landing hero backdrop.
+         Kicking the poster off during head parsing — before the module graph is
+         even requested — is what stops the hero from arriving late. Every other
+         route (login, dashboards, admin) would never render this image, so the
+         preload is gated on the landing path instead of being a static <link>. -->
+    <script>
+      if (location.pathname === '/' || location.pathname === '/index.html') {
+        var heroPreload = document.createElement('link')
+        heroPreload.rel = 'preload'
+        heroPreload.as = 'image'
+        heroPreload.type = 'image/avif'
+        heroPreload.href = '/nnmc-campus-hero-poster-1280.avif'
+        heroPreload.imageSrcset =
+          '/nnmc-campus-hero-poster-828.avif 828w, /nnmc-campus-hero-poster-1280.avif 1280w, /nnmc-campus-hero-poster-1600.avif 1600w'
+        heroPreload.imageSizes = '100vw'
+        heroPreload.fetchPriority = 'high'
+        document.head.appendChild(heroPreload)
+      }
+    </script>
+
     <!-- Splash overlay (native app only): seamlessly continues the native splash with a pulsing logo -->
     <style>
       #splash-screen {
@@ -142,7 +165,7 @@
         font-size: 1.25rem;
         font-weight: 700;
         letter-spacing: 0.02em;
-        color: #0d9488;
+        color: #1c3e70;
         animation: splash-fade-in 0.8s ease 0.2s both;
       }
       #splash-screen.splash-screen--hide {

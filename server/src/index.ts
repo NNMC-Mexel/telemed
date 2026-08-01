@@ -164,6 +164,19 @@ const roleDefinitions = {
       'api::promotion.promotion.create',
       'api::promotion.promotion.update',
       'api::promotion.promotion.delete',
+      // News posts — полный CRUD (публичный список отдаётся отдельным
+      // маршрутом с auth: false и не зависит от этих прав)
+      'api::news-post.news-post.find',
+      'api::news-post.news-post.findOne',
+      'api::news-post.news-post.create',
+      'api::news-post.news-post.update',
+      'api::news-post.news-post.delete',
+      // Stories — полный CRUD (публичная лента отдаётся отдельным маршрутом)
+      'api::story.story.find',
+      'api::story.story.findOne',
+      'api::story.story.create',
+      'api::story.story.update',
+      'api::story.story.delete',
       // Reviews — полный CRUD
       'api::review.review.find',
       'api::review.review.findOne',

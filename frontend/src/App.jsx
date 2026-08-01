@@ -38,6 +38,10 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminDoctors from './pages/admin/AdminDoctors'
 import AdminPromotions from './pages/admin/AdminPromotions'
+import AdminNews from './pages/admin/AdminNews'
+import AdminStories from './pages/admin/AdminStories'
+import NewsPostPage from './pages/NewsPostPage'
+import NewsPostModal from './components/news/NewsPostModal'
 import AdminAppointments from './pages/admin/AdminAppointments'
 import AdminSpecializations from './pages/admin/AdminSpecializations'
 import AdminContent from './pages/admin/AdminContent'
@@ -254,7 +258,30 @@ function App() {
     <ToastProvider>
     <DialogProvider>
     <BrowserRouter>
-      <Routes>
+      <AppRoutes />
+      <ActiveConsultation />
+    </BrowserRouter>
+    </DialogProvider>
+    </ToastProvider>
+  )
+}
+
+/**
+ * Routes, plus the routed-modal layer.
+ *
+ * A news card opened from the landing navigates to a real `/news/:slug` URL but
+ * carries the page it came from in location state. When that state is present
+ * the article renders in a modal over the landing; a cold visit or a shared
+ * link has no background and renders the standalone page, so every article is
+ * linkable, indexable and survives a refresh.
+ */
+function AppRoutes() {
+  const location = useLocation()
+  const background = location.state?.background
+
+  return (
+    <>
+      <Routes location={background || location}>
         <Route path="/" element={<AppHomeRoute />} />
 
         {/* Public Routes */}
@@ -265,6 +292,7 @@ function App() {
           <Route path="/about" element={<LandingPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          <Route path="/news/:slug" element={<NewsPostPage />} />
         </Route>
 
         {/* Auth Routes */}
@@ -341,6 +369,8 @@ function App() {
           <Route path="users" element={<AdminUsers />} />
           <Route path="doctors" element={<AdminDoctors />} />
           <Route path="promotions" element={<AdminPromotions />} />
+          <Route path="news" element={<AdminNews />} />
+          <Route path="stories" element={<AdminStories />} />
           <Route path="appointments" element={<AdminAppointments />} />
           <Route path="specializations" element={<AdminSpecializations />} />
           <Route path="patient-help" element={<AdminPatientHelp />} />
@@ -386,10 +416,13 @@ function App() {
         {/* 404 */}
         <Route path="*" element={<Navigate to={isNativeMobileApp() ? '/login' : '/'} replace />} />
       </Routes>
-      <ActiveConsultation />
-    </BrowserRouter>
-    </DialogProvider>
-    </ToastProvider>
+
+      {background && (
+        <Routes>
+          <Route path="/news/:slug" element={<NewsPostModal />} />
+        </Routes>
+      )}
+    </>
   )
 }
 

@@ -68,6 +68,8 @@ export const ADMIN_NAV_ITEMS = [
   { path: '/admin/users', label: 'nav.admin_users', icon: 'users' },
   { path: '/admin/doctors', label: 'nav.doctors', icon: 'stethoscope' },
   { path: '/admin/promotions', label: 'nav.admin_promotions', icon: 'tags' },
+  { path: '/admin/news', label: 'nav.admin_news', icon: 'newspaper' },
+  { path: '/admin/stories', label: 'nav.admin_stories', icon: 'clapperboard' },
   { path: '/admin/appointments', label: 'nav.admin_appointments', icon: 'calendar' },
   { path: '/admin/specializations', label: 'nav.admin_specializations', icon: 'tags' },
   { path: '/admin/support', label: 'nav.support', icon: 'life-buoy' },

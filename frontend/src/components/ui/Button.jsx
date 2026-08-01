@@ -42,7 +42,10 @@ const Button = forwardRef(({
       ref={ref}
       disabled={disabled || isLoading}
       className={cn(
-        'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200',
+        // Montserrat sets wider than the previous face, so labels that used to
+        // fit now break mid-phrase inside flex rows. Buttons should overflow
+        // their row rather than wrap their label.
+        'inline-flex items-center justify-center whitespace-nowrap font-medium rounded-xl transition-all duration-200',
         'focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2',
         'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
         variants[variant],

@@ -15,6 +15,14 @@ const ALLOWED_UPLOAD_TYPES = new Map<string, Set<string>>([
   ],
 ]);
 
+// Video is needed only by the admin-managed story reel. Kept separate from the
+// list above so it is never reachable from a patient or doctor account — this
+// mirrors the same restriction in the upload-guard middleware.
+const ADMIN_ONLY_UPLOAD_TYPES = new Map<string, Set<string>>([
+  ['.mp4', new Set(['video/mp4'])],
+  ['.webm', new Set(['video/webm'])],
+]);
+
 const getUploadFiles = (filesInput: any) => {
   if (!filesInput) return [];
   return Array.isArray(filesInput) ? filesInput : [filesInput];
@@ -32,22 +40,28 @@ const getFileExt = (file: any) => {
 const getMime = (file: any) =>
   String(file?.mimetype || file?.mime || file?.type || '').toLowerCase().trim();
 
-const validateFileType = (file: any) => {
+const validateFileType = (file: any, isAdmin: boolean) => {
   const fileName = getFileName(file);
   const ext = getFileExt(file);
   const mime = getMime(file);
-  const allowedMimes = ALLOWED_UPLOAD_TYPES.get(ext);
+
+  const allowedMimes =
+    ALLOWED_UPLOAD_TYPES.get(ext) || (isAdmin ? ADMIN_ONLY_UPLOAD_TYPES.get(ext) : undefined);
 
   if (!allowedMimes || !allowedMimes.has(mime)) {
-    throw new ValidationError(
-      `Unsupported file type: ${fileName || 'file'}. Allowed types: PDF, JPG, PNG, WEBP, DOC, DOCX.`,
-    );
+    const allowed = isAdmin
+      ? 'PDF, JPG, PNG, WEBP, DOC, DOCX, MP4, WEBM'
+      : 'PDF, JPG, PNG, WEBP, DOC, DOCX';
+    throw new ValidationError(`Unsupported file type: ${fileName || 'file'}. Allowed types: ${allowed}.`);
   }
 };
 
 const validateUploadFiles = (ctx: any) => {
+  // Unlike the middleware, this runs after authentication, so the role is
+  // already resolved on the context.
+  const isAdmin = ctx.state?.user?.role?.type === 'admin';
   const filesInput = ctx.request?.files?.files;
-  getUploadFiles(filesInput).forEach(validateFileType);
+  getUploadFiles(filesInput).forEach((file: any) => validateFileType(file, isAdmin));
 };
 
 export default (plugin: any) => {

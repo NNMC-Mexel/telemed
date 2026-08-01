@@ -16,6 +16,8 @@ import {
   BookOpenCheck,
   CircleHelp,
   LifeBuoy,
+  Newspaper,
+  Clapperboard,
   X,
 } from 'lucide-react'
 import { cn } from '../../utils/helpers'
@@ -40,6 +42,8 @@ const iconMap = {
   'book-open-check': BookOpenCheck,
   'circle-help': CircleHelp,
   'life-buoy': LifeBuoy,
+  newspaper: Newspaper,
+  clapperboard: Clapperboard,
 }
 
 function Sidebar({ navItems, onNavClick }) {

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Link, useLocation } from "react-router-dom";
 import SEOHead from "../components/seo/SEOHead";
 import { useTranslation } from "react-i18next";
 import {
@@ -30,28 +30,37 @@ import {
     Quote,
     ShieldCheck,
     Sparkles,
+    ArrowUpRight,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import CountUp from "../components/ui/CountUp";
 import {
     contentAPI,
     doctorsAPI,
+    newsAPI,
+    storiesAPI,
     specializationsAPI,
     getMediaUrl,
     normalizeResponse,
 } from "../services/api";
+import StoriesRow from "../components/news/StoriesRow";
+import NewsKindBadge from "../components/news/NewsKindBadge";
+import { getNewsKindStyle } from "../components/news/newsKind";
+import { heroPosterLqip } from "../assets/heroPosterLqip";
 import { useReveal } from "../hooks/useReveal";
-import { cn, getInitials, isDoctorOnline, getSpecName } from "../utils/helpers";
+import { cn, formatDate, getInitials, isDoctorOnline, getSpecName } from "../utils/helpers";
 
+// Initials plates for doctors without a photo. Kept inside the brand's blue,
+// green and sand, and dark enough for white initials to stay legible.
 const doctorCardColors = [
-    "bg-gradient-to-br from-teal-400 to-teal-600",
-    "bg-gradient-to-br from-sky-400 to-sky-600",
-    "bg-gradient-to-br from-violet-400 to-violet-600",
-    "bg-gradient-to-br from-rose-400 to-rose-600",
-    "bg-gradient-to-br from-amber-400 to-amber-600",
-    "bg-gradient-to-br from-emerald-400 to-emerald-600",
-    "bg-gradient-to-br from-indigo-400 to-indigo-600",
-    "bg-gradient-to-br from-pink-400 to-pink-600",
+    "bg-gradient-to-br from-teal-500 to-teal-700",
+    "bg-gradient-to-br from-sky-500 to-sky-700",
+    "bg-gradient-to-br from-sand-500 to-sand-700",
+    "bg-gradient-to-br from-teal-600 to-sky-600",
+    "bg-gradient-to-br from-slate-500 to-slate-700",
+    "bg-gradient-to-br from-sky-600 to-teal-700",
+    "bg-gradient-to-br from-teal-500 to-teal-800",
+    "bg-gradient-to-br from-sand-600 to-teal-700",
 ];
 
 const featureIcons = [Video, Shield, Clock, FileText];
@@ -61,13 +70,16 @@ const impactIcons = [Users, Stethoscope, Award, Heart];
 // Each speciality carries its own hue so the directory reads as a colour-coded
 // taxonomy instead of six identical teal tiles. Class strings are spelled out
 // in full so Tailwind's scanner picks them up.
+// Six variations built only from the brandbook's blue, green and sand. A
+// rainbow taxonomy would fight a navy-and-green identity, so the tiles stay
+// distinguishable through blends and depth rather than through foreign hues.
 const specializationPalette = [
-    { gradient: "from-teal-500 to-emerald-500", ring: "group-hover:border-teal-300", glow: "group-hover:shadow-teal-500/20", label: "group-hover:text-teal-700" },
-    { gradient: "from-rose-500 to-red-500", ring: "group-hover:border-rose-300", glow: "group-hover:shadow-rose-500/20", label: "group-hover:text-rose-700" },
-    { gradient: "from-violet-500 to-purple-500", ring: "group-hover:border-violet-300", glow: "group-hover:shadow-violet-500/20", label: "group-hover:text-violet-700" },
-    { gradient: "from-sky-500 to-cyan-500", ring: "group-hover:border-sky-300", glow: "group-hover:shadow-sky-500/20", label: "group-hover:text-sky-700" },
-    { gradient: "from-amber-500 to-orange-500", ring: "group-hover:border-amber-300", glow: "group-hover:shadow-amber-500/20", label: "group-hover:text-amber-700" },
-    { gradient: "from-fuchsia-500 to-pink-500", ring: "group-hover:border-fuchsia-300", glow: "group-hover:shadow-fuchsia-500/20", label: "group-hover:text-fuchsia-700" },
+    { gradient: "from-teal-600 to-teal-500", ring: "group-hover:border-teal-300", glow: "group-hover:shadow-teal-500/20", label: "group-hover:text-teal-700" },
+    { gradient: "from-sky-600 to-sky-500", ring: "group-hover:border-sky-300", glow: "group-hover:shadow-sky-500/20", label: "group-hover:text-sky-700" },
+    { gradient: "from-sand-400 to-sand-500", ring: "group-hover:border-sand-300", glow: "group-hover:shadow-sand-500/20", label: "group-hover:text-sand-700" },
+    { gradient: "from-teal-600 to-sky-500", ring: "group-hover:border-teal-300", glow: "group-hover:shadow-teal-500/20", label: "group-hover:text-teal-700" },
+    { gradient: "from-slate-500 to-slate-600", ring: "group-hover:border-slate-300", glow: "group-hover:shadow-slate-500/20", label: "group-hover:text-slate-700" },
+    { gradient: "from-sky-600 to-sand-400", ring: "group-hover:border-sky-300", glow: "group-hover:shadow-sky-500/20", label: "group-hover:text-sky-700" },
 ];
 
 const specializationMeta = {
@@ -98,6 +110,24 @@ function trackSpotlight(event) {
 // Small helper so stagger delays stay readable at the call site.
 const delay = (ms) => ({ "--reveal-delay": `${ms}ms` });
 
+// Strapi returns a `formats` map alongside the original. Cards are a few
+// hundred pixels wide, so offering the derivatives stops the page from pulling
+// full-resolution uploads for every doctor portrait and news cover.
+function mediaSrcSet(media) {
+    const formats = media?.formats;
+    if (!formats) return undefined;
+
+    return (
+        [
+            formats.small && `${getMediaUrl(formats.small)} 500w`,
+            formats.medium && `${getMediaUrl(formats.medium)} 750w`,
+            formats.large && `${getMediaUrl(formats.large)} 1000w`,
+        ]
+            .filter(Boolean)
+            .join(", ") || undefined
+    );
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Shared section furniture                                                   */
 /* -------------------------------------------------------------------------- */
@@ -107,12 +137,14 @@ function Eyebrow({ children, tone = "light", className }) {
         <span
             className={cn(
                 "inline-flex items-center gap-3 text-xs font-bold uppercase tracking-[0.22em]",
-                tone === "ink" ? "text-teal-300" : "text-teal-700",
+                // Dark sections are the brand navy, so the accent there is the
+                // brand green — light blue on navy has too little separation.
+                tone === "ink" ? "text-sky-300" : "text-teal-700",
                 className,
             )}>
             <span
                 aria-hidden='true'
-                className={cn("h-px w-8", tone === "ink" ? "bg-teal-400/70" : "bg-teal-600/50")}
+                className={cn("h-px w-8", tone === "ink" ? "bg-sky-400/70" : "bg-teal-600/50")}
             />
             {children}
         </span>
@@ -153,34 +185,155 @@ function SectionHeading({ eyebrow, title, subtitle, tone = "light", align = "cen
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Hero backdrop                                                              */
+/* -------------------------------------------------------------------------- */
+
+const HERO_POSTER_WIDTHS = [828, 1280, 1600];
+
+const heroPosterSrcSet = (ext) =>
+    HERO_POSTER_WIDTHS.map((w) => `/nnmc-campus-hero-poster-${w}.${ext} ${w}w`).join(", ");
+
+// The campus video is 12.5 MB. It is an ambience layer behind a near-opaque
+// scrim, so it is never worth spending a metered or slow connection on.
+function shouldSkipHeroVideo() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!connection) return false;
+    if (connection.saveData) return true;
+    return ["slow-2g", "2g", "3g"].includes(connection.effectiveType);
+}
+
+// Runs `callback` once the main thread is free, so the video download never
+// competes with the poster, the fonts or the doctors/specialities requests.
+function whenIdle(callback) {
+    if (typeof window.requestIdleCallback === "function") {
+        const handle = window.requestIdleCallback(callback, { timeout: 2500 });
+        return () => window.cancelIdleCallback(handle);
+    }
+    const handle = window.setTimeout(callback, 900);
+    return () => window.clearTimeout(handle);
+}
+
+/**
+ * Three-stage hero backdrop.
+ *
+ * 1. An inline LQIP paints with the stylesheet, so the hero is never a blank
+ *    grey box — this is what marketing was seeing while the video streamed in.
+ * 2. The responsive poster (preloaded in index.html, ~28 KB on mobile) lands
+ *    next and is what most visitors actually read the headline against.
+ * 3. Only after the poster has decoded, and only on a connection that can
+ *    afford it, does the video start downloading. It cross-fades in on
+ *    `canplaythrough`, so it never appears as a stalling half-frame.
+ */
+function HeroBackdrop() {
+    const videoRef = useRef(null);
+    const [isPosterReady, setIsPosterReady] = useState(false);
+    const [videoSrc, setVideoSrc] = useState(null);
+    const [isVideoVisible, setIsVideoVisible] = useState(false);
+
+    // A cached poster can finish decoding before React attaches onLoad, so the
+    // ref callback covers the load event that would otherwise never fire.
+    const attachPoster = useCallback((node) => {
+        if (node?.complete) setIsPosterReady(true);
+    }, []);
+
+    useEffect(() => {
+        if (!isPosterReady || videoSrc) return undefined;
+        if (shouldSkipHeroVideo()) return undefined;
+
+        return whenIdle(() => setVideoSrc("/nnmc-campus-hero.mp4"));
+    }, [isPosterReady, videoSrc]);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video || !videoSrc) return undefined;
+
+        const reveal = () => {
+            window.clearTimeout(fallback);
+            video.play().then(
+                () => setIsVideoVisible(true),
+                // Autoplay can still be refused (low power mode, policy).
+                // The poster underneath stays as the final state.
+                () => {},
+            );
+        };
+
+        video.addEventListener("canplaythrough", reveal, { once: true });
+
+        // Some browsers throttle buffering and never reach `canplaythrough`.
+        // Accept HAVE_FUTURE_DATA after a grace period so the video is not
+        // silently withheld — a brief stall is better than never playing.
+        const fallback = window.setTimeout(() => {
+            if (video.readyState >= 3) reveal();
+        }, 8000);
+
+        const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+        const syncMotionPreference = () => {
+            if (!motionPreference.matches) return;
+            video.pause();
+            setIsVideoVisible(false);
+        };
+        motionPreference.addEventListener?.("change", syncMotionPreference);
+
+        return () => {
+            window.clearTimeout(fallback);
+            video.removeEventListener("canplaythrough", reveal);
+            motionPreference.removeEventListener?.("change", syncMotionPreference);
+        };
+    }, [videoSrc]);
+
+    return (
+        <div className='absolute inset-0 overflow-hidden' aria-hidden='true'>
+            <div
+                className='hero-clinical__background-lqip absolute inset-0'
+                style={{ backgroundImage: `url("${heroPosterLqip}")` }}
+            />
+
+            <picture>
+                <source type='image/avif' srcSet={heroPosterSrcSet("avif")} sizes='100vw' />
+                <source type='image/webp' srcSet={heroPosterSrcSet("webp")} sizes='100vw' />
+                <img
+                    ref={attachPoster}
+                    src='/nnmc-campus-hero-poster-1280.jpg'
+                    srcSet={heroPosterSrcSet("jpg")}
+                    sizes='100vw'
+                    alt=''
+                    width={1600}
+                    height={900}
+                    decoding='async'
+                    fetchPriority='high'
+                    onLoad={() => setIsPosterReady(true)}
+                    className='hero-clinical__background-media absolute inset-0 h-full w-full object-cover'
+                />
+            </picture>
+
+            {videoSrc && (
+                <video
+                    ref={videoRef}
+                    className={cn(
+                        "hero-clinical__background-media hero-clinical__background-video absolute inset-0 h-full w-full object-cover",
+                        isVideoVisible && "hero-clinical__background-video--visible",
+                    )}
+                    src={videoSrc}
+                    muted
+                    loop
+                    playsInline
+                    preload='auto'
+                    tabIndex={-1}
+                />
+            )}
+
+            <div className='hero-clinical__background-scrim absolute inset-0' />
+        </div>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Hero                                                                       */
 /* -------------------------------------------------------------------------- */
 
 function ClinicalHero({ config, t, trustItems }) {
-    const videoRef = useRef(null);
-
-    useEffect(() => {
-        const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-        const syncMotionPreference = () => {
-            const video = videoRef.current;
-            if (!video) return;
-
-            if (motionPreference.matches) {
-                video.pause();
-            } else if (video.paused) {
-                video.play().catch(() => {});
-            }
-        };
-
-        syncMotionPreference();
-        motionPreference.addEventListener?.("change", syncMotionPreference);
-
-        return () => {
-            motionPreference.removeEventListener?.("change", syncMotionPreference);
-        };
-    }, []);
-
     const allStats = config.stats || [];
     const visibleStats = allStats.length >= 4
         ? [allStats[0], allStats[2], allStats[3]].filter(Boolean)
@@ -190,23 +343,9 @@ function ClinicalHero({ config, t, trustItems }) {
         <section
             aria-labelledby='landing-hero-title'
             className='hero-clinical relative flex min-h-svh flex-col overflow-hidden bg-slate-100'>
-            <div className='absolute inset-0 overflow-hidden' aria-hidden='true'>
-                <video
-                    ref={videoRef}
-                    className='hero-clinical__background-video h-full w-full object-cover'
-                    src='/nnmc-campus-hero.mp4'
-                    poster='/nnmc-campus-hero-poster.jpg'
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    preload='metadata'
-                    tabIndex={-1}
-                />
-                <div className='hero-clinical__background-scrim absolute inset-0' />
-            </div>
+            <HeroBackdrop />
 
-            <div className='relative z-10 mx-auto grid w-full max-w-7xl flex-1 items-center gap-12 px-4 pb-12 pt-32 sm:px-6 sm:pb-14 sm:pt-36 lg:grid-cols-[minmax(0,0.92fr)_minmax(500px,1.08fr)] lg:gap-16 lg:px-8 lg:pb-4 lg:pt-28'>
+            <div className='relative z-10 mx-auto grid w-full max-w-7xl flex-1 items-center gap-12 px-4 pb-12 pt-32 sm:px-6 sm:pb-14 sm:pt-36 lg:grid-cols-[minmax(0,0.92fr)_minmax(500px,1.08fr)] lg:gap-16 lg:px-8 lg:pb-(--hero-pad-bottom) lg:pt-(--hero-pad-top)'>
                 <div className='max-w-2xl'>
                         <span className='hero-enter hero-enter--1 inline-flex items-center gap-2.5 rounded-full border border-teal-200/80 bg-white px-4 py-2 text-sm font-semibold text-teal-800 shadow-sm shadow-teal-900/5'>
                             <span className='flex h-7 w-7 items-center justify-center rounded-full bg-teal-50'>
@@ -217,18 +356,18 @@ function ClinicalHero({ config, t, trustItems }) {
 
                         <h1
                             id='landing-hero-title'
-                            className='hero-enter hero-enter--2 mt-7 max-w-2xl text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-slate-950 sm:text-5xl lg:text-[3.8rem]'>
+                            className='hero-enter hero-enter--2 mt-7 max-w-2xl text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-slate-950 sm:text-5xl lg:mt-(--hero-mt-title) lg:text-(length:--hero-title-size)'>
                             {config.hero.titlePrefix}<br />
                             <span className='text-teal-700'>
                                 {config.hero.titleHighlight}
                             </span>
                         </h1>
 
-                        <p className='hero-enter hero-enter--3 mt-6 max-w-xl text-lg leading-relaxed text-slate-600 sm:text-xl'>
+                        <p className='hero-enter hero-enter--3 mt-6 max-w-xl text-lg leading-relaxed text-slate-600 sm:text-xl lg:mt-(--hero-mt-lead)'>
                             {config.hero.description}
                         </p>
 
-                        <div className='hero-enter hero-enter--4 mt-8 flex flex-col gap-3 sm:flex-row sm:items-center'>
+                        <div className='hero-enter hero-enter--4 mt-8 flex flex-col gap-3 sm:flex-row sm:items-center lg:mt-(--hero-mt-actions)'>
                             <Link to='/doctors' className='group sm:w-auto'>
                                 <Button
                                     size='xl'
@@ -240,13 +379,13 @@ function ClinicalHero({ config, t, trustItems }) {
                             <button
                                 type='button'
                                 onClick={() => document.querySelector("#features")?.scrollIntoView({ behavior: "smooth" })}
-                                className='inline-flex min-h-14 items-center justify-center rounded-2xl px-5 text-base font-semibold text-slate-700 transition-colors hover:bg-white hover:text-teal-800'>
+                                className='inline-flex min-h-14 items-center justify-center whitespace-nowrap rounded-2xl px-5 text-base font-semibold text-slate-700 transition-colors hover:bg-white hover:text-teal-800'>
                                 {t('landing.hero.how_it_works')}
                                 <ArrowRight className='ml-2 h-4 w-4' />
                             </button>
                         </div>
 
-                        <div className='hero-enter hero-enter--5 mt-9 flex max-w-xl items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/75 p-4 shadow-sm shadow-slate-900/5'>
+                        <div className='hero-enter hero-enter--5 mt-9 flex max-w-xl items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/75 p-4 shadow-sm shadow-slate-900/5 lg:mt-(--hero-mt-trust)'>
                             <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50'>
                                 <Shield className='h-5 w-5 text-emerald-700' />
                             </div>
@@ -257,7 +396,7 @@ function ClinicalHero({ config, t, trustItems }) {
                         </div>
 
                         {visibleStats.length > 0 && (
-                            <div className='hero-enter hero-enter--5 mt-8 grid max-w-xl grid-cols-3 border-t border-slate-200 pt-6 lg:mt-6 lg:pt-4'>
+                            <div className='hero-enter hero-enter--5 mt-8 grid max-w-xl grid-cols-3 border-t border-slate-200 pt-6 lg:mt-(--hero-mt-stats) lg:pt-(--hero-pt-stats)'>
                                 {visibleStats.map((item, idx) => (
                                     <div
                                         key={`${item.label}-${idx}`}
@@ -273,7 +412,7 @@ function ClinicalHero({ config, t, trustItems }) {
                 </div>
 
                 <div className='hero-enter hero-enter--3 relative mx-auto w-full max-w-[540px] lg:mx-0 lg:justify-self-end'>
-                    <div className='hero-clinical__service-card relative rounded-[2rem] border border-white bg-white p-5 shadow-2xl shadow-slate-900/15 sm:p-7 lg:p-8'>
+                    <div className='hero-clinical__service-card relative rounded-[2rem] border border-white bg-white p-5 shadow-2xl shadow-slate-900/15 sm:p-7 lg:p-(--hero-card-pad) lg:pb-(--hero-card-pad-bottom)'>
                         <div className='flex items-center gap-3 border-b border-slate-100 pb-5'>
                             <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-700 text-white'>
                                 <Building2 className='h-5 w-5' />
@@ -284,7 +423,7 @@ function ClinicalHero({ config, t, trustItems }) {
                             </div>
                         </div>
 
-                        <div className='mt-7 flex items-start justify-between gap-4'>
+                        <div className='mt-7 flex items-start justify-between gap-4 lg:mt-(--hero-card-mt-title)'>
                             <div>
                                 <h2 className='text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl'>{config.heroCard.title}</h2>
                                 <p className='mt-2 text-sm leading-relaxed text-slate-500 sm:text-base'>{config.heroCard.subtitle}</p>
@@ -295,11 +434,11 @@ function ClinicalHero({ config, t, trustItems }) {
                             </span>
                         </div>
 
-                        <div className='mt-6 space-y-3'>
+                        <div className='mt-6 space-y-3 lg:mt-(--hero-card-mt-items) lg:space-y-(--hero-card-gap-items)'>
                             {(config.heroCard.items || []).slice(0, 3).map((item, idx) => {
                                 const AdvantageIcon = advantageIcons[idx] || advantageIcons[0];
                                 return (
-                                    <div key={`${item.title}-${idx}`} className='flex items-start gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4'>
+                                    <div key={`${item.title}-${idx}`} className='flex items-start gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 lg:p-(--hero-card-item-pad)'>
                                         <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50'>
                                             <AdvantageIcon className='h-5 w-5 text-teal-700' />
                                         </div>
@@ -345,7 +484,7 @@ function TrustMarquee({ items, label }) {
             aria-hidden={hidden || undefined}>
             {items.map((item, idx) => (
                 <li key={`${item}-${idx}`} className='flex shrink-0 items-center gap-3'>
-                    <ShieldCheck className='h-4 w-4 shrink-0 text-teal-400' />
+                    <ShieldCheck className='h-4 w-4 shrink-0 text-sky-400' />
                     <span className='whitespace-nowrap text-sm font-medium text-teal-50/85'>{item}</span>
                 </li>
             ))}
@@ -434,7 +573,7 @@ function FeatureBento({ section }) {
                                     />
 
                                     <div className='relative'>
-                                        <div className='ambient-pulse relative flex h-14 w-14 items-center justify-center rounded-2xl border border-teal-400/40 bg-teal-400/10 text-teal-300'>
+                                        <div className='ambient-pulse relative flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-400/40 bg-sky-400/10 text-sky-300'>
                                             <FeatureIcon className='h-7 w-7' />
                                         </div>
                                     </div>
@@ -479,6 +618,215 @@ function FeatureBento({ section }) {
                         );
                     })}
                 </div>
+            </div>
+        </section>
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  News, promos and announcements                                             */
+/* -------------------------------------------------------------------------- */
+
+// Every card opens the article at its own URL. Predictability beats cleverness:
+// a card that sometimes opens a story and sometimes jumps straight to /doctors
+// makes the block feel unreliable. The editor's `linkUrl` becomes the call to
+// action inside the article instead.
+//
+// The `background` state is what turns the navigation into a modal over the
+// landing. Without it — a shared link, a new tab, a refresh — the same URL
+// renders the standalone page, so every article stays linkable and indexable.
+function NewsCardShell({ item, className, children, ...rest }) {
+    const location = useLocation();
+
+    if (!item.slug) {
+        return <article className={className} {...rest}>{children}</article>;
+    }
+
+    return (
+        <Link
+            to={`/news/${item.slug}`}
+            state={{ background: location }}
+            className={className}
+            {...rest}>
+            {children}
+        </Link>
+    );
+}
+
+// The cover is the whole point of this block — marketing asked for imagery.
+// When an editor leaves it empty we draw a branded gradient plate with the
+// kind's icon rather than collapsing to a text-only card.
+function NewsCover({ item, className, sizes, aspect = "h-full" }) {
+    const { Icon, gradient } = getNewsKindStyle(item.kind);
+    const cover = item.cover;
+    const src = cover ? getMediaUrl(cover.formats?.medium || cover.url) : null;
+    const srcSet = mediaSrcSet(cover);
+
+    return (
+        <div className={cn("relative overflow-hidden bg-slate-100", aspect, className)}>
+            {src ? (
+                <img
+                    src={src}
+                    srcSet={srcSet}
+                    sizes={sizes}
+                    alt={cover.alternativeText || item.title}
+                    loading='lazy'
+                    decoding='async'
+                    className='h-full w-full object-cover transition-transform duration-700 group-hover:scale-105'
+                />
+            ) : (
+                <div className={cn("flex h-full w-full items-center justify-center bg-gradient-to-br", gradient)}>
+                    <Icon aria-hidden='true' className='h-16 w-16 text-white/35' strokeWidth={1.25} />
+                </div>
+            )}
+            <div
+                aria-hidden='true'
+                className='absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent'
+            />
+        </div>
+    );
+}
+
+// Thin alias so the existing call sites keep their shape while the styles and
+// the badge itself live next to the article view that also needs them.
+const NewsBadge = ({ item, className }) => <NewsKindBadge post={item} className={className} />;
+
+function NewsSection({ items = [], stories = [], t, language }) {
+    // The block is editorial: nothing to show simply means no section, never an
+    // empty state on a marketing page. The reel alone is enough to justify it.
+    if (items.length === 0 && stories.length === 0) return null;
+
+    const [lead, ...rest] = items;
+    const isEditorial = items.length >= 3;
+    const secondary = rest.slice(0, 3);
+
+    const dateOf = (item) => (item.publishAt ? formatDate(item.publishAt, language) : null);
+
+    return (
+        <section id='news' className='relative overflow-hidden bg-slate-50 py-24'>
+            <div aria-hidden='true' className='texture-grid absolute inset-0 text-teal-900' />
+
+            <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+                <SectionHeading
+                    eyebrow={t("landing.news.badge")}
+                    title={t("landing.news.title")}
+                    subtitle={t("landing.news.subtitle")}
+                    className='mb-14'
+                />
+
+                {/* The reel sits above the grid: it is the quickest, lightest
+                    way into the block and sets up the articles below it. */}
+                <StoriesRow stories={stories} />
+
+                {isEditorial ? (
+                    <div className='grid gap-6 lg:grid-cols-12'>
+                        {/* Lead story — the pinned or highest-priority item. */}
+                        <NewsCardShell
+                            item={lead}
+                            data-reveal='scale'
+                            onMouseMove={trackSpotlight}
+                            className='spotlight lift elevate-md hover:elevate-lg group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white lg:col-span-7'>
+                            <NewsCover
+                                item={lead}
+                                aspect='aspect-16/9'
+                                sizes='(min-width: 1024px) 58vw, 100vw'
+                            />
+                            <div className='flex flex-1 flex-col p-7 sm:p-9'>
+                                <div className='flex flex-wrap items-center gap-3'>
+                                    <NewsBadge item={lead} t={t} />
+                                    {dateOf(lead) && (
+                                        <span className='text-sm text-slate-500'>{dateOf(lead)}</span>
+                                    )}
+                                </div>
+                                <h3 className='mt-5 text-2xl font-semibold leading-tight tracking-[-0.02em] text-slate-950 sm:text-3xl'>
+                                    {lead.title}
+                                </h3>
+                                {lead.excerpt && (
+                                    <p className='mt-4 text-base leading-relaxed text-slate-600'>{lead.excerpt}</p>
+                                )}
+                                {lead.linkUrl && (
+                                    <span className='mt-7 inline-flex items-center gap-2 text-base font-semibold text-teal-700'>
+                                        {lead.linkLabel || t("landing.news.read_more")}
+                                        <ArrowUpRight className='h-5 w-5 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1' />
+                                    </span>
+                                )}
+                            </div>
+                        </NewsCardShell>
+
+                        {/* Secondary items — thumbnail left, copy right. */}
+                        <div className='flex flex-col gap-6 lg:col-span-5'>
+                            {secondary.map((item, index) => (
+                                <NewsCardShell
+                                    key={item.id}
+                                    item={item}
+                                    data-reveal='right'
+                                    style={delay(80 * index)}
+                                    onMouseMove={trackSpotlight}
+                                    className='spotlight lift elevate-sm hover:elevate-lg group flex flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white hover:border-teal-200'>
+                                    {/* Flush to the card edge and full height:
+                                        an inset thumbnail stretched by the
+                                        column reads as a layout accident. */}
+                                    <NewsCover
+                                        item={item}
+                                        className='w-28 shrink-0 sm:w-36'
+                                        sizes='144px'
+                                    />
+                                    <div className='flex min-w-0 flex-col justify-center p-5 sm:p-6'>
+                                        {/* A stretched pill in a flex column
+                                            would span the whole card. */}
+                                        <NewsBadge item={item} t={t} className='self-start' />
+                                        <h3 className='mt-3 text-lg font-semibold leading-snug tracking-[-0.01em] text-slate-950'>
+                                            {item.title}
+                                        </h3>
+                                        {dateOf(item) && (
+                                            <span className='mt-2 text-sm text-slate-500'>{dateOf(item)}</span>
+                                        )}
+                                    </div>
+                                </NewsCardShell>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className='grid gap-6 md:grid-cols-2'>
+                        {items.map((item, index) => (
+                            <NewsCardShell
+                                key={item.id}
+                                item={item}
+                                data-reveal='scale'
+                                style={delay(80 * index)}
+                                onMouseMove={trackSpotlight}
+                                className='spotlight lift elevate-md hover:elevate-lg group flex flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white'>
+                                <NewsCover
+                                    item={item}
+                                    aspect='aspect-16/9'
+                                    sizes='(min-width: 768px) 45vw, 100vw'
+                                />
+                                <div className='flex flex-1 flex-col p-7'>
+                                    <div className='flex flex-wrap items-center gap-3'>
+                                        <NewsBadge item={item} t={t} />
+                                        {dateOf(item) && (
+                                            <span className='text-sm text-slate-500'>{dateOf(item)}</span>
+                                        )}
+                                    </div>
+                                    <h3 className='mt-4 text-xl font-semibold leading-snug tracking-[-0.02em] text-slate-950'>
+                                        {item.title}
+                                    </h3>
+                                    {item.excerpt && (
+                                        <p className='mt-3 text-[0.95rem] leading-relaxed text-slate-600'>
+                                            {item.excerpt}
+                                        </p>
+                                    )}
+                                    {item.linkUrl && (
+                                        <span className='mt-6 inline-flex items-center gap-2 text-sm font-semibold text-teal-700'>
+                                            {item.linkLabel || t("landing.news.read_more")}
+                                            <ArrowUpRight className='h-4 w-4 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1' />
+                                        </span>
+                                    )}
+                                </div>
+                            </NewsCardShell>
+                        ))}
+                    </div>
+                )}
             </div>
         </section>
     );
@@ -616,7 +964,7 @@ function ProcessSection({ section }) {
                                 data-reveal
                                 style={delay(120 * index)}
                                 className='relative flex gap-6 lg:block'>
-                                <div className='relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-teal-400/30 bg-ink-900 text-lg font-bold tracking-tight text-teal-300 shadow-lg shadow-teal-950/50'>
+                                <div className='relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-sky-400/30 bg-ink-900 text-lg font-bold tracking-tight text-sky-300 shadow-lg shadow-teal-950/50'>
                                     {String(index + 1).padStart(2, "0")}
                                 </div>
                                 <div className='pb-1 lg:mt-7 lg:pr-6'>
@@ -793,7 +1141,11 @@ function DoctorsCarousel({ doctors }) {
                                                         {photoUrl ? (
                                                             <img
                                                                 src={photoUrl}
+                                                                srcSet={mediaSrcSet(doctor.photo)}
+                                                                sizes='(min-width: 1024px) 300px, (min-width: 640px) 45vw, 90vw'
                                                                 alt={doctor.fullName}
+                                                                loading='lazy'
+                                                                decoding='async'
                                                                 className='h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-105'
                                                             />
                                                         ) : (
@@ -985,14 +1337,23 @@ function TestimonialsSection({ testimonials, t }) {
 function ImpactSection({ section, stats }) {
     return (
         <section id='about' className='surface-ink relative overflow-hidden py-24 text-white sm:py-28'>
-            {/* The real campus, dropped to a texture rather than a photo block. */}
+            {/* The real campus, dropped to a texture rather than a photo block.
+                At 16% opacity under a luminosity blend the smallest tier is
+                indistinguishable from the master, so it reuses the hero set. */}
             <div aria-hidden='true' className='absolute inset-0 opacity-[0.16] mix-blend-luminosity'>
-                <img
-                    src='/nnmc-campus-hero-poster.jpg'
-                    alt=''
-                    className='h-full w-full object-cover'
-                    loading='lazy'
-                />
+                <picture>
+                    <source type='image/avif' srcSet='/nnmc-campus-hero-poster-828.avif' />
+                    <source type='image/webp' srcSet='/nnmc-campus-hero-poster-828.webp' />
+                    <img
+                        src='/nnmc-campus-hero-poster-828.jpg'
+                        alt=''
+                        width={828}
+                        height={466}
+                        className='h-full w-full object-cover'
+                        loading='lazy'
+                        decoding='async'
+                    />
+                </picture>
             </div>
             <div
                 aria-hidden='true'
@@ -1026,7 +1387,7 @@ function ImpactSection({ section, stats }) {
                                     data-reveal='left'
                                     style={delay(220 + 70 * idx)}
                                     className='flex items-center gap-3'>
-                                    <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-400/15 text-teal-300'>
+                                    <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-400/15 text-sky-300'>
                                         <CheckCircle className='h-4 w-4' />
                                     </span>
                                     <span className='text-teal-50/90'>{item}</span>
@@ -1058,11 +1419,11 @@ function ImpactSection({ section, stats }) {
                                     style={delay(120 * idx)}
                                     onMouseMove={trackSpotlight}
                                     className={cn(
-                                        "spotlight spotlight--ink lift rounded-3xl border border-white/12 bg-white/[0.06] p-6 backdrop-blur-sm hover:border-teal-300/30 sm:p-7",
+                                        "spotlight spotlight--ink lift rounded-3xl border border-white/12 bg-white/[0.06] p-6 backdrop-blur-sm hover:border-sky-300/30 sm:p-7",
                                         // A slight vertical stagger keeps the 2×2 from reading as a table.
                                         idx % 2 === 1 && "sm:translate-y-6",
                                     )}>
-                                    <StatIcon className='h-7 w-7 text-teal-300' />
+                                    <StatIcon className='h-7 w-7 text-sky-300' />
                                     <div className='mt-6 text-4xl font-bold tracking-[-0.03em] text-white sm:text-5xl'>
                                         <CountUp value={stat.value} />
                                     </div>
@@ -1184,7 +1545,7 @@ function ContactSection({ section }) {
                             <ul className='mt-7 space-y-3'>
                                 {(section.quickCard.bullets || []).map((item, idx) => (
                                     <li className='flex items-center gap-3' key={idx}>
-                                        <CheckCircle className='h-5 w-5 shrink-0 text-teal-300' />
+                                        <CheckCircle className='h-5 w-5 shrink-0 text-sky-300' />
                                         <span className='text-sm text-teal-50/85'>{item}</span>
                                     </li>
                                 ))}
@@ -1217,12 +1578,12 @@ function ClosingCTA({ t }) {
             <div aria-hidden='true' className='texture-grid absolute inset-0 text-teal-100' />
             <div
                 aria-hidden='true'
-                className='absolute left-1/2 top-1/2 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400/10 blur-3xl'
+                className='absolute left-1/2 top-1/2 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-400/10 blur-3xl'
             />
 
             <div className='relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8'>
                 <div data-reveal='scale' className='flex justify-center'>
-                    <span className='ambient-pulse relative flex h-16 w-16 items-center justify-center rounded-2xl border border-teal-400/40 bg-teal-400/10 text-teal-300'>
+                    <span className='ambient-pulse relative flex h-16 w-16 items-center justify-center rounded-2xl border border-sky-400/40 bg-sky-400/10 text-sky-300'>
                         <Sparkles className='h-8 w-8' />
                     </span>
                 </div>
@@ -1288,6 +1649,8 @@ function LandingPage() {
     const [specializations, setSpecializations] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [landingContent, setLandingContent] = useState(null);
+    const [news, setNews] = useState([]);
+    const [stories, setStories] = useState([]);
 
     const defaultLandingConfig = useMemo(() => ({
         hero: {
@@ -1414,6 +1777,20 @@ function LandingPage() {
         fetchData();
     }, []);
 
+    // Kept out of the main request chain: the news block is optional garnish,
+    // and a CMS hiccup there must not delay doctors, specialities or copy.
+    useEffect(() => {
+        newsAPI
+            .getPublic(4)
+            .then((res) => setNews(normalizeResponse(res).data || []))
+            .catch((error) => console.error("Error fetching landing news:", error));
+
+        storiesAPI
+            .getPublic(12)
+            .then((res) => setStories(normalizeResponse(res).data || []))
+            .catch((error) => console.error("Error fetching landing stories:", error));
+    }, []);
+
     // Merge CMS content with i18n defaults
     const incomingConfig = landingContent?.landingConfig || {};
     const config = useMemo(() => ({
@@ -1482,7 +1859,7 @@ function LandingPage() {
         return [...bullets, ...featureTitles].filter(Boolean);
     }, [config.aboutSection.bullets, config.featuresSection.cards]);
 
-    useReveal([isLoading, doctors.length, specializations.length, i18n.language]);
+    useReveal([isLoading, doctors.length, specializations.length, news.length, stories.length, i18n.language]);
 
     return (
         <div className='overflow-hidden'>
@@ -1496,6 +1873,11 @@ function LandingPage() {
             <ClinicalHero config={config} t={t} trustItems={trustItems} />
 
             <FeatureBento section={config.featuresSection} />
+
+            {/* Sits after the value proposition, before the directory: by this
+                point the visitor knows what the platform is, so a discount or
+                an announcement reads as a reason to act now. */}
+            <NewsSection items={news} stories={stories} t={t} language={i18n.language} />
 
             <SpecializationsSection
                 isLoading={isLoading}

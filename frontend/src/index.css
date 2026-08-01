@@ -1,50 +1,121 @@
 /* Font Import - Must be first */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500&display=swap');
 
 @import "tailwindcss";
 
-/* Tailwind v4 Theme Configuration */
+/* ==========================================================================
+   BRAND PALETTE — single source of truth
+   ==========================================================================
+
+   Implements the ННМЦ brandbook (2026):
+     #1C3E70  primary   deep blue    — science, competence, medical expertise
+     #3A8D67  secondary green        — life, health, growth, care
+     #D8BA9A  tertiary  warm sand    — the neutral accent
+     Montserrat — the corporate typeface
+
+   The whole product is written against Tailwind's `teal` (primary) and `sky`
+   (secondary) scale names, so re-skinning means replacing the ramps in THIS
+   BLOCK and nothing else — no component, no JSX, no utility class changes.
+   The scale names are historical; treat them as "primary" and "secondary".
+
+   To apply a future brand:
+     1. Put the brand's primary at --color-teal-700 and its secondary at
+        --color-sky-600 — those two carry most of the UI.
+     2. Fill the rest of each ramp (50 lightest → 950 darkest) keeping the
+        relative lightness steps; contrast on white is tuned around 600/700.
+     3. Set --color-ink-* to the dark surface family (hero base line, process,
+        impact, closing CTA) and --color-paper to the light page surface.
+
+   Everything below this block references these variables rather than raw hex.
+   ========================================================================== */
+
 @theme {
-  /* Primary - Healing Teal */
-  --color-primary-50: #f0fdfa;
-  --color-primary-100: #ccfbf1;
-  --color-primary-200: #99f6e4;
-  --color-primary-300: #5eead4;
-  --color-primary-400: #2dd4bf;
-  --color-primary-500: #14b8a6;
-  --color-primary-600: #0d9488;
-  --color-primary-700: #0f766e;
-  --color-primary-800: #115e59;
-  --color-primary-900: #134e4a;
+  /* --- Primary ramp — brandbook #1C3E70 sits at 700 --------------------- */
+  --color-teal-50: #f3f6fc;
+  --color-teal-100: #e2ebf8;
+  --color-teal-200: #c3d4ef;
+  --color-teal-300: #98b5e2;
+  --color-teal-400: #618ed1;
+  --color-teal-500: #326abd;
+  --color-teal-600: #265397;
+  --color-teal-700: #1c3e70;
+  --color-teal-800: #163159;
+  --color-teal-900: #122644;
+  --color-teal-950: #0d192b;
 
-  /* Secondary - Trust Blue */
-  --color-secondary-50: #f0f9ff;
-  --color-secondary-100: #e0f2fe;
-  --color-secondary-200: #bae6fd;
-  --color-secondary-300: #7dd3fc;
-  --color-secondary-400: #38bdf8;
-  --color-secondary-500: #0ea5e9;
-  --color-secondary-600: #0284c7;
-  --color-secondary-700: #0369a1;
-  --color-secondary-800: #075985;
-  --color-secondary-900: #0c4a6e;
+  /* --- Secondary ramp — brandbook #3A8D67 sits at 600 ------------------- */
+  --color-sky-50: #f0f9f5;
+  --color-sky-100: #def2e9;
+  --color-sky-200: #bde5d2;
+  --color-sky-300: #92d3b5;
+  --color-sky-400: #5cbc8f;
+  --color-sky-500: #44a779;
+  --color-sky-600: #3a8d67;
+  --color-sky-700: #2c7251;
+  --color-sky-800: #22593f;
+  --color-sky-900: #19432f;
+  --color-sky-950: #0d261a;
 
-  /* Accent - Warm Coral */
+  /* --- Tertiary ramp — brandbook #D8BA9A sits at 300 -------------------- */
+  --color-sand-50: #faf6f1;
+  --color-sand-100: #f4ebe1;
+  --color-sand-200: #e8d6c3;
+  --color-sand-300: #d8ba9a;
+  --color-sand-400: #c69d74;
+  --color-sand-500: #b5825a;
+  --color-sand-600: #9a6a46;
+  --color-sand-700: #7c543a;
+  --color-sand-800: #5f4230;
+  --color-sand-900: #493428;
+
+  /* Semantic aliases kept for components that use `primary-*`/`secondary-*`
+     instead of the scale names. They follow the ramps above automatically. */
+  --color-primary-50: var(--color-teal-50);
+  --color-primary-100: var(--color-teal-100);
+  --color-primary-200: var(--color-teal-200);
+  --color-primary-300: var(--color-teal-300);
+  --color-primary-400: var(--color-teal-400);
+  --color-primary-500: var(--color-teal-500);
+  --color-primary-600: var(--color-teal-600);
+  --color-primary-700: var(--color-teal-700);
+  --color-primary-800: var(--color-teal-800);
+  --color-primary-900: var(--color-teal-900);
+
+  --color-secondary-50: var(--color-sky-50);
+  --color-secondary-100: var(--color-sky-100);
+  --color-secondary-200: var(--color-sky-200);
+  --color-secondary-300: var(--color-sky-300);
+  --color-secondary-400: var(--color-sky-400);
+  --color-secondary-500: var(--color-sky-500);
+  --color-secondary-600: var(--color-sky-600);
+  --color-secondary-700: var(--color-sky-700);
+  --color-secondary-800: var(--color-sky-800);
+  --color-secondary-900: var(--color-sky-900);
+
+  /* Accent - Warm Coral. Reserved for destructive states (delete, errors),
+     which must stay legible as danger rather than fold into the brand. */
   --color-accent-400: #fb7185;
   --color-accent-500: #f43f5e;
   --color-accent-600: #e11d48;
 
-  /* Ink - Deep clinical teal used for dark surfaces.
-     Warmer and more branded than neutral slate-900. */
-  --color-ink-950: #03191a;
-  --color-ink-900: #052623;
-  --color-ink-800: #073632;
-  --color-ink-700: #0a4a44;
-  --color-ink-600: #0f625a;
+  /* Ink — the dark surface family. ink-900 is the brandbook navy used flat on
+     folders, certificates and bags, so dark sections match printed collateral. */
+  --color-ink-950: #0d192b;
+  --color-ink-900: #1c3e70;
+  --color-ink-800: #23497f;
+  --color-ink-700: #2a5490;
+  --color-ink-600: #326abd;
 
-  /* Font Families */
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
+  /* Paper — the warm off-white the brandbook lays every page on. */
+  --color-paper: #f7f5f0;
+
+  /* Hero scrim — the wash the headline is read against, as RGB channels so it
+     can be used at varying alpha. Matches the brandbook paper. */
+  --color-hero-scrim: 247 245 240;
+
+  /* Font Families — Montserrat is the corporate typeface for both roles. */
+  --font-sans: 'Montserrat', system-ui, sans-serif;
+  --font-heading: 'Montserrat', system-ui, sans-serif;
 
   /* Animation */
   --animate-fadeIn: fadeIn 0.3s ease-out;
@@ -75,7 +146,12 @@
 
   body {
     font-family: var(--font-sans);
-    background: linear-gradient(135deg, #f8fafc 0%, #f0fdfa 50%, #f0f9ff 100%);
+    background: linear-gradient(
+      135deg,
+      var(--color-paper) 0%,
+      var(--color-teal-50) 50%,
+      var(--color-sky-50) 100%
+    );
     min-height: 100%;
     min-height: var(--app-height);
     line-height: 1.6;
@@ -117,14 +193,14 @@
 
   /* Focus Styles */
   :focus-visible {
-    outline: 2px solid #14b8a6;
+    outline: 2px solid var(--color-teal-500);
     outline-offset: 2px;
   }
 
   /* Selection */
   ::selection {
-    background: #99f6e4;
-    color: #134e4a;
+    background: var(--color-teal-200);
+    color: var(--color-teal-900);
   }
 }
 
@@ -189,18 +265,148 @@
 
 .hero-clinical {
   isolation: isolate;
+
+  /* --- Hero density ----------------------------------------------------
+     The hero is composed so its trust marquee lands exactly on the fold, but
+     its natural content height is ~895px. Every laptop shorter than that
+     (1366x768, 1512x860, 1536x864 …) pushed the marquee below the fold, so it
+     only appeared after scrolling. These variables drive the vertical rhythm
+     of both columns and tighten as the viewport gets shorter, keeping the
+     whole composition — marquee included — on the first screen.
+     Consumed by `lg:` utilities, so the mobile layout is untouched. */
+  --hero-pad-top: 7rem;
+  --hero-pad-bottom: 1rem;
+  --hero-mt-title: 1.75rem;
+  --hero-mt-lead: 1.5rem;
+  --hero-mt-actions: 2rem;
+  --hero-mt-trust: 2.25rem;
+  --hero-mt-stats: 1.5rem;
+  --hero-pt-stats: 1rem;
+  --hero-title-size: 3.8rem;
+
+  /* Service card on the right — the binding constraint once the text column
+     has been compressed. */
+  --hero-card-pad: 2rem;
+  --hero-card-mt-title: 1.75rem;
+  --hero-card-mt-items: 1.5rem;
+  --hero-card-gap-items: 0.75rem;
+  --hero-card-item-pad: 1rem;
+
+  /* The "verified" seal straddles the card's bottom-left corner. Without
+     reserved space it lands on top of the last item's description — it was
+     covering 13px of text even on a 1080p screen. The card keeps a deeper
+     bottom padding so the badge floats over padding, not over copy. */
+  --hero-card-pad-bottom: 3.5rem;
 }
 
-.hero-clinical__background-video {
+/* Laptop landscape. Keeps clear of the ~80px fixed header. */
+@media (min-width: 1024px) and (max-height: 900px) {
+  .hero-clinical {
+    --hero-pad-top: 6rem;
+    --hero-pad-bottom: 0.75rem;
+    --hero-mt-title: 1.25rem;
+    --hero-mt-lead: 1rem;
+    --hero-mt-actions: 1.5rem;
+    --hero-mt-trust: 1.5rem;
+    --hero-mt-stats: 1rem;
+    --hero-pt-stats: 0.75rem;
+    --hero-title-size: 3.4rem;
+
+    --hero-card-pad: 1.75rem;
+    --hero-card-mt-title: 1.25rem;
+    --hero-card-mt-items: 1.25rem;
+    --hero-card-gap-items: 0.625rem;
+    --hero-card-item-pad: 0.875rem;
+    --hero-card-pad-bottom: 3.25rem;
+  }
+}
+
+/* Short laptops and small browser windows. */
+@media (min-width: 1024px) and (max-height: 820px) {
+  .hero-clinical {
+    --hero-pad-top: 5.5rem;
+    --hero-pad-bottom: 0.5rem;
+    --hero-mt-title: 0.875rem;
+    --hero-mt-lead: 0.75rem;
+    --hero-mt-actions: 1.25rem;
+    --hero-mt-trust: 1.125rem;
+    --hero-mt-stats: 0.75rem;
+    --hero-pt-stats: 0.625rem;
+    --hero-title-size: 3rem;
+
+    --hero-card-pad: 1.5rem;
+    --hero-card-mt-title: 1rem;
+    --hero-card-mt-items: 1rem;
+    --hero-card-gap-items: 0.5rem;
+    --hero-card-item-pad: 0.75rem;
+    --hero-card-pad-bottom: 3.25rem;
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 740px) {
+  .hero-clinical {
+    --hero-pad-top: 5rem;
+    --hero-mt-title: 0.75rem;
+    --hero-mt-lead: 0.5rem;
+    --hero-mt-actions: 1rem;
+    --hero-mt-trust: 0.875rem;
+    --hero-mt-stats: 0.625rem;
+    --hero-title-size: 2.6rem;
+
+    --hero-card-pad: 1.25rem;
+    --hero-card-mt-title: 0.75rem;
+    --hero-card-mt-items: 0.75rem;
+    --hero-card-item-pad: 0.625rem;
+    --hero-card-pad-bottom: 1.25rem;
+  }
+
+  /* At this height the right column has almost no slack left, so the seal
+     cannot be given clearance without pushing the marquee off screen again.
+     It is dropped rather than allowed to sit on the copy — the same claim is
+     already made by the card's first item and by the confidentiality note. */
+  .hero-clinical__seal {
+    display: none;
+  }
+}
+
+/* The hero backdrop is three stacked layers that hand off to each other:
+   an inline LQIP data URI (paints with the stylesheet), the responsive poster
+   (preloaded in index.html), then the campus video once it has actually
+   buffered. They share one filter/scale so each handoff is invisible. */
+.hero-clinical__background-media {
   filter: blur(2px) saturate(0.88) contrast(1) brightness(0.98);
   transform: scale(1.02);
   transform-origin: center;
 }
 
+.hero-clinical__background-lqip {
+  background-position: center;
+  background-size: cover;
+  /* The 24px placeholder is upscaled ~70x; blurring hides the block edges. */
+  filter: blur(12px) saturate(0.88);
+  transform: scale(1.08);
+}
+
+/* The video is only faded in on `canplaythrough`, so the poster is never
+   swapped for a half-decoded first frame. */
+.hero-clinical__background-video {
+  opacity: 0;
+  transition: opacity 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hero-clinical__background-video--visible {
+  opacity: 1;
+}
+
 .hero-clinical__background-scrim {
   background:
-    linear-gradient(90deg, rgba(244, 251, 249, 0.82) 0%, rgba(244, 251, 249, 0.68) 42%, rgba(244, 251, 249, 0.3) 100%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(236, 250, 247, 0.14) 100%);
+    linear-gradient(
+      90deg,
+      rgb(var(--color-hero-scrim) / 0.82) 0%,
+      rgb(var(--color-hero-scrim) / 0.68) 42%,
+      rgb(var(--color-hero-scrim) / 0.3) 100%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgb(var(--color-hero-scrim) / 0.14) 100%);
 }
 
 .hero-clinical__service-card {
@@ -210,13 +416,13 @@
 }
 
 .hero-clinical__primary-cta {
-  background: #0f766e !important;
+  background: var(--color-teal-700) !important;
   color: #fff !important;
 }
 
 .hero-clinical__primary-cta:hover {
-  background: #115e59 !important;
-  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.24);
+  background: var(--color-teal-800) !important;
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--color-teal-700) 24%, transparent);
   transform: translateY(-1px);
 }
 
@@ -238,20 +444,24 @@
 @media (max-width: 1023px) {
   .hero-clinical__background-scrim {
     background:
-      linear-gradient(90deg, rgba(244, 251, 249, 0.82), rgba(244, 251, 249, 0.58)),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(236, 250, 247, 0.14));
+      linear-gradient(90deg, rgb(var(--color-hero-scrim) / 0.82), rgb(var(--color-hero-scrim) / 0.58)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgb(var(--color-hero-scrim) / 0.14));
   }
 }
 
 @media (max-width: 639px) {
-  .hero-clinical__background-video {
+  .hero-clinical__background-media {
     object-position: 58% center;
     filter: blur(1.5px) saturate(0.84) contrast(0.98) brightness(1);
     transform: scale(1.025);
   }
 
+  .hero-clinical__background-lqip {
+    background-position: 58% center;
+  }
+
   .hero-clinical__background-scrim {
-    background: rgba(244, 251, 249, 0.74);
+    background: rgb(var(--color-hero-scrim) / 0.74);
   }
 }
 
@@ -263,6 +473,12 @@
 
   .hero-clinical__seal {
     animation: none;
+  }
+
+  /* The video is never requested under reduced motion; kill the fade so the
+     poster is simply the final state. */
+  .hero-clinical__background-video {
+    transition: none;
   }
 }
 
@@ -276,15 +492,15 @@
 /* Deep teal ink with layered aurora. Used for the sections that break up
    the light rhythm (trust strip, process, impact, closing CTA). */
 .surface-ink {
-  background-color: #052623;
+  background-color: var(--color-ink-900);
   background-image:
-    radial-gradient(1100px 620px at 12% -15%, rgba(20, 184, 166, 0.28), transparent 62%),
-    radial-gradient(900px 520px at 92% 8%, rgba(14, 165, 233, 0.22), transparent 58%),
-    radial-gradient(760px 700px at 62% 118%, rgba(45, 212, 191, 0.16), transparent 62%);
+    radial-gradient(1100px 620px at 12% -15%, color-mix(in srgb, var(--color-teal-500) 28%, transparent), transparent 62%),
+    radial-gradient(900px 520px at 92% 8%, color-mix(in srgb, var(--color-sky-500) 22%, transparent), transparent 58%),
+    radial-gradient(760px 700px at 62% 118%, color-mix(in srgb, var(--color-teal-400) 16%, transparent), transparent 62%);
 }
 
 .surface-ink-flat {
-  background-color: #052623;
+  background-color: var(--color-ink-900);
 }
 
 /* --- Texture ------------------------------------------------------------ */
@@ -312,23 +528,23 @@
 
 /* --- Depth -------------------------------------------------------------- */
 
-/* Teal-tinted elevation. Neutral black shadows read as dirt on a teal page. */
+/* Brand-tinted elevation. Neutral black shadows read as dirt on a tinted page. */
 .elevate-sm {
   box-shadow:
-    0 1px 2px rgba(6, 46, 42, 0.04),
-    0 4px 12px -2px rgba(6, 46, 42, 0.06);
+    0 1px 2px color-mix(in srgb, var(--color-ink-900) 4%, transparent),
+    0 4px 12px -2px color-mix(in srgb, var(--color-ink-900) 6%, transparent);
 }
 
 .elevate-md {
   box-shadow:
-    0 2px 4px rgba(6, 46, 42, 0.04),
-    0 12px 28px -6px rgba(6, 46, 42, 0.10);
+    0 2px 4px color-mix(in srgb, var(--color-ink-900) 4%, transparent),
+    0 12px 28px -6px color-mix(in srgb, var(--color-ink-900) 10%, transparent);
 }
 
 .elevate-lg {
   box-shadow:
-    0 4px 8px rgba(6, 46, 42, 0.04),
-    0 28px 60px -12px rgba(6, 46, 42, 0.16);
+    0 4px 8px color-mix(in srgb, var(--color-ink-900) 4%, transparent),
+    0 28px 60px -12px color-mix(in srgb, var(--color-ink-900) 16%, transparent);
 }
 
 /* Cursor-tracked glow. --mx/--my are set from JS on pointer move. */
@@ -346,7 +562,7 @@
   transition: opacity 0.4s ease;
   background: radial-gradient(
     340px circle at var(--mx, 50%) var(--my, 50%),
-    rgba(13, 148, 136, 0.10),
+    color-mix(in srgb, var(--color-teal-600) 10%, transparent),
     transparent 46%
   );
 }
@@ -358,7 +574,7 @@
 .spotlight--ink::after {
   background: radial-gradient(
     360px circle at var(--mx, 50%) var(--my, 50%),
-    rgba(94, 234, 212, 0.16),
+    color-mix(in srgb, var(--color-teal-300) 16%, transparent),
     transparent 46%
   );
 }
@@ -437,20 +653,20 @@
 .process-rail {
   background: linear-gradient(
     90deg,
-    rgba(45, 212, 191, 0) 0%,
-    rgba(45, 212, 191, 0.55) 12%,
-    rgba(56, 189, 248, 0.55) 88%,
-    rgba(56, 189, 248, 0) 100%
+    transparent 0%,
+    color-mix(in srgb, var(--color-teal-400) 55%, transparent) 12%,
+    color-mix(in srgb, var(--color-sky-400) 55%, transparent) 88%,
+    transparent 100%
   );
 }
 
 .process-rail--vertical {
   background: linear-gradient(
     180deg,
-    rgba(45, 212, 191, 0) 0%,
-    rgba(45, 212, 191, 0.55) 10%,
-    rgba(56, 189, 248, 0.55) 90%,
-    rgba(56, 189, 248, 0) 100%
+    transparent 0%,
+    color-mix(in srgb, var(--color-teal-400) 55%, transparent) 10%,
+    color-mix(in srgb, var(--color-sky-400) 55%, transparent) 90%,
+    transparent 100%
   );
 }
 
@@ -612,7 +828,7 @@
 
   /* Gradient Text */
   .gradient-text {
-    background: linear-gradient(135deg, #0d9488 0%, #0284c7 100%);
+    background: linear-gradient(135deg, var(--color-teal-600) 0%, var(--color-sky-600) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

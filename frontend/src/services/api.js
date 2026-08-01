@@ -255,12 +255,23 @@ export const normalizeResponse = (response) => {
 const UPLOAD_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
 const UPLOAD_MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 
-export const uploadFile = async (file) => {
-    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
-        throw new Error(`Недопустимый тип файла. Разрешены: JPEG, PNG, WebP, PDF`)
+// Video is only ever uploaded from the admin story editor. It stays opt-in
+// rather than widening the default, so patient-facing document uploads keep
+// their narrow allow-list.
+export const UPLOAD_STORY_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm']
+const UPLOAD_STORY_MAX_SIZE_BYTES = 60 * 1024 * 1024 // 60 MB
+
+const mb = (bytes) => Math.round(bytes / (1024 * 1024))
+
+export const uploadFile = async (file, options = {}) => {
+    const allowedTypes = options.allowedTypes || UPLOAD_ALLOWED_TYPES
+    const maxSize = options.maxSizeBytes || UPLOAD_MAX_SIZE_BYTES
+
+    if (!allowedTypes.includes(file.type)) {
+        throw new Error(`Недопустимый тип файла. Разрешены: ${allowedTypes.join(', ')}`)
     }
-    if (file.size > UPLOAD_MAX_SIZE_BYTES) {
-        throw new Error(`Файл слишком большой. Максимальный размер: 10 МБ`)
+    if (file.size > maxSize) {
+        throw new Error(`Файл слишком большой. Максимальный размер: ${mb(maxSize)} МБ`)
     }
 
     // Sanitize filename — strip path separators and non-printable characters
@@ -478,6 +489,74 @@ export const promotionsAPI = {
     update: (id, data) => api.put(`/api/promotions/${id}`, { data }),
 
     delete: (id) => api.delete(`/api/promotions/${id}`),
+};
+
+// ===========================================
+// API для новостей и анонсов
+// ===========================================
+
+export const newsAPI = {
+    // Публичный список для лендинга: сервер сам отбирает опубликованные,
+    // активные и попадающие в окно показа записи.
+    getPublic: (limit = 6) => api.get(`/api/news-posts/public/list?limit=${limit}`),
+
+    // Деталь по slug — один и тот же ответ для модалки и отдельной страницы.
+    getBySlug: (slug) => api.get(`/api/news-posts/public/by-slug/${encodeURIComponent(slug)}`),
+
+    getAll: () =>
+        api.get(
+            `/api/news-posts?populate=*&sort=isPinned:desc,priority:desc,publishAt:desc&pagination[limit]=${LARGE_COLLECTION_LIMIT}`
+        ),
+
+    create: async (data) => {
+        try {
+            return await api.post("/api/news-posts?status=published", { data });
+        } catch (error) {
+            if (error?.response?.status === 400 || error?.response?.status === 404) {
+                return api.post("/api/news-posts", {
+                    data: {
+                        ...data,
+                        publishedAt: new Date().toISOString(),
+                    },
+                });
+            }
+            throw error;
+        }
+    },
+
+    update: (id, data) => api.put(`/api/news-posts/${id}`, { data }),
+
+    delete: (id) => api.delete(`/api/news-posts/${id}`),
+};
+
+// ===========================================
+// API для сторис
+// ===========================================
+
+export const storiesAPI = {
+    getPublic: (limit = 12) => api.get(`/api/stories/public/list?limit=${limit}`),
+
+    getAll: () =>
+        api.get(
+            `/api/stories?populate=*&sort=priority:desc,publishAt:desc&pagination[limit]=${LARGE_COLLECTION_LIMIT}`
+        ),
+
+    create: async (data) => {
+        try {
+            return await api.post("/api/stories?status=published", { data });
+        } catch (error) {
+            if (error?.response?.status === 400 || error?.response?.status === 404) {
+                return api.post("/api/stories", {
+                    data: { ...data, publishedAt: new Date().toISOString() },
+                });
+            }
+            throw error;
+        }
+    },
+
+    update: (id, data) => api.put(`/api/stories/${id}`, { data }),
+
+    delete: (id) => api.delete(`/api/stories/${id}`),
 };
 
 // ===========================================
