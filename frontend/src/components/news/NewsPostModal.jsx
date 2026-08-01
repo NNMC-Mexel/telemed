@@ -18,6 +18,8 @@ export default function NewsPostModal() {
   const { post, isLoading, error } = useNewsPost(slug)
 
   const panelRef = useRef(null)
+  const scrollRef = useRef(null)
+  const previousFocusRef = useRef(null)
   const close = useCallback(() => navigate(-1), [navigate])
 
   useEffect(() => {
@@ -25,8 +27,27 @@ export default function NewsPostModal() {
       if (event.key === 'Escape') {
         event.preventDefault()
         close()
+        return
+      }
+
+      if (event.key === 'Tab') {
+        const focusable = [...(panelRef.current?.querySelectorAll(
+          'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        ) || [])]
+        if (focusable.length === 0) return
+
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
       }
     }
+    previousFocusRef.current = document.activeElement
     document.addEventListener('keydown', onKeyDown)
 
     const previousOverflow = document.body.style.overflow
@@ -34,17 +55,22 @@ export default function NewsPostModal() {
 
     // Move focus into the dialog so the article is reachable by keyboard and
     // screen readers announce it instead of the page underneath.
-    panelRef.current?.focus()
+    const focusFrame = requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: 0 })
+      panelRef.current?.querySelector('[data-modal-autofocus="true"]')?.focus()
+    })
 
     return () => {
+      cancelAnimationFrame(focusFrame)
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
+      previousFocusRef.current?.focus?.()
     }
   }, [close])
 
   return (
     <div
-      className='fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto overscroll-contain bg-ink-950/70 p-0 backdrop-blur-sm sm:p-6'
+      className='safe-modal-viewport fixed inset-0 z-[70] flex items-center justify-center overflow-hidden overscroll-contain bg-ink-950/70 backdrop-blur-sm'
       onClick={close}>
       <div
         ref={panelRef}
@@ -53,16 +79,22 @@ export default function NewsPostModal() {
         aria-label={post?.title || t('news.dialog_label')}
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className='animate-scaleIn relative my-0 w-full max-w-3xl overflow-hidden bg-white shadow-2xl outline-none sm:my-6 sm:rounded-3xl'>
+        className='safe-modal-panel animate-scaleIn relative flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl shadow-ink-950/30 outline-none'>
         <button
           type='button'
           onClick={close}
+          data-modal-autofocus='true'
           aria-label={t('common.close')}
-          className='absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-ink-950/45 text-white backdrop-blur-sm transition-colors hover:bg-ink-950/70'>
+          className='absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-ink-950/55 text-white shadow-lg backdrop-blur-sm transition hover:bg-ink-950/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 active:scale-95 sm:right-4 sm:top-4'>
           <X className='h-5 w-5' />
         </button>
 
-        <NewsArticle post={post} isLoading={isLoading} error={error} />
+        <div
+          ref={scrollRef}
+          data-testid='news-modal-scroll'
+          className='min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain bg-white [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'>
+          <NewsArticle post={post} isLoading={isLoading} error={error} compactMobile />
+        </div>
       </div>
     </div>
   )

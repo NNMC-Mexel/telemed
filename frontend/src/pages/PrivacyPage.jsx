@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Shield, ChevronLeft } from 'lucide-react'
 
@@ -16,10 +15,6 @@ function Section({ title, children }) {
 }
 
 export default function PrivacyPage() {
-    useEffect(() => {
-        window.scrollTo(0, 0)
-    }, [])
-
     return (
         <div className="min-h-screen bg-slate-50">
             <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">

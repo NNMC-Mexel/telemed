@@ -11,7 +11,7 @@ import NewsKindBadge from './NewsKindBadge'
  * Shared verbatim by the routed modal and the standalone page so a link opened
  * in a new tab reads identically to one opened from the landing.
  */
-export default function NewsArticle({ post, isLoading, error, className }) {
+export default function NewsArticle({ post, isLoading, error, className, compactMobile = false }) {
   const { t, i18n } = useTranslation()
 
   if (isLoading) {
@@ -51,19 +51,25 @@ export default function NewsArticle({ post, isLoading, error, className }) {
           controls
           playsInline
           preload='metadata'
-          className='aspect-video w-full bg-slate-950 object-cover'
+          className={cn(
+            'w-full bg-slate-950 object-cover',
+            compactMobile ? 'aspect-2/1 sm:aspect-video' : 'aspect-video',
+          )}
         />
       ) : (
         cover && (
           <img
             src={cover}
             alt={post.cover.alternativeText || post.title}
-            className='aspect-video w-full object-cover'
+            className={cn(
+              'w-full object-cover',
+              compactMobile ? 'aspect-2/1 sm:aspect-video' : 'aspect-video',
+            )}
           />
         )
       )}
 
-      <div className='px-6 py-8 sm:px-10 sm:py-10'>
+      <div className={compactMobile ? 'px-5 py-6 sm:px-10 sm:py-10' : 'px-6 py-8 sm:px-10 sm:py-10'}>
         <div className='flex flex-wrap items-center gap-3'>
           <NewsKindBadge post={post} />
           {published && (
@@ -97,7 +103,7 @@ export default function NewsArticle({ post, isLoading, error, className }) {
         )}
 
         {post.linkUrl && (
-          <div className='mt-8'>
+          <div className={compactMobile ? 'mt-6 sm:mt-8' : 'mt-8'}>
             {post.linkUrl.startsWith('/') ? (
               <Link
                 to={post.linkUrl}

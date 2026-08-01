@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ToastProvider } from './components/ui/Toast'
 import { DialogProvider } from './components/ui/Dialog'
+import RouteScrollManager from './components/routing/RouteScrollManager'
 
 // Layouts
 import { PublicLayout, DashboardLayout } from './components/layout'
@@ -258,6 +259,7 @@ function App() {
     <ToastProvider>
     <DialogProvider>
     <BrowserRouter>
+      <RouteScrollManager />
       <AppRoutes />
       <ActiveConsultation />
     </BrowserRouter>

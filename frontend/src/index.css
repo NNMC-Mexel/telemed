@@ -503,6 +503,17 @@
   background-color: var(--color-ink-900);
 }
 
+/* Keeps the consultation photo informative while preserving readable copy. */
+.feature-consultation-scrim {
+  background: linear-gradient(
+    180deg,
+    rgb(5 18 35 / 0.08) 0%,
+    rgb(5 18 35 / 0.04) 38%,
+    rgb(5 18 35 / 0.58) 66%,
+    rgb(5 18 35 / 0.94) 100%
+  );
+}
+
 /* --- Texture ------------------------------------------------------------ */
 
 /* Both textures are applied to their own absolutely-positioned overlay element
@@ -524,6 +535,80 @@
   opacity: 0.35;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
+}
+
+/* --- Floating medical symbols ------------------------------------------ */
+
+/* Decorative, non-interactive layer shared by the roomy landing sections.
+   The motion stays deliberately small: it should make the surface feel alive,
+   not compete with clinical copy or action controls. */
+@keyframes medicalAmbientFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(var(--ambient-rotation));
+  }
+
+  50% {
+    transform:
+      translate3d(var(--ambient-drift-x), var(--ambient-drift-y), 0)
+      rotate(calc(var(--ambient-rotation) + 4deg));
+  }
+}
+
+.medical-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint;
+}
+
+.medical-ambient__item {
+  position: absolute;
+  top: var(--ambient-y);
+  left: var(--ambient-x);
+  width: min(var(--ambient-size), 10vw);
+  aspect-ratio: 1;
+  color: var(--color-teal-700);
+  opacity: 0.055;
+  animation: medicalAmbientFloat var(--ambient-duration) ease-in-out var(--ambient-delay) infinite;
+  transform-origin: center;
+}
+
+.medical-ambient__item svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.medical-ambient--brand .medical-ambient__item:nth-child(3n + 2) {
+  color: var(--color-sky-600);
+  opacity: 0.06;
+}
+
+.medical-ambient--light .medical-ambient__item {
+  color: white;
+  opacity: 0.065;
+}
+
+@media (max-width: 639px) {
+  .medical-ambient__item {
+    width: min(var(--ambient-size), 9vw);
+    opacity: 0.045;
+  }
+
+  .medical-ambient--brand .medical-ambient__item:nth-child(3n + 2) {
+    opacity: 0.05;
+  }
+
+  .medical-ambient--light .medical-ambient__item {
+    opacity: 0.055;
+  }
+
+  .medical-ambient__item:nth-child(n + 5) {
+    display: none;
+  }
 }
 
 /* --- Depth -------------------------------------------------------------- */
@@ -725,6 +810,11 @@
   .ambient-pulse::after {
     animation: none;
     opacity: 0;
+  }
+
+  .medical-ambient__item {
+    animation: none;
+    transform: rotate(var(--ambient-rotation));
   }
 
   .lift:hover {

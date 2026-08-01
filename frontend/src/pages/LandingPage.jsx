@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import CountUp from "../components/ui/CountUp";
+import MedicalAmbient from "../components/ui/MedicalAmbient";
 import {
     contentAPI,
     doctorsAPI,
@@ -539,6 +540,7 @@ function FeatureBento({ section }) {
                 className='absolute inset-x-0 top-0 h-[520px] bg-gradient-to-b from-teal-50/70 via-sky-50/30 to-transparent'
             />
             <div aria-hidden='true' className='texture-grid absolute inset-x-0 top-0 h-[620px] text-teal-900' />
+            <MedicalAmbient tone='brand' />
 
             <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
                 <SectionHeading
@@ -561,16 +563,22 @@ function FeatureBento({ section }) {
                                     onMouseMove={trackSpotlight}
                                     className={cn(
                                         bentoSpans[index],
-                                        "surface-ink spotlight spotlight--ink lift relative flex flex-col justify-between overflow-hidden rounded-3xl p-8 text-white sm:p-10",
+                                        "spotlight spotlight--ink lift relative flex flex-col justify-between overflow-hidden rounded-3xl p-8 text-white sm:p-10",
                                     )}>
+                                    <picture aria-hidden='true' className='absolute inset-0'>
+                                        <source srcSet='/telemedicine-consultation.avif' type='image/avif' />
+                                        <img
+                                            src='/telemedicine-consultation.webp'
+                                            alt=''
+                                            width={1122}
+                                            height={1402}
+                                            loading='lazy'
+                                            decoding='async'
+                                            className='h-full w-full object-cover'
+                                        />
+                                    </picture>
+                                    <div aria-hidden='true' className='feature-consultation-scrim absolute inset-0' />
                                     <div aria-hidden='true' className='texture-noise absolute inset-0' />
-                                    {/* Fills the tall card's middle so the composition
-                                        doesn't read as a gap between icon and copy. */}
-                                    <FeatureIcon
-                                        aria-hidden='true'
-                                        className='pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 text-white/5.5'
-                                        strokeWidth={0.75}
-                                    />
 
                                     <div className='relative'>
                                         <div className='ambient-pulse relative flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-400/40 bg-sky-400/10 text-sky-300'>
@@ -590,7 +598,8 @@ function FeatureBento({ section }) {
                             );
                         }
 
-                        const isWide = isBento && index === 1;
+                        const isBrandCard = isBento && index === 1;
+                        const isWide = isBrandCard;
 
                         return (
                             <article
@@ -600,17 +609,32 @@ function FeatureBento({ section }) {
                                 onMouseMove={trackSpotlight}
                                 className={cn(
                                     isBento ? bentoSpans[index] : "",
-                                    "spotlight lift elevate-sm hover:elevate-lg group relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-7 hover:border-teal-200",
+                                    "spotlight lift elevate-sm hover:elevate-lg group relative overflow-hidden rounded-3xl border p-7",
+                                    isBrandCard
+                                        ? "surface-ink spotlight--ink border-white/10 text-white hover:border-sky-400/30"
+                                        : "border-slate-200/80 bg-white hover:border-teal-200",
                                     isWide && "sm:flex sm:items-center sm:gap-7",
                                 )}>
-                                <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-sky-500 text-white shadow-lg shadow-teal-500/25 transition-transform duration-500 group-hover:scale-105'>
+                                {isBrandCard && <div aria-hidden='true' className='texture-noise absolute inset-0' />}
+                                <div className={cn(
+                                    "relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-transform duration-500 group-hover:scale-105",
+                                    isBrandCard
+                                        ? "ambient-pulse border border-sky-400/40 bg-sky-400/10 text-sky-300"
+                                        : "bg-gradient-to-br from-teal-500 to-sky-500 text-white shadow-lg shadow-teal-500/25",
+                                )}>
                                     <FeatureIcon className='h-7 w-7' />
                                 </div>
-                                <div className={cn(!isWide && "mt-6")}>
-                                    <h3 className='text-lg font-semibold tracking-[-0.01em] text-slate-950'>
+                                <div className={cn("relative", !isWide && "mt-6")}>
+                                    <h3 className={cn(
+                                        "text-lg font-semibold tracking-[-0.01em]",
+                                        isBrandCard ? "text-white" : "text-slate-950",
+                                    )}>
                                         {feature.title}
                                     </h3>
-                                    <p className='mt-2 text-[0.95rem] leading-relaxed text-slate-600'>
+                                    <p className={cn(
+                                        "mt-2 text-[0.95rem] leading-relaxed",
+                                        isBrandCard ? "text-teal-50/70" : "text-slate-600",
+                                    )}>
                                         {feature.description}
                                     </p>
                                 </div>
@@ -705,6 +729,7 @@ function NewsSection({ items = [], stories = [], t, language }) {
     return (
         <section id='news' className='relative overflow-hidden bg-slate-50 py-24'>
             <div aria-hidden='true' className='texture-grid absolute inset-0 text-teal-900' />
+            <MedicalAmbient tone='brand' />
 
             <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
                 <SectionHeading
@@ -884,6 +909,7 @@ function SpecializationsSection({ isLoading, specializations, t, language }) {
                 aria-hidden='true'
                 className='absolute left-1/2 top-0 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-teal-200/20 blur-3xl'
             />
+            <MedicalAmbient tone='brand' />
 
             <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
                 <SectionHeading
@@ -936,6 +962,7 @@ function ProcessSection({ section }) {
         <section className='surface-ink relative overflow-hidden py-24 text-white sm:py-28'>
             <div aria-hidden='true' className='texture-noise absolute inset-0' />
             <div aria-hidden='true' className='texture-grid absolute inset-0 text-teal-100' />
+            <MedicalAmbient tone='light' />
 
             <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
                 <SectionHeading
