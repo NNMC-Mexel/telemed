@@ -177,6 +177,13 @@ const roleDefinitions = {
       'api::story.story.create',
       'api::story.story.update',
       'api::story.story.delete',
+      // Video testimonials — полный CRUD (публичный список дополнительно
+      // фильтруется по согласию пациента и окну публикации)
+      'api::video-testimonial.video-testimonial.find',
+      'api::video-testimonial.video-testimonial.findOne',
+      'api::video-testimonial.video-testimonial.create',
+      'api::video-testimonial.video-testimonial.update',
+      'api::video-testimonial.video-testimonial.delete',
       // Reviews — полный CRUD
       'api::review.review.find',
       'api::review.review.findOne',
