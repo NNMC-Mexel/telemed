@@ -582,8 +582,6 @@
   left: var(--ambient-x);
   width: min(var(--ambient-size), 10vw);
   aspect-ratio: 1;
-  color: var(--color-teal-700);
-  opacity: 0.055;
   animation: medicalAmbientFloat var(--ambient-duration) ease-in-out var(--ambient-delay) infinite;
   transform-origin: center;
 }
@@ -594,9 +592,9 @@
   height: 100%;
 }
 
-.medical-ambient--brand .medical-ambient__item:nth-child(3n + 2) {
-  color: var(--color-sky-600);
-  opacity: 0.06;
+.medical-ambient--brand .medical-ambient__item {
+  color: var(--color-teal-700);
+  opacity: 0.12;
 }
 
 .medical-ambient--light .medical-ambient__item {
@@ -607,11 +605,10 @@
 @media (max-width: 639px) {
   .medical-ambient__item {
     width: min(var(--ambient-size), 9vw);
-    opacity: 0.045;
   }
 
-  .medical-ambient--brand .medical-ambient__item:nth-child(3n + 2) {
-    opacity: 0.05;
+  .medical-ambient--brand .medical-ambient__item {
+    opacity: 0.1;
   }
 
   .medical-ambient--light .medical-ambient__item {
