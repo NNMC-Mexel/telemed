@@ -540,18 +540,30 @@
 /* --- Floating medical symbols ------------------------------------------ */
 
 /* Decorative, non-interactive layer shared by the roomy landing sections.
-   The motion stays deliberately small: it should make the surface feel alive,
-   not compete with clinical copy or action controls. */
+   Every icon follows its own slow, asymmetrical loop so the movement feels
+   organic without competing with clinical copy or action controls. */
 @keyframes medicalAmbientFloat {
   0%,
   100% {
     transform: translate3d(0, 0, 0) rotate(var(--ambient-rotation));
   }
 
-  50% {
+  24% {
     transform:
-      translate3d(var(--ambient-drift-x), var(--ambient-drift-y), 0)
-      rotate(calc(var(--ambient-rotation) + 4deg));
+      translate3d(var(--ambient-a-x), var(--ambient-a-y), 0)
+      rotate(calc(var(--ambient-rotation) + 5deg));
+  }
+
+  52% {
+    transform:
+      translate3d(var(--ambient-b-x), var(--ambient-b-y), 0)
+      rotate(calc(var(--ambient-rotation) - 4deg));
+  }
+
+  78% {
+    transform:
+      translate3d(var(--ambient-c-x), var(--ambient-c-y), 0)
+      rotate(calc(var(--ambient-rotation) + 2deg));
   }
 }
 
