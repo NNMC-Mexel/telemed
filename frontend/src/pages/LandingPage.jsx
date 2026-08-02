@@ -488,7 +488,10 @@ function ClinicalHero({ config, t, trustItems }) {
                                 {visibleStats.map((item, idx) => (
                                     <div
                                         key={`${item.label}-${idx}`}
-                                        className={cn("pr-4", idx > 0 && "border-l border-slate-200 pl-5")}>
+                                        className={cn(
+                                            "flex min-w-0 flex-col items-center px-2 text-center sm:px-4",
+                                            idx > 0 && "border-l border-slate-200",
+                                        )}>
                                         <div className='text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl'>
                                             <CountUp value={item.value} />
                                         </div>
