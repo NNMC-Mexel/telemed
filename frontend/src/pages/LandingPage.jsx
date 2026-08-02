@@ -11,11 +11,21 @@ import {
     CheckCircle,
     FileText,
     Heart,
+    HeartPulse,
     Brain,
+    BrainCog,
     Eye,
+    Ear,
     Stethoscope,
     Baby,
-    Pill,
+    Bone,
+    Droplets,
+    Fingerprint,
+    ScanFace,
+    Scissors,
+    Smile,
+    Venus,
+    createLucideIcon,
     Users,
     Award,
     Loader2,
@@ -108,21 +118,73 @@ const specializationPalette = [
     { gradient: "from-sky-600 to-sand-400", ring: "group-hover:border-sky-300", glow: "group-hover:shadow-sky-500/20", label: "group-hover:text-sky-700" },
 ];
 
+const StomachIcon = createLucideIcon("Stomach", [
+    ["path", { d: "M7 2v6.4c0 1.7-.8 3.2-2.2 4.2A5.1 5.1 0 0 0 8 22h2c5 0 9-3.4 9-8 0-3.4-2-5.6-5.1-6.7A3 3 0 0 1 12 4.5V2", key: "stomach-body" }],
+    ["path", { d: "M7 8.5c1.4 1 3.2 1.2 4.8.5", key: "stomach-fold" }],
+]);
+
+const ThyroidIcon = createLucideIcon("Thyroid", [
+    ["path", { d: "M10.2 8.3C8.8 5.4 6.8 3.8 5 4.3c-1.8.5-2.5 2.8-1.6 4.9.8 1.9 2.6 2.9 5.2 2.9", key: "thyroid-left" }],
+    ["path", { d: "M13.8 8.3c1.4-2.9 3.4-4.5 5.2-4 1.8.5 2.5 2.8 1.6 4.9-.8 1.9-2.6 2.9-5.2 2.9", key: "thyroid-right" }],
+    ["path", { d: "M9 11.5c0 5.4 1.1 8.5 3 8.5s3-3.1 3-8.5", key: "thyroid-center" }],
+]);
+
 const specializationMeta = {
-    Терапевт: { Icon: Stethoscope, hue: 0 },
-    Кардиолог: { Icon: Heart, hue: 1 },
+    Кардиолог: { Icon: HeartPulse, hue: 0 },
+    Терапевт: { Icon: Stethoscope, hue: 1 },
     Невролог: { Icon: Brain, hue: 2 },
+    Дерматолог: { Icon: ScanFace, hue: 3 },
+    Гастроэнтеролог: { Icon: StomachIcon, hue: 4 },
+    Эндокринолог: { Icon: ThyroidIcon, hue: 5 },
     Офтальмолог: { Icon: Eye, hue: 3 },
-    Педиатр: { Icon: Baby, hue: 4 },
-    Эндокринолог: { Icon: Pill, hue: 5 },
+    Уролог: { Icon: Droplets, hue: 4 },
+    Отоларинголог: { Icon: Ear, hue: 5 },
+    ЛОР: { Icon: Ear, hue: 5 },
+    Психотерапевт: { Icon: BrainCog, hue: 2 },
+    Психиатр: { Icon: BrainCog, hue: 2 },
+    Психолог: { Icon: Smile, hue: 2 },
+    Педиатр: { Icon: Baby, hue: 0 },
+    Гинеколог: { Icon: Venus, hue: 3 },
+    Хирург: { Icon: Scissors, hue: 4 },
+    Ортопед: { Icon: Bone, hue: 5 },
 };
+
+const specializationIconFallbacks = {
+    heart: HeartPulse,
+    stethoscope: Stethoscope,
+    brain: Brain,
+    hand: Fingerprint,
+    shield: Fingerprint,
+    eye: Eye,
+    ear: Ear,
+    activity: StomachIcon,
+    stomach: StomachIcon,
+    droplet: ThyroidIcon,
+    kidney: Droplets,
+    male: Droplets,
+    female: Venus,
+    baby: Baby,
+    smile: Smile,
+    scissors: Scissors,
+    bone: Bone,
+};
+
+const fallbackSpecializationNames = [
+    "Кардиолог",
+    "Терапевт",
+    "Невролог",
+    "Дерматолог",
+    "Гастроэнтеролог",
+    "Эндокринолог",
+];
 
 // Specialities coming from the CMS still get a stable hue instead of
 // falling back to grey.
-function getSpecializationStyle(name, index) {
+function getSpecializationStyle(name, icon, index) {
     const meta = specializationMeta[name];
     const hue = meta ? meta.hue : index % specializationPalette.length;
-    return { Icon: meta?.Icon || Stethoscope, ...specializationPalette[hue] };
+    const fallbackIcon = specializationIconFallbacks[String(icon || "").toLowerCase()];
+    return { Icon: meta?.Icon || fallbackIcon || Stethoscope, ...specializationPalette[hue] };
 }
 
 // Lets `.spotlight` follow the cursor inside a card.
@@ -973,8 +1035,8 @@ function NewsSection({ items = [], stories = [], t, language }) {
 /*  Specializations — colour-coded directory                                   */
 /* -------------------------------------------------------------------------- */
 
-function SpecializationTile({ name, label, count, index, countLabel }) {
-    const { Icon, gradient, ring, glow, label: labelHover } = getSpecializationStyle(name, index);
+function SpecializationTile({ name, label, icon, count, index, countLabel }) {
+    const { Icon, gradient, ring, glow, label: labelHover } = getSpecializationStyle(name, icon, index);
 
     return (
         <Link
@@ -1010,7 +1072,7 @@ function SpecializationTile({ name, label, count, index, countLabel }) {
 
 function SpecializationsSection({ isLoading, specializations, t, language }) {
     const fallback = useMemo(
-        () => Object.keys(specializationMeta).map((name) => ({ id: name, name })),
+        () => fallbackSpecializationNames.map((name) => ({ id: name, name })),
         [],
     );
     const items = specializations.length > 0 ? specializations : fallback;
@@ -1042,6 +1104,7 @@ function SpecializationsSection({ isLoading, specializations, t, language }) {
                                 key={spec.id || spec.name}
                                 name={spec.name}
                                 label={getSpecName(spec, language) || spec.name}
+                                icon={spec.icon}
                                 count={spec.doctorsCount}
                                 countLabel={t('landing.specializations.doctors_count', { count: spec.doctorsCount })}
                                 index={index}
