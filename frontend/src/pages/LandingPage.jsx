@@ -216,6 +216,15 @@ function mediaSrcSet(media) {
     );
 }
 
+function fallBackToOriginalMedia(event, originalUrl) {
+    const image = event.currentTarget;
+    if (!originalUrl || image.dataset.originalFallback === "true") return;
+
+    image.dataset.originalFallback = "true";
+    image.removeAttribute("srcset");
+    image.src = originalUrl;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Shared section furniture                                                   */
 /* -------------------------------------------------------------------------- */
@@ -1342,6 +1351,7 @@ function DoctorsCarousel({ doctors }) {
                                                                 alt={doctor.fullName}
                                                                 loading='lazy'
                                                                 decoding='async'
+                                                                onError={(event) => fallBackToOriginalMedia(event, photoUrl)}
                                                                 className='h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-105'
                                                             />
                                                         ) : (

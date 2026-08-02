@@ -46,7 +46,49 @@ const getS3Client = () =>
     forcePathStyle: true,
   });
 
-const findUploadFile = async (key: string) => {
+const RESPONSIVE_FORMAT_PREFIXES = ['thumbnail_', 'small_', 'medium_', 'large_'];
+
+const getResponsiveOriginalKey = (key: string) => {
+  const normalizedKey = key.replace(/^\/+/, '');
+  const lastSlashIndex = normalizedKey.lastIndexOf('/');
+  const directory = lastSlashIndex >= 0 ? normalizedKey.slice(0, lastSlashIndex + 1) : '';
+  const fileName = normalizedKey.slice(lastSlashIndex + 1);
+  const prefix = RESPONSIVE_FORMAT_PREFIXES.find((candidate) => fileName.startsWith(candidate));
+
+  return prefix ? `${directory}${fileName.slice(prefix.length)}` : null;
+};
+
+const getFileProxyKey = (url: unknown) => {
+  if (typeof url !== 'string' || !url.trim()) return null;
+
+  try {
+    const pathname = new URL(url, 'http://localhost').pathname;
+    const proxyPrefix = '/api/file-proxy/';
+    const rawKey = pathname.includes(proxyPrefix)
+      ? pathname.slice(pathname.indexOf(proxyPrefix) + proxyPrefix.length)
+      : pathname.replace(/^\/+/, '');
+
+    try {
+      return decodeURIComponent(rawKey);
+    } catch {
+      return rawKey;
+    }
+  } catch {
+    return null;
+  }
+};
+
+const fileContainsResponsiveFormat = (file: any, key: string) => {
+  const formats = file?.formats;
+  if (!formats || typeof formats !== 'object') return false;
+
+  const normalizedKey = key.replace(/^\/+/, '');
+  return Object.values(formats).some(
+    (format: any) => getFileProxyKey(format?.url) === normalizedKey,
+  );
+};
+
+const findUploadFileByOriginalKey = async (key: string) => {
   const normalizedKey = key.replace(/^\/+/, '');
   const encodedKey = encodeURIComponent(normalizedKey);
   const candidateUrls = [
@@ -66,6 +108,21 @@ const findUploadFile = async (key: string) => {
   });
 
   return byUrlSuffix?.[0] || null;
+};
+
+const findUploadFile = async (key: string) => {
+  const exactFile = await findUploadFileByOriginalKey(key);
+  if (exactFile) return exactFile;
+
+  // Strapi stores responsive variants (small/medium/large/thumbnail) inside
+  // the parent upload.file `formats` JSON instead of creating separate rows.
+  // Resolve the parent record so public-photo authorization still applies,
+  // then verify that the requested variant is really declared on that file.
+  const originalKey = getResponsiveOriginalKey(key);
+  if (!originalKey) return null;
+
+  const parentFile = await findUploadFileByOriginalKey(originalKey);
+  return parentFile && fileContainsResponsiveFormat(parentFile, key) ? parentFile : null;
 };
 
 const canAccessMedicalFile = async (user: any, file: any) => {
