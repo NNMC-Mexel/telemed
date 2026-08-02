@@ -69,6 +69,27 @@ const doctorCardColors = [
 ];
 
 const featureIcons = [Video, Shield, Clock, FileText];
+const featurePhotos = [
+    null,
+    {
+        base: "/feature-data-security",
+        width: 1536,
+        height: 1024,
+        objectPosition: "center 45%",
+    },
+    {
+        base: "/feature-available-anytime",
+        width: 960,
+        height: 960,
+        objectPosition: "center 42%",
+    },
+    {
+        base: "/feature-electronic-documents",
+        width: 960,
+        height: 960,
+        objectPosition: "center 60%",
+    },
+];
 const advantageIcons = [Stethoscope, Shield, FileText];
 const impactIcons = [Users, Stethoscope, Award, Heart];
 
@@ -533,6 +554,24 @@ const bentoSpans = [
     "lg:col-span-1",
 ];
 
+function FeaturePhoto({ photo, className }) {
+    return (
+        <picture aria-hidden='true' className={className}>
+            <source srcSet={`${photo.base}.avif`} type='image/avif' />
+            <img
+                src={`${photo.base}.webp`}
+                alt=''
+                width={photo.width}
+                height={photo.height}
+                loading='lazy'
+                decoding='async'
+                style={{ objectPosition: photo.objectPosition }}
+                className='h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.035]'
+            />
+        </picture>
+    );
+}
+
 function FeatureBento({ section }) {
     const cards = (section.cards || []).slice(0, 4);
     const isBento = cards.length === 4;
@@ -557,6 +596,7 @@ function FeatureBento({ section }) {
                 <div className={cn("grid gap-5", isBento ? "lg:grid-cols-4 lg:grid-rows-2" : "md:grid-cols-2 lg:grid-cols-4")}>
                     {cards.map((feature, index) => {
                         const FeatureIcon = featureIcons[index] || featureIcons[0];
+                        const featurePhoto = featurePhotos[index];
                         const isLead = isBento && index === 0;
 
                         if (isLead) {
@@ -604,6 +644,74 @@ function FeatureBento({ section }) {
 
                         const isBrandCard = isBento && index === 1;
                         const isWide = isBrandCard;
+
+                        if (isBrandCard && featurePhoto) {
+                            return (
+                                <article
+                                    key={index}
+                                    data-reveal
+                                    style={delay(80 * index)}
+                                    onMouseMove={trackSpotlight}
+                                    className={cn(
+                                        bentoSpans[index],
+                                        "spotlight spotlight--ink lift elevate-sm hover:elevate-lg group relative flex min-h-[280px] items-end overflow-hidden rounded-3xl border border-white/10 p-7 text-white hover:border-sky-400/30 sm:min-h-[320px] sm:items-center sm:p-9",
+                                    )}>
+                                    <FeaturePhoto photo={featurePhoto} className='absolute inset-0' />
+                                    <div
+                                        aria-hidden='true'
+                                        className='absolute inset-0 bg-gradient-to-r from-ink-950/95 via-ink-900/75 to-ink-900/20'
+                                    />
+                                    <div aria-hidden='true' className='texture-noise absolute inset-0' />
+
+                                    <div className='relative flex items-start gap-5 sm:max-w-[72%] sm:items-center'>
+                                        <div className='ambient-pulse flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-sky-400/40 bg-ink-950/35 text-sky-300 backdrop-blur-sm'>
+                                            <FeatureIcon className='h-7 w-7' />
+                                        </div>
+                                        <div>
+                                            <h3 className='text-xl font-semibold tracking-[-0.01em] text-white'>
+                                                {feature.title}
+                                            </h3>
+                                            <p className='mt-2 text-[0.95rem] leading-relaxed text-teal-50/75'>
+                                                {feature.description}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </article>
+                            );
+                        }
+
+                        if (featurePhoto) {
+                            return (
+                                <article
+                                    key={index}
+                                    data-reveal
+                                    style={delay(80 * index)}
+                                    onMouseMove={trackSpotlight}
+                                    className={cn(
+                                        isBento ? bentoSpans[index] : "",
+                                        "spotlight lift elevate-sm hover:elevate-lg group relative flex min-h-[360px] flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white hover:border-teal-200",
+                                    )}>
+                                    <div className='relative h-40 shrink-0 overflow-hidden'>
+                                        <FeaturePhoto photo={featurePhoto} className='absolute inset-0' />
+                                        <div
+                                            aria-hidden='true'
+                                            className='absolute inset-0 bg-gradient-to-t from-ink-950/30 via-transparent to-transparent'
+                                        />
+                                        <div className='absolute bottom-4 left-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/50 bg-white/92 text-teal-700 shadow-lg shadow-ink-950/15 backdrop-blur-sm transition-transform duration-500 group-hover:scale-105'>
+                                            <FeatureIcon className='h-7 w-7' />
+                                        </div>
+                                    </div>
+                                    <div className='relative flex flex-1 flex-col p-6'>
+                                        <h3 className='text-lg font-semibold tracking-[-0.01em] text-slate-950'>
+                                            {feature.title}
+                                        </h3>
+                                        <p className='mt-2 text-[0.95rem] leading-relaxed text-slate-600'>
+                                            {feature.description}
+                                        </p>
+                                    </div>
+                                </article>
+                            );
+                        }
 
                         return (
                             <article
