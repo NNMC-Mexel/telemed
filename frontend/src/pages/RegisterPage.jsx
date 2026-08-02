@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  Eye, EyeOff, Mail, Lock, User, Phone, CreditCard, Activity,
+  Eye, EyeOff, Mail, Lock, User, Phone, CreditCard,
   ArrowLeft, CheckCircle, Stethoscope, UserCircle, GraduationCap,
   Building2, FileText, Send
 } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import LanguageSwitcher from '../components/ui/LanguageSwitcher'
+import { BrandLockup, BrandMark } from '../components/brand/BrandLogo'
 import { Card, CardContent } from '../components/ui/Card'
 import useAuthStore from '../stores/authStore'
 import useRegistrationDraftStore from '../stores/registrationDraftStore'
@@ -184,9 +185,7 @@ function RegisterPage() {
           <LanguageSwitcher variant="light" />
         </div>
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 max-w-md w-full text-center">
-          <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-sky-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <span className="text-white font-bold text-xl">M</span>
-          </div>
+          <BrandMark eager className="mx-auto mb-6 h-20 w-20" />
           <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Mail className="w-8 h-8 text-teal-600" />
           </div>
@@ -235,6 +234,20 @@ function RegisterPage() {
       {/* Left Side - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="mb-8 inline-flex text-left"
+            aria-label={`${t('nav.home')} — MedConnect`}
+          >
+            <BrandLockup
+              eager
+              subtitle={t('common.telemedicine')}
+              markClassName="h-16 w-[62px]"
+              wordmarkClassName="text-xl"
+            />
+          </button>
+
           <button
             onClick={() => navigate('/')}
             className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-8"
@@ -572,12 +585,8 @@ function RegisterPage() {
         </div>
 
         <div className="relative text-white max-w-md">
-          <div className="w-20 h-20 mb-8 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur">
-            {userType === 'doctor' ? (
-              <Stethoscope className="w-10 h-10 text-white" />
-            ) : (
-              <Activity className="w-10 h-10 text-white" />
-            )}
+          <div className="w-28 h-28 mb-8 bg-white/95 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-slate-950/20 backdrop-blur">
+            <BrandMark alt="" eager className="h-24 w-24" />
           </div>
           <h2 className="text-3xl font-bold mb-4">
             {userType === 'doctor' ? t('auth.register.doctor_join_title') : t('auth.register.patient_join_title')}

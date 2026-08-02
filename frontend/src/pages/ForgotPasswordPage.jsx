@@ -5,6 +5,7 @@ import { Mail, ArrowLeft, CheckCircle } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Card, CardContent } from '../components/ui/Card'
+import { BrandLockup } from '../components/brand/BrandLogo'
 import api from '../services/api'
 
 function ForgotPasswordPage() {
@@ -58,6 +59,15 @@ function ForgotPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-gradient-to-br from-teal-50 to-cyan-50">
       <div className="w-full max-w-md">
+        <Link to="/" className="mb-8 inline-flex" aria-label={`${t('nav.home')} — MedConnect`}>
+          <BrandLockup
+            eager
+            subtitle={t('common.telemedicine')}
+            markClassName="h-16 w-[62px]"
+            wordmarkClassName="text-xl"
+          />
+        </Link>
+
         <Link
           to="/login"
           className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-8"

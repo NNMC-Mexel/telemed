@@ -1,4 +1,4 @@
-// Generates native splash screens for iOS/Android from src/assets/mobile-app-logo.svg
+// Generates native splash screens for iOS/Android from the approved NNMC logo.
 // Usage: node scripts/generate-splash.mjs
 import sharp from 'sharp'
 import { mkdir } from 'node:fs/promises'
@@ -6,28 +6,28 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const LOGO = path.join(root, 'src/assets/mobile-app-logo.svg')
+const LOGO = path.join(root, 'public/brand/nnmc-logo.png')
 const BG = '#ffffff'
 
 // Render the logo once at high resolution and trim transparent padding
-const logoBuf = await sharp(LOGO, { density: 600 })
+const logoBuf = await sharp(LOGO)
   .resize(2048, 2048, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
   .trim()
-  .png()
+  .png({ compressionLevel: 9, adaptiveFiltering: true })
   .toBuffer()
 
 async function splash(file, width, height) {
-  // Logo occupies ~42% of the smaller dimension
-  const logoW = Math.round(Math.min(width, height) * 0.42)
+  // The circular inscriptions need a generous safe area on every aspect ratio.
+  const logoW = Math.round(Math.min(width, height) * 0.32)
   const logo = await sharp(logoBuf)
     .resize(logoW, logoW, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toBuffer()
 
   await mkdir(path.dirname(file), { recursive: true })
   await sharp({ create: { width, height, channels: 3, background: BG } })
     .composite([{ input: logo, gravity: 'centre' }])
-    .png()
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toFile(file)
   console.log('wrote', path.relative(root, file), `${width}x${height}`)
 }

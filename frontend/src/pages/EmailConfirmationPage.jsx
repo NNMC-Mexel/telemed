@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import Button from '../components/ui/Button'
+import { BrandMark } from '../components/brand/BrandLogo'
 import { authAPI } from '../services/api'
 import useAuthStore from '../stores/authStore'
 
@@ -57,9 +58,7 @@ function EmailConfirmationPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/30 to-sky-50/30 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 max-w-md w-full text-center">
         {/* Logo */}
-        <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-sky-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <span className="text-white font-bold text-xl">M</span>
-        </div>
+        <BrandMark eager className="mx-auto mb-6 h-20 w-20" />
 
         {status === 'loading' && (
           <>

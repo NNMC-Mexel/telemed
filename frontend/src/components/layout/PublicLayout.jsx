@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import {
     Menu,
     X,
-    Activity,
     Phone,
     Mail,
     MapPin,
@@ -15,6 +14,7 @@ import {
 import { cn } from "../../utils/helpers";
 import Button from "../ui/Button";
 import LanguageSwitcher from "../ui/LanguageSwitcher";
+import { BrandLockup } from "../brand/BrandLogo";
 import useAuthStore from "../../stores/authStore";
 
 function PublicLayout({ children }) {
@@ -108,13 +108,10 @@ function PublicLayout({ children }) {
             >
                 <div className='p-6 border-b border-slate-100 flex items-center justify-between shrink-0'>
                     <Link to='/' onClick={() => setIsMobileMenuOpen(false)} className='flex items-center gap-3'>
-                        <div className='w-10 h-10 bg-linear-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center'>
-                            <Activity className='w-6 h-6 text-white' />
-                        </div>
-                        <div>
-                            <span className='block font-bold text-slate-900'>MedConnect</span>
-                            <p className='text-xs text-slate-500'>{t("common.telemedicine")}</p>
-                        </div>
+                        <BrandLockup
+                            subtitle={t("common.telemedicine")}
+                            markClassName='h-12 w-[47px]'
+                        />
                     </Link>
                     <button
                         type='button'
@@ -208,30 +205,20 @@ function PublicLayout({ children }) {
                 <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='flex items-center justify-between h-20'>
                         {/* Logo */}
-                        <Link to='/' className='flex items-center gap-3'>
-                            <div className='w-10 h-10 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-teal-500/30'>
-                                <Activity className='w-6 h-6 text-white' />
-                            </div>
-                            <div>
-                                <span
-                                    className={cn(
-                                        "block font-bold text-lg transition-colors",
-                                        showDarkHeader
-                                            ? "text-white"
-                                            : "text-slate-900",
-                                    )}>
-                                    MedConnect
-                                </span>
-                                <p
-                                    className={cn(
-                                        "text-xs transition-colors",
-                                        showDarkHeader
-                                            ? "text-white/70"
-                                            : "text-slate-500",
-                                    )}>
-                                    {t("common.telemedicine")}
-                                </p>
-                            </div>
+                        <Link to='/' aria-label={`${t("nav.home")} — MedConnect`}>
+                            <BrandLockup
+                                eager
+                                subtitle={t("common.telemedicine")}
+                                markClassName='h-14 w-[54px]'
+                                wordmarkClassName={cn(
+                                    'text-lg transition-colors',
+                                    showDarkHeader ? 'text-white' : 'text-slate-900',
+                                )}
+                                subtitleClassName={cn(
+                                    'transition-colors',
+                                    showDarkHeader ? 'text-white/70' : 'text-slate-500',
+                                )}
+                            />
                         </Link>
 
                         {/* Desktop Navigation */}
@@ -384,15 +371,13 @@ function PublicLayout({ children }) {
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12'>
                         {/* Brand */}
                         <div>
-                            <div className='flex items-center gap-3 mb-6'>
-                                <div className='w-10 h-10 bg-gradient-to-br from-teal-500 to-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-teal-500/20'>
-                                    <Activity className='w-6 h-6 text-white' />
-                                </div>
-                                <div>
-                                    <h3 className='font-bold text-lg text-slate-900'>MedConnect</h3>
-                                    <p className='text-xs text-slate-600'>{t("common.telemedicine")}</p>
-                                </div>
-                            </div>
+                            <BrandLockup
+                                className='mb-6'
+                                subtitle={t("common.telemedicine")}
+                                markClassName='h-16 w-[62px]'
+                                wordmarkClassName='text-lg'
+                                subtitleClassName='text-slate-600'
+                            />
                             <p className='text-slate-600 text-sm leading-relaxed'>
                                 {t("footer.description")}
                             </p>

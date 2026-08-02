@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:brand-assets": "node scripts/generate-brand-assets.mjs",
     "build:hero-poster": "node scripts/generate-hero-poster.mjs",
     "lint": "eslint .",
     "test:consultation-flow": "node --test src/utils/consultationFlow.test.js",

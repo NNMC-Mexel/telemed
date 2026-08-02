@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Eye, EyeOff, Mail, Lock, Activity, ArrowLeft, Stethoscope, UserCircle, Send, CheckCircle } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, Stethoscope, UserCircle, Send, CheckCircle } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Card, CardContent } from '../components/ui/Card'
+import { BrandLockup, BrandMark } from '../components/brand/BrandLogo'
 import useAuthStore from '../stores/authStore'
 import { authAPI } from '../services/api'
 import { isNativeMobileApp } from '../utils/platform'
@@ -89,6 +90,15 @@ function LoginPage() {
       {/* Left Side - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
+          <Link to="/" className="mb-8 inline-flex" aria-label={`${t('nav.home')} — MedConnect`}>
+            <BrandLockup
+              eager
+              subtitle={t('common.telemedicine')}
+              markClassName="h-16 w-[62px]"
+              wordmarkClassName="text-xl"
+            />
+          </Link>
+
           {!isNativeApp && (
             <Link
               to="/"
@@ -242,12 +252,8 @@ function LoginPage() {
         </div>
 
         <div className="relative text-center text-white max-w-md">
-          <div className="w-20 h-20 mx-auto mb-8 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur">
-            {userType === 'doctor' ? (
-              <Stethoscope className="w-10 h-10 text-white" />
-            ) : (
-              <Activity className="w-10 h-10 text-white" />
-            )}
+          <div className="w-28 h-28 mx-auto mb-8 bg-white/95 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-slate-950/20 backdrop-blur">
+            <BrandMark alt="" eager className="h-24 w-24" />
           </div>
           <h2 className="text-3xl font-bold mb-4">
             {userType === 'doctor' ? t('auth.login.doctor_title') : 'MedConnect'}

@@ -41,7 +41,7 @@
     <meta name="twitter:image" content="https://medconnect.nnmc.kz/og-image.png" />
 
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/medconnect-icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/brand/nnmc-icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#1c3e70" />
@@ -54,7 +54,7 @@
       "name": "MedConnect — ННМЦ Телемедицина",
       "alternateName": "NNMC MedConnect",
       "url": "https://medconnect.nnmc.kz",
-      "logo": "https://medconnect.nnmc.kz/medconnect-icon.svg",
+      "logo": "https://medconnect.nnmc.kz/brand/nnmc-icon-512.png",
       "image": "https://medconnect.nnmc.kz/og-image.png",
       "description": "Платформа телемедицины Национального научного медицинского центра. Онлайн-консультации с врачами-специалистами.",
       "telephone": "+7-7172-70-77-77",
@@ -153,10 +153,10 @@
         background: #ffffff;
         transition: opacity 0.45s ease;
       }
-      /* 49vmin of the full SVG canvas ≈ the 42vmin logo on the native splash */
       #splash-screen img {
-        width: 49vmin;
-        height: 49vmin;
+        width: min(38vmin, 11rem);
+        height: min(38vmin, 11rem);
+        object-fit: contain;
         animation: splash-pulse 1.3s ease-in-out infinite;
       }
       #splash-screen p {
@@ -193,7 +193,7 @@
   </head>
   <body>
     <div id="splash-screen" aria-hidden="true">
-      <img src="/splash-logo.svg" alt="" />
+      <img src="/brand/nnmc-logo.png" alt="" />
       <p>MedConnect</p>
     </div>
     <div id="root"></div>
