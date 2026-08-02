@@ -473,18 +473,8 @@ function ClinicalHero({ config, t, trustItems }) {
                             </button>
                         </div>
 
-                        <div className='hero-enter hero-enter--5 mt-9 flex max-w-xl items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/75 p-4 shadow-sm shadow-slate-900/5 lg:mt-(--hero-mt-trust)'>
-                            <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50'>
-                                <Shield className='h-5 w-5 text-emerald-700' />
-                            </div>
-                            <div>
-                                <p className='font-semibold text-slate-900'>{t('landing.hero.trust_title')}</p>
-                                <p className='mt-0.5 text-sm leading-relaxed text-slate-500'>{t('landing.hero.trust_description')}</p>
-                            </div>
-                        </div>
-
                         {visibleStats.length > 0 && (
-                            <div className='hero-enter hero-enter--5 mt-8 grid max-w-xl grid-cols-3 border-t border-slate-200 pt-6 lg:mt-(--hero-mt-stats) lg:pt-(--hero-pt-stats)'>
+                            <div className='hero-enter hero-enter--5 mt-10 grid max-w-xl grid-cols-3 border-t border-slate-200 pt-6 lg:mt-(--hero-mt-stats) lg:pt-(--hero-pt-stats)'>
                                 {visibleStats.map((item, idx) => (
                                     <div
                                         key={`${item.label}-${idx}`}
