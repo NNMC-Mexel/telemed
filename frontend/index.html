@@ -134,7 +134,9 @@
         heroPreload.href = '/nnmc-campus-hero-poster-1280.avif'
         heroPreload.imageSrcset =
           '/nnmc-campus-hero-poster-828.avif 828w, /nnmc-campus-hero-poster-1280.avif 1280w, /nnmc-campus-hero-poster-1600.avif 1600w'
-        heroPreload.imageSizes = '100vw'
+        // Keep in sync with HERO_POSTER_SIZES in LandingPage.jsx — a mismatch
+        // makes the preload and the <img> resolve to different files.
+        heroPreload.imageSizes = '(max-width: 640px) 55vw, 100vw'
         heroPreload.fetchPriority = 'high'
         document.head.appendChild(heroPreload)
       }

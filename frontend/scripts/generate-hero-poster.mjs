@@ -20,7 +20,7 @@ import sharp from "sharp";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = join(root, "public");
-const source = join(publicDir, "nnmc-campus-hero-poster.jpg");
+const source = join(root, "assets-src", "nnmc-campus-hero-poster-master.jpg");
 
 // 1600 is the master's native width — there is nothing to gain above it.
 const WIDTHS = [828, 1280, 1600];
