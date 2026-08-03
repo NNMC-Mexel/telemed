@@ -7,8 +7,11 @@ import Input from '../../components/ui/Input'
 import Textarea from '../../components/ui/Textarea'
 import { contentAPI, normalizeResponse } from '../../services/api'
 import { useDialog } from '../../components/ui/Dialog'
+import HeroVariantPicker from '../../components/admin/HeroVariantPicker'
+import { DEFAULT_HERO_VARIANT } from '../../config/heroVariants'
 
 const defaultLandingConfig = {
+  heroVariant: DEFAULT_HERO_VARIANT,
   hero: {
     badge: 'Быстрая и удобная медицинская помощь',
     titlePrefix: 'Консультация с врачом',
@@ -325,6 +328,19 @@ function AdminContent() {
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('admin_content.hero_design_title')}</CardTitle>
+        </CardHeader>
+        <CardContent className='space-y-4'>
+          <p className='text-sm text-slate-600'>{t('admin_content.hero_design_hint')}</p>
+          <HeroVariantPicker
+            value={landingConfig.heroVariant}
+            onChange={(variantId) => setConfigValue(['heroVariant'], variantId)}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

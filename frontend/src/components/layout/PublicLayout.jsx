@@ -16,6 +16,8 @@ import Button from "../ui/Button";
 import LanguageSwitcher from "../ui/LanguageSwitcher";
 import { BrandLockup } from "../brand/BrandLogo";
 import useAuthStore from "../../stores/authStore";
+import useHeroThemeStore from "../../stores/heroThemeStore";
+import { getHeroVariant } from "../../config/heroVariants";
 
 function PublicLayout({ children }) {
     const { t } = useTranslation();
@@ -43,8 +45,6 @@ function PublicLayout({ children }) {
             document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const showDarkHeader = false;
-
     useEffect(() => {
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 20);
@@ -65,6 +65,13 @@ function PublicLayout({ children }) {
     };
 
     const isOnLanding = location.pathname === "/";
+
+    // At the top of the landing the nav sits directly on the hero, so it follows
+    // whichever design the hero is wearing. Everywhere else — and as soon as the
+    // header fills in on scroll — it goes back to dark type on white.
+    const heroVariant = useHeroThemeStore((state) => state.variant);
+    const showDarkHeader =
+        isOnLanding && !isScrolled && Boolean(getHeroVariant(heroVariant)?.headerOnDark);
 
     const navLinks = [
         { href: "/", label: t("nav.home") },
@@ -199,7 +206,12 @@ function PublicLayout({ children }) {
                 {isOnLanding && !isScrolled && (
                     <div
                         aria-hidden='true'
-                        className='pointer-events-none absolute inset-0 bg-gradient-to-b from-white/75 via-white/35 to-transparent'
+                        className={cn(
+                            'pointer-events-none absolute inset-0 bg-gradient-to-b to-transparent',
+                            showDarkHeader
+                                ? 'from-ink-950/70 via-ink-950/25'
+                                : 'from-white/75 via-white/35',
+                        )}
                     />
                 )}
                 <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -248,7 +260,9 @@ function PublicLayout({ children }) {
 
                             {isAuthenticated ? (
                                 <Link to={getDashboardLink()}>
-                                    <Button>{t("nav.dashboard")}</Button>
+                                    <Button variant={showDarkHeader ? "inverse" : "primary"}>
+                                        {t("nav.dashboard")}
+                                    </Button>
                                 </Link>
                             ) : (
                                 <>
@@ -258,13 +272,8 @@ function PublicLayout({ children }) {
                                         <Button
                                             variant={
                                                 showDarkHeader
-                                                    ? "outline"
+                                                    ? "inverseGhost"
                                                     : "ghost"
-                                            }
-                                            className={
-                                                showDarkHeader
-                                                    ? "text-white border-white/30 hover:bg-white/10"
-                                                    : ""
                                             }
                                             onClick={() =>
                                                 setShowLoginDropdown(
@@ -325,7 +334,9 @@ function PublicLayout({ children }) {
                                         )}
                                     </div>
                                     <Link to='/register'>
-                                        <Button>{t("nav.register")}</Button>
+                                        <Button variant={showDarkHeader ? "inverse" : "primary"}>
+                                            {t("nav.register")}
+                                        </Button>
                                     </Link>
                                 </>
                             )}

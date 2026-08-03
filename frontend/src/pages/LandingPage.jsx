@@ -62,6 +62,8 @@ import StoriesRow from "../components/news/StoriesRow";
 import NewsKindBadge from "../components/news/NewsKindBadge";
 import { getNewsKindStyle } from "../components/news/newsKind";
 import { heroPosterLqip } from "../assets/heroPosterLqip";
+import { DEFAULT_HERO_VARIANT, resolveHeroVariant } from "../config/heroVariants";
+import useHeroThemeStore from "../stores/heroThemeStore";
 import { useReveal } from "../hooks/useReveal";
 import { cn, formatDate, getInitials, isDoctorOnline, getSpecName } from "../utils/helpers";
 
@@ -290,15 +292,33 @@ const HERO_POSTER_WIDTHS = [828, 1280, 1600];
 const heroPosterSrcSet = (ext) =>
     HERO_POSTER_WIDTHS.map((w) => `/nnmc-campus-hero-poster-${w}.${ext} ${w}w`).join(", ");
 
-// The campus video is 12.5 MB. It is an ambience layer behind a near-opaque
-// scrim, so it is never worth spending a metered or slow connection on.
+// The backdrop is blurred by 2px and scrimmed, so it is deliberately rendered
+// below the device pixel ratio: a phone gets the 828 grade (~28 KB) instead of
+// the 1600 one (~77 KB) its DPR would otherwise ask for.
+//
+// Keep in sync with `heroPreload.imageSizes` in index.html — a mismatch makes
+// the preload and the <img> pick different files and downloads both.
+const HERO_POSTER_SIZES = "(max-width: 640px) 55vw, 100vw";
+
+// The same reasoning caps the video: 640 is enough for any phone once the clip
+// is blurred. Resolved once, on mount — a resize past the breakpoint is not
+// worth a second download.
+function heroVideoSrc() {
+    return window.innerWidth <= 768
+        ? "/nnmc-campus-hero-640.mp4"
+        : "/nnmc-campus-hero-1280.mp4";
+}
+
+// The renditions are ~510 KB and ~1.6 MB, so a merely slow connection is worth
+// spending on. Only the genuinely hostile cases opt out: Data Saver, 2G, and
+// readers who asked for stillness.
 function shouldSkipHeroVideo() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
 
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     if (!connection) return false;
     if (connection.saveData) return true;
-    return ["slow-2g", "2g", "3g"].includes(connection.effectiveType);
+    return ["slow-2g", "2g"].includes(connection.effectiveType);
 }
 
 // Runs `callback` once the main thread is free, so the video download never
@@ -321,7 +341,7 @@ function whenIdle(callback) {
  *    next and is what most visitors actually read the headline against.
  * 3. Only after the poster has decoded, and only on a connection that can
  *    afford it, does the video start downloading. It cross-fades in on
- *    `canplaythrough`, so it never appears as a stalling half-frame.
+ *    `playing` — the first point at which a frame is genuinely on screen.
  */
 function HeroBackdrop() {
     const videoRef = useRef(null);
@@ -339,31 +359,59 @@ function HeroBackdrop() {
         if (!isPosterReady || videoSrc) return undefined;
         if (shouldSkipHeroVideo()) return undefined;
 
-        return whenIdle(() => setVideoSrc("/nnmc-campus-hero.mp4"));
+        return whenIdle(() => setVideoSrc(heroVideoSrc()));
     }, [isPosterReady, videoSrc]);
 
     useEffect(() => {
         const video = videoRef.current;
         if (!video || !videoSrc) return undefined;
 
+        let disposed = false;
+        let gestureArmed = false;
+
+        // Autoplay refusals (Low Power Mode, policy) are lifted by a user
+        // gesture, so one is waited for rather than losing the backdrop for
+        // the rest of the visit.
+        const GESTURE_EVENTS = ["pointerdown", "touchstart", "keydown"];
+
+        // `playing` is the first point at which a frame is genuinely painted,
+        // which makes it the honest moment to fade the poster out.
         const reveal = () => {
-            window.clearTimeout(fallback);
-            video.play().then(
-                () => setIsVideoVisible(true),
-                // Autoplay can still be refused (low power mode, policy).
-                // The poster underneath stays as the final state.
-                () => {},
-            );
+            if (!disposed) setIsVideoVisible(true);
         };
 
-        video.addEventListener("canplaythrough", reveal, { once: true });
+        // Safari does not buffer past metadata until playback is requested, so
+        // waiting for `canplaythrough` before calling play() deadlocks — the
+        // buffering being waited on is the buffering play() would have started.
+        const attemptPlay = () => {
+            if (disposed) return;
+            // React assigns `muted` as a property; the autoplay check has been
+            // observed to miss that on a freshly mounted element.
+            video.muted = true;
+            // Safari before 15 returns undefined instead of a promise.
+            video.play()?.catch((error) => {
+                if (disposed || gestureArmed || error?.name !== "NotAllowedError") return;
+                gestureArmed = true;
+                for (const event of GESTURE_EVENTS) {
+                    window.addEventListener(event, onGesture, { once: true, passive: true });
+                }
+            });
+        };
 
-        // Some browsers throttle buffering and never reach `canplaythrough`.
-        // Accept HAVE_FUTURE_DATA after a grace period so the video is not
-        // silently withheld — a brief stall is better than never playing.
-        const fallback = window.setTimeout(() => {
-            if (video.readyState >= 3) reveal();
-        }, 8000);
+        const onGesture = () => {
+            gestureArmed = false;
+            releaseGestureListeners();
+            attemptPlay();
+        };
+
+        const releaseGestureListeners = () => {
+            for (const event of GESTURE_EVENTS) {
+                window.removeEventListener(event, onGesture);
+            }
+        };
+
+        video.addEventListener("playing", reveal);
+        attemptPlay();
 
         const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
         const syncMotionPreference = () => {
@@ -374,8 +422,9 @@ function HeroBackdrop() {
         motionPreference.addEventListener?.("change", syncMotionPreference);
 
         return () => {
-            window.clearTimeout(fallback);
-            video.removeEventListener("canplaythrough", reveal);
+            disposed = true;
+            video.removeEventListener("playing", reveal);
+            releaseGestureListeners();
             motionPreference.removeEventListener?.("change", syncMotionPreference);
         };
     }, [videoSrc]);
@@ -388,13 +437,13 @@ function HeroBackdrop() {
             />
 
             <picture>
-                <source type='image/avif' srcSet={heroPosterSrcSet("avif")} sizes='100vw' />
-                <source type='image/webp' srcSet={heroPosterSrcSet("webp")} sizes='100vw' />
+                <source type='image/avif' srcSet={heroPosterSrcSet("avif")} sizes={HERO_POSTER_SIZES} />
+                <source type='image/webp' srcSet={heroPosterSrcSet("webp")} sizes={HERO_POSTER_SIZES} />
                 <img
                     ref={attachPoster}
                     src='/nnmc-campus-hero-poster-1280.jpg'
                     srcSet={heroPosterSrcSet("jpg")}
-                    sizes='100vw'
+                    sizes={HERO_POSTER_SIZES}
                     alt=''
                     width={1600}
                     height={900}
@@ -436,31 +485,37 @@ function ClinicalHero({ config, t, trustItems }) {
         ? [allStats[0], allStats[2], allStats[3]].filter(Boolean)
         : allStats.slice(0, 3);
 
+    // The design the admin picked. Everything it changes is CSS keyed off this
+    // attribute, so an unknown value degrades to the default rather than to a
+    // broken hero.
+    const heroVariant = resolveHeroVariant(config.heroVariant);
+
     return (
         <section
             aria-labelledby='landing-hero-title'
-            className='hero-clinical relative flex min-h-svh flex-col overflow-hidden bg-slate-100'>
+            data-hero-variant={heroVariant}
+            className='hero-clinical relative flex min-h-svh flex-col overflow-hidden'>
             <HeroBackdrop />
 
             <div className='relative z-10 mx-auto grid w-full max-w-7xl flex-1 items-center gap-12 px-4 pb-12 pt-32 sm:px-6 sm:pb-14 sm:pt-36 lg:grid-cols-[minmax(0,0.92fr)_minmax(500px,1.08fr)] lg:gap-16 lg:px-8 lg:pb-(--hero-pad-bottom) lg:pt-(--hero-pad-top)'>
                 <div className='max-w-2xl'>
-                        <span className='hero-enter hero-enter--1 inline-flex items-center gap-2.5 rounded-full border border-teal-200/80 bg-white px-4 py-2 text-sm font-semibold text-teal-800 shadow-sm shadow-teal-900/5'>
-                            <span className='flex h-7 w-7 items-center justify-center rounded-full bg-teal-50'>
-                                <Building2 className='h-4 w-4 text-teal-700' />
+                        <span className='hero-clinical__chip hero-enter hero-enter--1 inline-flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-semibold'>
+                            <span className='hero-clinical__chip-icon flex h-7 w-7 items-center justify-center rounded-full'>
+                                <Building2 className='h-4 w-4' />
                             </span>
                             {config.hero.badge}
                         </span>
 
                         <h1
                             id='landing-hero-title'
-                            className='hero-enter hero-enter--2 mt-7 max-w-2xl text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-slate-950 sm:text-5xl lg:mt-(--hero-mt-title) lg:text-(length:--hero-title-size)'>
+                            className='hero-clinical__title hero-enter hero-enter--2 mt-7 max-w-2xl text-4xl font-semibold leading-[1.08] tracking-[-0.035em] sm:text-5xl lg:mt-(--hero-mt-title) lg:text-(length:--hero-title-size)'>
                             {config.hero.titlePrefix}<br />
-                            <span className='text-teal-700'>
+                            <span className='hero-clinical__accent'>
                                 {config.hero.titleHighlight}
                             </span>
                         </h1>
 
-                        <p className='hero-enter hero-enter--3 mt-6 max-w-xl text-lg leading-relaxed text-slate-600 sm:text-xl lg:mt-(--hero-mt-lead)'>
+                        <p className='hero-clinical__lead hero-enter hero-enter--3 mt-6 max-w-xl text-lg leading-relaxed sm:text-xl lg:mt-(--hero-mt-lead)'>
                             {config.hero.description}
                         </p>
 
@@ -468,7 +523,7 @@ function ClinicalHero({ config, t, trustItems }) {
                             <Link to='/doctors' className='group sm:w-auto'>
                                 <Button
                                     size='xl'
-                                    className='hero-clinical__primary-cta w-full rounded-2xl px-7 shadow-lg shadow-teal-700/20 sm:w-auto'>
+                                    className='hero-clinical__primary-cta w-full rounded-2xl px-7 shadow-lg shadow-sky-950/40 sm:w-auto'>
                                     {config.hero.primaryButtonLabel}
                                     <ArrowRight className='ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1' />
                                 </Button>
@@ -476,25 +531,25 @@ function ClinicalHero({ config, t, trustItems }) {
                             <button
                                 type='button'
                                 onClick={() => document.querySelector("#features")?.scrollIntoView({ behavior: "smooth" })}
-                                className='inline-flex min-h-14 items-center justify-center whitespace-nowrap rounded-2xl px-5 text-base font-semibold text-slate-700 transition-colors hover:bg-white hover:text-teal-800'>
+                                className='hero-clinical__ghost-cta inline-flex min-h-14 items-center justify-center whitespace-nowrap rounded-2xl px-5 text-base font-semibold transition-colors'>
                                 {t('landing.hero.how_it_works')}
                                 <ArrowRight className='ml-2 h-4 w-4' />
                             </button>
                         </div>
 
                         {visibleStats.length > 0 && (
-                            <div className='hero-enter hero-enter--5 mt-10 grid max-w-xl grid-cols-3 border-t border-slate-200 pt-6 lg:mt-(--hero-mt-stats) lg:pt-(--hero-pt-stats)'>
+                            <div className='hero-clinical__stats hero-enter hero-enter--5 mt-10 grid max-w-xl grid-cols-3 border-t pt-6 lg:mt-(--hero-mt-stats) lg:pt-(--hero-pt-stats)'>
                                 {visibleStats.map((item, idx) => (
                                     <div
                                         key={`${item.label}-${idx}`}
                                         className={cn(
                                             "flex min-w-0 flex-col items-center px-2 text-center sm:px-4",
-                                            idx > 0 && "border-l border-slate-200",
+                                            idx > 0 && "hero-clinical__stat--divided border-l",
                                         )}>
-                                        <div className='text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl'>
+                                        <div className='hero-clinical__stat-value text-2xl font-bold tracking-tight sm:text-3xl'>
                                             <CountUp value={item.value} />
                                         </div>
-                                        <div className='mt-1 text-xs leading-snug text-slate-500 sm:text-sm'>{item.label}</div>
+                                        <div className='hero-clinical__stat-label mt-1 text-xs leading-snug sm:text-sm'>{item.label}</div>
                                     </div>
                                 ))}
                             </div>
@@ -502,8 +557,8 @@ function ClinicalHero({ config, t, trustItems }) {
                 </div>
 
                 <div className='hero-enter hero-enter--3 relative mx-auto w-full max-w-[540px] lg:mx-0 lg:justify-self-end'>
-                    <div className='hero-clinical__service-card relative rounded-[2rem] border border-white bg-white p-5 shadow-2xl shadow-slate-900/15 sm:p-7 lg:p-(--hero-card-pad) lg:pb-(--hero-card-pad-bottom)'>
-                        <div className='flex items-center gap-3 border-b border-slate-100 pb-5'>
+                    <div className='hero-clinical__service-card relative rounded-[2rem] border p-5 sm:p-7 lg:p-(--hero-card-pad) lg:pb-(--hero-card-pad-bottom)'>
+                        <div className='flex items-center gap-3 border-b border-slate-900/8 pb-5'>
                             <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-700 text-white'>
                                 <Building2 className='h-5 w-5' />
                             </div>
@@ -516,9 +571,9 @@ function ClinicalHero({ config, t, trustItems }) {
                         <div className='mt-7 flex items-start justify-between gap-4 lg:mt-(--hero-card-mt-title)'>
                             <div>
                                 <h2 className='text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl'>{config.heroCard.title}</h2>
-                                <p className='mt-2 text-sm leading-relaxed text-slate-500 sm:text-base'>{config.heroCard.subtitle}</p>
+                                <p className='mt-2 text-sm leading-relaxed text-slate-600 sm:text-base'>{config.heroCard.subtitle}</p>
                             </div>
-                            <span className='hidden shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:inline-flex'>
+                            <span className='hidden shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/12 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:inline-flex'>
                                 <span className='h-2 w-2 rounded-full bg-emerald-500' />
                                 {t('landing.hero.video_format')}
                             </span>
@@ -528,13 +583,13 @@ function ClinicalHero({ config, t, trustItems }) {
                             {(config.heroCard.items || []).slice(0, 3).map((item, idx) => {
                                 const AdvantageIcon = advantageIcons[idx] || advantageIcons[0];
                                 return (
-                                    <div key={`${item.title}-${idx}`} className='flex items-start gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 lg:p-(--hero-card-item-pad)'>
-                                        <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50'>
+                                    <div key={`${item.title}-${idx}`} className='flex items-start gap-4 rounded-2xl border border-slate-900/6 bg-slate-900/5 p-4 lg:p-(--hero-card-item-pad)'>
+                                        <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-600/12'>
                                             <AdvantageIcon className='h-5 w-5 text-teal-700' />
                                         </div>
                                         <div>
                                             <p className='font-semibold text-slate-900'>{item.title}</p>
-                                            <p className='mt-0.5 text-sm leading-relaxed text-slate-500'>{item.description}</p>
+                                            <p className='mt-0.5 text-sm leading-relaxed text-slate-600'>{item.description}</p>
                                         </div>
                                     </div>
                                 );
@@ -542,13 +597,13 @@ function ClinicalHero({ config, t, trustItems }) {
                         </div>
                     </div>
 
-                    <div className='hero-clinical__seal absolute -bottom-5 -left-3 hidden items-center gap-3 rounded-2xl border border-teal-100 bg-white px-4 py-3 shadow-lg shadow-slate-900/10 sm:flex lg:-left-7'>
-                        <div className='flex h-10 w-10 items-center justify-center rounded-full bg-teal-50'>
+                    <div className='hero-clinical__seal absolute -bottom-5 -left-3 hidden items-center gap-3 rounded-2xl border px-4 py-3 shadow-lg shadow-black/25 sm:flex lg:-left-7'>
+                        <div className='flex h-10 w-10 items-center justify-center rounded-full bg-teal-600/12'>
                             <CheckCircle className='h-5 w-5 text-teal-700' />
                         </div>
                         <div>
                             <p className='text-sm font-semibold text-slate-900'>{t('landing.hero.verified_title')}</p>
-                            <p className='text-xs text-slate-500'>{t('landing.hero.verified_description')}</p>
+                            <p className='text-xs text-slate-600'>{t('landing.hero.verified_description')}</p>
                         </div>
                     </div>
                 </div>
@@ -584,7 +639,7 @@ function TrustMarquee({ items, label }) {
     return (
         <section
             aria-label={label}
-            className='surface-ink-flat relative z-10 mt-auto overflow-hidden border-y border-white/10 py-5'>
+            className='hero-clinical__marquee relative z-10 mt-auto overflow-hidden border-t py-5'>
             <div className='marquee-viewport'>
                 {/* The list is duplicated so the -50% translate loops seamlessly;
                     the copy is hidden from assistive tech. */}
@@ -595,11 +650,11 @@ function TrustMarquee({ items, label }) {
             </div>
             <div
                 aria-hidden='true'
-                className='pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-ink-900 to-transparent sm:w-28'
+                className='hero-clinical__marquee-fade--left pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-28'
             />
             <div
                 aria-hidden='true'
-                className='pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-ink-900 to-transparent sm:w-28'
+                className='hero-clinical__marquee-fade--right pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-28'
             />
         </section>
     );
@@ -2103,6 +2158,7 @@ function LandingPage() {
     const [videoTestimonials, setVideoTestimonials] = useState([]);
 
     const defaultLandingConfig = useMemo(() => ({
+        heroVariant: DEFAULT_HERO_VARIANT,
         hero: {
             badge: t('landing.hero.badge'),
             titlePrefix: t('landing.hero.title_prefix'),
@@ -2313,6 +2369,13 @@ function LandingPage() {
         const featureTitles = (config.featuresSection.cards || []).map((card) => card.title);
         return [...bullets, ...featureTitles].filter(Boolean);
     }, [config.aboutSection.bullets, config.featuresSection.cards]);
+
+    // The public header renders above this page and inverts with the hero, so
+    // the chosen design is published to a store it can subscribe to.
+    const setHeroVariant = useHeroThemeStore((state) => state.setVariant);
+    useEffect(() => {
+        setHeroVariant(config.heroVariant);
+    }, [config.heroVariant, setHeroVariant]);
 
     useReveal([isLoading, doctors.length, specializations.length, news.length, stories.length, i18n.language]);
 

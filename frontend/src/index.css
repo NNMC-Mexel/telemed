@@ -109,9 +109,13 @@
   /* Paper — the warm off-white the brandbook lays every page on. */
   --color-paper: #f7f5f0;
 
-  /* Hero scrim — the wash the headline is read against, as RGB channels so it
-     can be used at varying alpha. Matches the brandbook paper. */
-  --color-hero-scrim: 247 245 240;
+  /* Hero scrim — the wash the headline is read against, as RGB channels so each
+     layer can pick its own alpha. The hero is the brandbook navy laid over the
+     campus footage, the same ink used on the centre's printed collateral, with
+     the secondary green blooming from the bottom-left corner. */
+  --color-hero-ink: 13 25 43;
+  --color-hero-navy: 28 62 112;
+  --color-hero-glow: 58 141 103;
 
   /* Font Families — Montserrat is the corporate typeface for both roles. */
   --font-sans: 'Montserrat', system-ui, sans-serif;
@@ -265,6 +269,7 @@
 
 .hero-clinical {
   isolation: isolate;
+  background-color: var(--hero-base-bg);
 
   /* --- Hero density ----------------------------------------------------
      The hero is composed so its trust marquee lands exactly on the fold, but
@@ -297,6 +302,51 @@
      covering 13px of text even on a 1080p screen. The card keeps a deeper
      bottom padding so the badge floats over padding, not over copy. */
   --hero-card-pad-bottom: 3.5rem;
+
+  /* --- Hero theme ------------------------------------------------------
+     Everything an admin-selectable design is allowed to change. The values
+     below are the default `ink` variant; the `[data-hero-variant]` blocks
+     further down override these tokens and the two backdrop layers, and
+     nothing else — no layout property is themeable, which is what keeps a
+     design switch from breaking the composition. */
+  /* Painted before the poster decodes, so it has to match the design or the
+     first frame flashes the wrong ground. */
+  --hero-base-bg: var(--color-ink-950);
+  --hero-media-filter: saturate(1.18) contrast(1.06) brightness(0.86);
+
+  --hero-title: #ffffff;
+  --hero-accent: var(--color-sky-400);
+  --hero-lead: rgb(255 255 255 / 0.8);
+  --hero-muted: rgb(255 255 255 / 0.6);
+  --hero-rule: rgb(255 255 255 / 0.2);
+
+  --hero-chip-bg: rgb(255 255 255 / 0.1);
+  --hero-chip-border: rgb(255 255 255 / 0.25);
+  --hero-chip-fg: #ffffff;
+  --hero-chip-icon-bg: rgb(255 255 255 / 0.15);
+  --hero-chip-icon: var(--color-sky-300);
+  --hero-chip-blur: blur(12px);
+
+  --hero-cta-bg: var(--color-sky-600);
+  --hero-cta-bg-hover: var(--color-sky-700);
+  --hero-cta-fg: #ffffff;
+  --hero-ghost-fg: rgb(255 255 255 / 0.85);
+  --hero-ghost-hover-bg: rgb(255 255 255 / 0.1);
+  --hero-ghost-hover-fg: #ffffff;
+
+  /* The card and the seal stay light in every design — the copy inside them is
+     dark, so only the surface is themed. */
+  --hero-card-bg: rgb(255 255 255 / 0.86);
+  --hero-card-border: rgb(255 255 255 / 0.7);
+  --hero-card-blur: blur(20px) saturate(1.25);
+  --hero-card-shadow: 0 32px 80px rgb(5 12 24 / 0.42);
+  --hero-seal-bg: rgb(255 255 255 / 0.88);
+  --hero-seal-blur: blur(14px) saturate(1.2);
+
+  --hero-marquee-bg: rgb(var(--color-hero-ink) / 0.45);
+  --hero-marquee-border: rgb(255 255 255 / 0.12);
+  --hero-marquee-blur: blur(12px);
+  --hero-marquee-fade: rgb(var(--color-hero-ink) / 0.85);
 }
 
 /* Laptop landscape. Keeps clear of the ~80px fixed header. */
@@ -373,8 +423,12 @@
    an inline LQIP data URI (paints with the stylesheet), the responsive poster
    (preloaded in index.html), then the campus video once it has actually
    buffered. They share one filter/scale so each handoff is invisible. */
+/* The footage is dimmed rather than washed out: saturation and contrast go up,
+   brightness comes down, and the navy scrim above supplies the legibility the
+   old 82%-opaque paper layer used to buy by erasing the campus. Variants retune
+   the grade through the `--hero-media-filter` token. */
 .hero-clinical__background-media {
-  filter: blur(2px) saturate(0.88) contrast(1) brightness(0.98);
+  filter: var(--hero-media-filter);
   transform: scale(1.02);
   transform-origin: center;
 }
@@ -383,11 +437,11 @@
   background-position: center;
   background-size: cover;
   /* The 24px placeholder is upscaled ~70x; blurring hides the block edges. */
-  filter: blur(12px) saturate(0.88);
+  filter: blur(12px) var(--hero-media-filter);
   transform: scale(1.08);
 }
 
-/* The video is only faded in on `canplaythrough`, so the poster is never
+/* The video is only faded in once it reports `playing`, so the poster is never
    swapped for a half-decoded first frame. */
 .hero-clinical__background-video {
   opacity: 0;
@@ -398,31 +452,136 @@
   opacity: 1;
 }
 
+/* Three layers, densest where the headline sits: a green bloom at the corner,
+   a top fade that carries the transparent nav, and the navy body of the scrim
+   raking left to right so the campus stays visible behind the service card. */
 .hero-clinical__background-scrim {
   background:
-    linear-gradient(
-      90deg,
-      rgb(var(--color-hero-scrim) / 0.82) 0%,
-      rgb(var(--color-hero-scrim) / 0.68) 42%,
-      rgb(var(--color-hero-scrim) / 0.3) 100%
+    radial-gradient(
+      95% 120% at 4% 104%,
+      rgb(var(--color-hero-glow) / 0.3) 0%,
+      rgb(var(--color-hero-glow) / 0) 56%
     ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgb(var(--color-hero-scrim) / 0.14) 100%);
+    linear-gradient(180deg, rgb(var(--color-hero-ink) / 0.7) 0%, rgb(var(--color-hero-ink) / 0) 24%),
+    linear-gradient(
+      96deg,
+      rgb(var(--color-hero-ink) / 0.95) 0%,
+      rgb(var(--color-hero-navy) / 0.88) 32%,
+      rgb(var(--color-hero-navy) / 0.58) 64%,
+      rgb(var(--color-hero-navy) / 0.36) 100%
+    );
 }
 
+/* --- Themed hero surfaces ------------------------------------------------
+   Each rule reads a token, so a variant restyles the hero without touching a
+   single element or utility class in the JSX. */
+
+.hero-clinical__title {
+  color: var(--hero-title);
+}
+
+.hero-clinical__accent {
+  color: var(--hero-accent);
+}
+
+.hero-clinical__lead {
+  color: var(--hero-lead);
+}
+
+.hero-clinical__chip {
+  background: var(--hero-chip-bg);
+  border-color: var(--hero-chip-border);
+  color: var(--hero-chip-fg);
+  -webkit-backdrop-filter: var(--hero-chip-blur);
+  backdrop-filter: var(--hero-chip-blur);
+}
+
+.hero-clinical__chip-icon {
+  background: var(--hero-chip-icon-bg);
+  color: var(--hero-chip-icon);
+}
+
+.hero-clinical__ghost-cta {
+  color: var(--hero-ghost-fg);
+}
+
+.hero-clinical__ghost-cta:hover {
+  background: var(--hero-ghost-hover-bg);
+  color: var(--hero-ghost-hover-fg);
+}
+
+.hero-clinical__stats,
+.hero-clinical__stat--divided {
+  border-color: var(--hero-rule);
+}
+
+.hero-clinical__stat-value {
+  color: var(--hero-title);
+}
+
+.hero-clinical__stat-label {
+  color: var(--hero-muted);
+}
+
+/* Frosted white rather than solid: the card stays the bright, clinical surface
+   the copy is read on, but the campus moves through it instead of being cut
+   out by a panel parked on top of the footage. */
 .hero-clinical__service-card {
+  background: var(--hero-card-bg);
+  border-color: var(--hero-card-border);
+  /* Prefixed first: the minifier treats the pair as one property and keeps the
+     last declaration, so the standard name has to come second to survive. */
+  -webkit-backdrop-filter: var(--hero-card-blur);
+  backdrop-filter: var(--hero-card-blur);
   box-shadow:
-    0 32px 80px rgba(15, 23, 42, 0.16),
+    var(--hero-card-shadow),
     0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
+.hero-clinical__seal {
+  background: var(--hero-seal-bg);
+  border-color: var(--hero-card-border);
+  -webkit-backdrop-filter: var(--hero-seal-blur);
+  backdrop-filter: var(--hero-seal-blur);
+}
+
+/* The marquee is the hero's base line, so it is themed with it: frosted over
+   the dark designs, a solid ink band under the light one. */
+.hero-clinical__marquee {
+  background: var(--hero-marquee-bg);
+  border-top-color: var(--hero-marquee-border);
+  -webkit-backdrop-filter: var(--hero-marquee-blur);
+  backdrop-filter: var(--hero-marquee-blur);
+}
+
+.hero-clinical__marquee-fade--left {
+  background: linear-gradient(90deg, var(--hero-marquee-fade), transparent);
+}
+
+.hero-clinical__marquee-fade--right {
+  background: linear-gradient(270deg, var(--hero-marquee-fade), transparent);
+}
+
+/* Without backdrop-filter (Safari on older iOS) the transparency has nothing
+   to blur against, and the navy behind would bleed straight into the copy. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hero-clinical__service-card,
+  .hero-clinical__seal {
+    background: rgb(255 255 255 / 0.97);
+  }
+}
+
+/* On the navy grounds a navy button disappears, so the dark designs hand the
+   primary action to the brandbook green — the colour the brand already assigns
+   to life and care. The light design keeps it navy. */
 .hero-clinical__primary-cta {
-  background: var(--color-teal-700) !important;
-  color: #fff !important;
+  background: var(--hero-cta-bg) !important;
+  color: var(--hero-cta-fg) !important;
 }
 
 .hero-clinical__primary-cta:hover {
-  background: var(--color-teal-800) !important;
-  box-shadow: 0 14px 30px color-mix(in srgb, var(--color-teal-700) 24%, transparent);
+  background: var(--hero-cta-bg-hover) !important;
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--hero-cta-bg) 38%, transparent);
   transform: translateY(-1px);
 }
 
@@ -441,18 +600,30 @@
 .hero-enter--4 { animation-delay: 450ms; }
 .hero-enter--5 { animation-delay: 560ms; }
 
+/* Below the two-column breakpoint the copy sits over the whole frame, so the
+   rake flattens into an even wash with the green bloom kept at the bottom. */
 @media (max-width: 1023px) {
   .hero-clinical__background-scrim {
     background:
-      linear-gradient(90deg, rgb(var(--color-hero-scrim) / 0.82), rgb(var(--color-hero-scrim) / 0.58)),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgb(var(--color-hero-scrim) / 0.14));
+      radial-gradient(
+        120% 80% at 0% 100%,
+        rgb(var(--color-hero-glow) / 0.26) 0%,
+        rgb(var(--color-hero-glow) / 0) 60%
+      ),
+      linear-gradient(
+        180deg,
+        rgb(var(--color-hero-ink) / 0.88) 0%,
+        rgb(var(--color-hero-navy) / 0.78) 45%,
+        rgb(var(--color-hero-navy) / 0.72) 100%
+      );
   }
 }
 
 @media (max-width: 639px) {
+  /* The campus building sits right of centre in the frame; on a portrait crop
+     it has to be pulled back into view. Shared by every design. */
   .hero-clinical__background-media {
     object-position: 58% center;
-    filter: blur(1.5px) saturate(0.84) contrast(0.98) brightness(1);
     transform: scale(1.025);
   }
 
@@ -460,8 +631,166 @@
     background-position: 58% center;
   }
 
+  /* One column, copy from top to bottom: the wash has to be flat and dense. */
   .hero-clinical__background-scrim {
-    background: rgb(var(--color-hero-scrim) / 0.74);
+    background:
+      radial-gradient(
+        130% 70% at 0% 100%,
+        rgb(var(--color-hero-glow) / 0.24) 0%,
+        rgb(var(--color-hero-glow) / 0) 62%
+      ),
+      linear-gradient(
+        180deg,
+        rgb(var(--color-hero-ink) / 0.9) 0%,
+        rgb(var(--color-hero-navy) / 0.82) 100%
+      );
+  }
+}
+
+/* ==========================================================================
+   Admin-selectable hero designs
+   ==========================================================================
+
+   Everything above is the default `ink` design. A variant may only retune the
+   tokens declared on `.hero-clinical` and repaint the two backdrop layers —
+   never a layout property. Adding one is a block here plus an entry in
+   `src/config/heroVariants.js`.
+   ========================================================================== */
+
+/* --- split — the copy on a solid brand panel with a diagonal cut, the frame
+       left untouched on the other side ------------------------------------ */
+.hero-clinical[data-hero-variant='split'] {
+  --hero-media-filter: saturate(1.14) contrast(1.05);
+  --hero-accent: var(--color-sand-300);
+  --hero-chip-border: rgb(216 186 154 / 0.5);
+  --hero-chip-icon: var(--color-sand-300);
+  --hero-cta-bg: #ffffff;
+  --hero-cta-bg-hover: var(--color-sand-100);
+  --hero-cta-fg: var(--color-teal-700);
+  --hero-card-bg: rgb(255 255 255 / 0.94);
+  --hero-card-blur: blur(14px) saturate(1.1);
+  --hero-seal-bg: rgb(255 255 255 / 0.95);
+}
+
+/* The cut is a hard gradient stop rather than a clip-path on an extra element:
+   one layer, nothing to keep in sync with the grid, and it degrades to a plain
+   wash the moment the columns stack. */
+.hero-clinical[data-hero-variant='split'] .hero-clinical__background-scrim {
+  background:
+    linear-gradient(
+      101deg,
+      rgb(216 186 154 / 0) 45.6%,
+      rgb(216 186 154 / 0.65) 45.75%,
+      rgb(216 186 154 / 0.65) 46.05%,
+      rgb(216 186 154 / 0) 46.2%
+    ),
+    radial-gradient(
+      38% 80% at 2% 104%,
+      rgb(var(--color-hero-glow) / 0.35) 0%,
+      rgb(var(--color-hero-glow) / 0) 62%
+    ),
+    linear-gradient(
+      101deg,
+      rgb(var(--color-hero-navy) / 1) 0%,
+      rgb(var(--color-hero-ink) / 1) 45.8%,
+      rgb(var(--color-hero-ink) / 0) 46%
+    ),
+    linear-gradient(180deg, rgb(var(--color-hero-ink) / 0.5) 0%, rgb(var(--color-hero-ink) / 0) 26%);
+}
+
+@media (max-width: 1023px) {
+  /* Stacked columns: a diagonal would cut straight through the copy. */
+  .hero-clinical[data-hero-variant='split'] .hero-clinical__background-scrim {
+    background:
+      radial-gradient(
+        120% 80% at 0% 100%,
+        rgb(var(--color-hero-glow) / 0.26) 0%,
+        rgb(var(--color-hero-glow) / 0) 60%
+      ),
+      linear-gradient(
+        180deg,
+        rgb(var(--color-hero-ink) / 0.9) 0%,
+        rgb(var(--color-hero-navy) / 0.8) 100%
+      );
+  }
+}
+
+/* --- tint — the light clinical hero, brand-tinted instead of washed grey -- */
+.hero-clinical[data-hero-variant='tint'] {
+  --hero-base-bg: #e8e5de;
+  --hero-media-filter: saturate(1.1) contrast(1.06);
+
+  --hero-title: var(--color-ink-950);
+  --hero-accent: var(--color-teal-700);
+  --hero-lead: #46556e;
+  --hero-muted: #66748c;
+  --hero-rule: rgb(28 62 112 / 0.22);
+
+  --hero-chip-bg: #ffffff;
+  --hero-chip-border: rgb(28 62 112 / 0.16);
+  --hero-chip-fg: var(--color-teal-800);
+  --hero-chip-icon-bg: var(--color-teal-50);
+  --hero-chip-icon: var(--color-teal-700);
+  --hero-chip-blur: none;
+
+  --hero-cta-bg: var(--color-teal-700);
+  --hero-cta-bg-hover: var(--color-teal-800);
+  --hero-cta-fg: #ffffff;
+  --hero-ghost-fg: #3f4f68;
+  --hero-ghost-hover-bg: #ffffff;
+  --hero-ghost-hover-fg: var(--color-teal-800);
+
+  --hero-card-bg: rgb(255 255 255 / 0.92);
+  --hero-card-border: #ffffff;
+  --hero-card-blur: blur(16px) saturate(1.1);
+  --hero-card-shadow: 0 32px 80px rgb(15 23 42 / 0.16);
+  --hero-seal-bg: rgb(255 255 255 / 0.95);
+
+  /* Under a light hero the marquee goes back to being a solid dark band — it is
+     the contrast break between the hero and the page. */
+  --hero-marquee-bg: var(--color-ink-900);
+  --hero-marquee-border: rgb(255 255 255 / 0.1);
+  --hero-marquee-blur: none;
+  --hero-marquee-fade: var(--color-ink-900);
+}
+
+.hero-clinical[data-hero-variant='tint'] .hero-clinical__background-scrim {
+  background:
+    radial-gradient(
+      120% 105% at 88% 112%,
+      rgb(var(--color-hero-glow) / 0.22) 0%,
+      rgb(var(--color-hero-glow) / 0) 58%
+    ),
+    linear-gradient(
+      96deg,
+      rgb(var(--color-hero-navy) / 0.18) 0%,
+      rgb(var(--color-hero-navy) / 0.07) 46%,
+      rgb(var(--color-hero-navy) / 0) 76%
+    ),
+    linear-gradient(
+      90deg,
+      rgb(247 245 240 / 0.88) 0%,
+      rgb(247 245 240 / 0.6) 40%,
+      rgb(247 245 240 / 0.08) 80%,
+      rgb(247 245 240 / 0) 100%
+    ),
+    linear-gradient(180deg, rgb(216 186 154 / 0.12) 0%, rgb(var(--color-hero-ink) / 0.16) 100%);
+}
+
+@media (max-width: 1023px) {
+  .hero-clinical[data-hero-variant='tint'] .hero-clinical__background-scrim {
+    background:
+      radial-gradient(
+        120% 80% at 100% 100%,
+        rgb(var(--color-hero-glow) / 0.18) 0%,
+        rgb(var(--color-hero-glow) / 0) 60%
+      ),
+      linear-gradient(
+        180deg,
+        rgb(247 245 240 / 0.9) 0%,
+        rgb(247 245 240 / 0.82) 100%
+      ),
+      linear-gradient(96deg, rgb(var(--color-hero-navy) / 0.12) 0%, rgb(var(--color-hero-navy) / 0) 80%);
   }
 }
 
@@ -497,10 +826,6 @@
     radial-gradient(1100px 620px at 12% -15%, color-mix(in srgb, var(--color-teal-500) 28%, transparent), transparent 62%),
     radial-gradient(900px 520px at 92% 8%, color-mix(in srgb, var(--color-sky-500) 22%, transparent), transparent 58%),
     radial-gradient(760px 700px at 62% 118%, color-mix(in srgb, var(--color-teal-400) 16%, transparent), transparent 62%);
-}
-
-.surface-ink-flat {
-  background-color: var(--color-ink-900);
 }
 
 /* Keeps the consultation photo informative while preserving readable copy. */
