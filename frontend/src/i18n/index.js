@@ -15,12 +15,19 @@ i18n
       kk: { translation: kk },
       en: { translation: en },
     },
-    lng: 'ru',
+    // No `lng` here on purpose: i18next skips the detector whenever an explicit
+    // language is set, which silently threw away the visitor's saved choice on
+    // every page load. `fallbackLng` gives first-time visitors Russian instead.
     fallbackLng: 'ru',
     supportedLngs: ['ru', 'kk', 'en'],
+    // `kk-KZ` from a browser has to resolve to the `kk` bundle we ship.
+    nonExplicitSupportedLngs: true,
     interpolation: { escapeValue: false },
     detection: {
-      order: ['localStorage', 'navigator'],
+      // Only what the visitor picked here — reading `navigator` would hand an
+      // English-locale browser an English site on first visit, which is not
+      // the default this clinic wants.
+      order: ['localStorage'],
       caches: ['localStorage'],
       lookupLocalStorage: 'i18nextLng',
     },

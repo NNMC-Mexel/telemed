@@ -9,184 +9,14 @@ import { contentAPI, normalizeResponse } from '../../services/api'
 import { useDialog } from '../../components/ui/Dialog'
 import HeroVariantPicker from '../../components/admin/HeroVariantPicker'
 import { DEFAULT_HERO_VARIANT } from '../../config/heroVariants'
-
-const defaultLandingConfig = {
-  heroVariant: DEFAULT_HERO_VARIANT,
-  hero: {
-    badge: 'Быстрая и удобная медицинская помощь',
-    titlePrefix: 'Консультация с врачом',
-    titleHighlight: 'онлайн',
-    description:
-      'Получите квалифицированную медицинскую помощь не выходя из дома. Наши специалисты готовы помочь вам прямо сейчас.',
-    primaryButtonLabel: 'Найти врача',
-    secondaryButtonLabel: 'Регистрация',
-  },
-  heroCard: {
-    title: 'Онлайн-консультация',
-    subtitle: 'Выберите удобное время',
-    items: [
-      {
-        title: 'Опытные врачи',
-        description: 'Только сертифицированные специалисты с подтверждённым опытом',
-      },
-      {
-        title: 'Удобно и быстро',
-        description: 'Консультация из любой точки мира без очередей и ожидания',
-      },
-      {
-        title: 'Поддержка 24/7',
-        description: 'Служба поддержки всегда на связи для решения ваших вопросов',
-      },
-    ],
-    buttonLabel: 'Записаться сейчас',
-  },
-  stats: [
-    { value: '1100+', label: 'Консультаций' },
-    { value: '6+', label: 'Врачей' },
-    { value: '4.9', label: 'Средний рейтинг' },
-    { value: '98%', label: 'Довольных' },
-  ],
-  featuresSection: {
-    badge: 'Почему мы',
-    title: 'Почему выбирают MedConnect',
-    subtitle: 'Современные технологии для вашего здоровья и комфорта',
-    cards: [
-      {
-        title: 'Видеоконсультации',
-        description: 'HD качество связи без задержек. Безопасное P2P соединение для комфортного общения.',
-      },
-      {
-        title: 'Безопасность данных',
-        description: 'Шифрование данных и соответствие стандартам медицинской безопасности.',
-      },
-      {
-        title: 'Доступно 24/7',
-        description: 'Запишитесь на удобное время или получите срочную консультацию в любой момент.',
-      },
-      {
-        title: 'Электронные документы',
-        description: 'Рецепты, заключения и направления в электронном виде сразу после консультации.',
-      },
-    ],
-  },
-  stepsSection: {
-    badge: 'Как это работает',
-    title: 'Всего 4 простых шага',
-    subtitle: 'До консультации с врачом',
-    steps: [
-      {
-        title: 'Выберите врача',
-        description: 'Найдите специалиста по направлению, рейтингу или отзывам',
-      },
-      {
-        title: 'Запишитесь на приём',
-        description: 'Выберите удобные дату и время для консультации',
-      },
-      {
-        title: 'Оплатите онлайн',
-        description: 'Безопасная оплата через Kaspi, Halyk или картой',
-      },
-      {
-        title: 'Получите консультацию',
-        description: 'Подключитесь к видеозвонку в назначенное время',
-      },
-    ],
-  },
-  aboutSection: {
-    badge: 'О нас',
-    title: 'MedConnect — ваш надёжный партнёр в заботе о здоровье',
-    description:
-      'Мы создали современную платформу телемедицины, которая делает качественную медицинскую помощь доступной каждому.',
-    bullets: [
-      'Лицензированные врачи с подтверждённым опытом',
-      'Безопасная и защищённая платформа',
-      'Круглосуточная поддержка пациентов',
-      'Электронные рецепты и документы',
-    ],
-    buttonLabel: 'Присоединиться',
-  },
-  contactSection: {
-    badge: 'Контакты',
-    title: 'Свяжитесь с нами',
-    subtitle: 'Мы всегда на связи и готовы ответить на ваши вопросы',
-    phone: {
-      title: 'Телефон',
-      note: 'Пн-Пт: 8:00 — 20:00, Сб: 9:00 — 15:00',
-      value: '+7 (717) 270-12-34',
-    },
-    email: {
-      title: 'Электронная почта',
-      note: 'Ответим в течение 24 часов',
-      value: 'info@medconnect.kz',
-    },
-    address: {
-      title: 'Адрес',
-      note: 'Приём по записи',
-      value: 'г. Астана, просп. Абылай хана, 42',
-    },
-    quickCard: {
-      title: 'Нужна быстрая консультация?',
-      description:
-        'Запишитесь на онлайн-консультацию с врачом прямо сейчас. Наши специалисты помогут вам в кратчайшие сроки.',
-      bullets: ['Без очередей и ожидания', 'Консультация из любой точки', 'Запись результатов в личный кабинет'],
-      buttonLabel: 'Записаться к врачу',
-    },
-    mapEmbedUrl:
-      'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2505.5!2d71.4926513!3d51.1492038!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4245817a521995c9%3A0xe653c982ba77912!2z0J3QsNGG0LjQvtC90LDQu9GM0L3Ri9C5INC90LDRg9GH0L3Ri9C5INC80LXQtNC40YbQuNC90YHQutC40Lkg0YbQtdC90YLRgA!5e0!3m2!1sru!2skz!4v1700000000000!5m2!1sru!2skz',
-  },
-}
-
-function mergeConfig(base, incoming) {
-  return {
-    ...base,
-    ...(incoming || {}),
-    hero: { ...base.hero, ...(incoming?.hero || {}) },
-    heroCard: {
-      ...base.heroCard,
-      ...(incoming?.heroCard || {}),
-      items: Array.isArray(incoming?.heroCard?.items) && incoming.heroCard.items.length > 0
-        ? incoming.heroCard.items
-        : base.heroCard.items,
-    },
-    stats: Array.isArray(incoming?.stats) && incoming.stats.length > 0 ? incoming.stats : base.stats,
-    featuresSection: {
-      ...base.featuresSection,
-      ...(incoming?.featuresSection || {}),
-      cards: Array.isArray(incoming?.featuresSection?.cards) && incoming.featuresSection.cards.length > 0
-        ? incoming.featuresSection.cards
-        : base.featuresSection.cards,
-    },
-    stepsSection: {
-      ...base.stepsSection,
-      ...(incoming?.stepsSection || {}),
-      steps: Array.isArray(incoming?.stepsSection?.steps) && incoming.stepsSection.steps.length > 0
-        ? incoming.stepsSection.steps
-        : base.stepsSection.steps,
-    },
-    aboutSection: {
-      ...base.aboutSection,
-      ...(incoming?.aboutSection || {}),
-      bullets: Array.isArray(incoming?.aboutSection?.bullets) && incoming.aboutSection.bullets.length > 0
-        ? incoming.aboutSection.bullets
-        : base.aboutSection.bullets,
-    },
-    contactSection: {
-      ...base.contactSection,
-      ...(incoming?.contactSection || {}),
-      phone: { ...base.contactSection.phone, ...(incoming?.contactSection?.phone || {}) },
-      email: { ...base.contactSection.email, ...(incoming?.contactSection?.email || {}) },
-      address: { ...base.contactSection.address, ...(incoming?.contactSection?.address || {}) },
-      quickCard: {
-        ...base.contactSection.quickCard,
-        ...(incoming?.contactSection?.quickCard || {}),
-        bullets:
-          Array.isArray(incoming?.contactSection?.quickCard?.bullets) && incoming.contactSection.quickCard.bullets.length > 0
-            ? incoming.contactSection.quickCard.bullets
-            : base.contactSection.quickCard.bullets,
-      },
-    },
-  }
-}
+import { LANGUAGES } from '../../i18n'
+import {
+  LANDING_LOCALES,
+  buildDefaultLandingConfig,
+  mergeLandingConfig,
+  readStoredLandingConfig,
+  writeStoredLandingConfig,
+} from '../../config/landingContent'
 
 function linesToArray(value) {
   return (value || '')
@@ -199,8 +29,20 @@ function arrayToLines(value) {
   return Array.isArray(value) ? value.join('\n') : ''
 }
 
+/** Empty editor state: every locale pre-filled from its own translation
+ *  bundle, so opening the Kazakh tab shows Kazakh copy rather than Russian. */
+function buildLocaleConfigs(i18n, stored) {
+  const { overrides } = readStoredLandingConfig(stored)
+  return Object.fromEntries(
+    LANDING_LOCALES.map((locale) => [
+      locale,
+      mergeLandingConfig(buildDefaultLandingConfig(i18n.getFixedT(locale)), overrides[locale]),
+    ]),
+  )
+}
+
 function AdminContent() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const dialog = useDialog()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -209,7 +51,18 @@ function AdminContent() {
   const [siteDescription, setSiteDescription] = useState('')
   const [seoMetaTitle, setSeoMetaTitle] = useState('')
   const [seoMetaDescription, setSeoMetaDescription] = useState('')
-  const [landingConfig, setLandingConfig] = useState(defaultLandingConfig)
+  // The landing copy is edited one language at a time; the hero design is a
+  // layout choice, so it is shared by all three.
+  const [activeLocale, setActiveLocale] = useState(LANDING_LOCALES[0])
+  const [localeConfigs, setLocaleConfigs] = useState(() => buildLocaleConfigs(i18n, null))
+  const [heroVariant, setHeroVariant] = useState(DEFAULT_HERO_VARIANT)
+
+  const landingConfig = localeConfigs[activeLocale]
+
+  const localeTabs = useMemo(
+    () => LANDING_LOCALES.map((code) => LANGUAGES.find((lang) => lang.code === code) || { code, fullLabel: code }),
+    [],
+  )
 
   const heroCardItemsText = useMemo(
     () => landingConfig.heroCard.items.map((item) => `${item.title} | ${item.description}`).join('\n'),
@@ -230,11 +83,12 @@ function AdminContent() {
       const globalRes = await contentAPI.getGlobal()
       const { data: globalData } = normalizeResponse(globalRes)
 
-      const mergedConfig = mergeConfig(defaultLandingConfig, globalData?.landingConfig || {})
-      setLandingConfig(mergedConfig)
+      const configs = buildLocaleConfigs(i18n, globalData?.landingConfig)
+      setLocaleConfigs(configs)
+      setHeroVariant(readStoredLandingConfig(globalData?.landingConfig).heroVariant)
 
       setSiteName(globalData?.siteName || 'MedConnect')
-      setSiteDescription(globalData?.siteDescription || mergedConfig.hero.description)
+      setSiteDescription(globalData?.siteDescription || configs[LANDING_LOCALES[0]].hero.description)
       setSeoMetaTitle(globalData?.defaultSeo?.metaTitle || 'MedConnect — Телемедицина')
       setSeoMetaDescription(
         globalData?.defaultSeo?.metaDescription ||
@@ -251,15 +105,16 @@ function AdminContent() {
     loadContent()
   }, [])
 
+  /** Writes into the language tab currently open — never into the others. */
   const setConfigValue = (path, value) => {
-    setLandingConfig((prev) => {
-      const next = structuredClone(prev)
+    setLocaleConfigs((prev) => {
+      const next = structuredClone(prev[activeLocale])
       let ref = next
       for (let i = 0; i < path.length - 1; i += 1) {
         ref = ref[path[i]]
       }
       ref[path[path.length - 1]] = value
-      return next
+      return { ...prev, [activeLocale]: next }
     })
   }
 
@@ -291,7 +146,7 @@ function AdminContent() {
             seoMetaDescription.trim() ||
             'Онлайн-консультации с врачами MedConnect. Запись, чат, документы и поддержка 24/7.',
         },
-        landingConfig,
+        landingConfig: writeStoredLandingConfig(heroVariant, localeConfigs),
       })
 
       await loadContent()
@@ -335,10 +190,38 @@ function AdminContent() {
         </CardHeader>
         <CardContent className='space-y-4'>
           <p className='text-sm text-slate-600'>{t('admin_content.hero_design_hint')}</p>
-          <HeroVariantPicker
-            value={landingConfig.heroVariant}
-            onChange={(variantId) => setConfigValue(['heroVariant'], variantId)}
-          />
+          <HeroVariantPicker value={heroVariant} onChange={setHeroVariant} />
+        </CardContent>
+      </Card>
+
+      {/* Everything below the design picker is copy, and copy is per language.
+          The tabs make it obvious which version is being edited — without them
+          an admin writing Russian would silently overwrite the page for
+          Kazakh and English visitors too. */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('admin_content.language_title')}</CardTitle>
+        </CardHeader>
+        <CardContent className='space-y-3'>
+          <p className='text-sm text-slate-600'>{t('admin_content.language_hint')}</p>
+          <div className='flex flex-wrap gap-2'>
+            {localeTabs.map((lang) => (
+              <button
+                key={lang.code}
+                type='button'
+                onClick={() => setActiveLocale(lang.code)}
+                aria-pressed={activeLocale === lang.code}
+                className={
+                  activeLocale === lang.code
+                    ? 'flex items-center gap-2 rounded-xl border border-teal-500 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700'
+                    : 'flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50'
+                }
+              >
+                <Globe2 className='w-4 h-4' />
+                {lang.fullLabel}
+              </button>
+            ))}
+          </div>
         </CardContent>
       </Card>
 

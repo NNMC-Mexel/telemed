@@ -16,16 +16,22 @@ import {
 import { Card, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import { contentAPI, normalizeResponse } from '../../services/api'
-import { getVideoEmbedUrl, mergePatientGuideConfig } from '../../utils/patientGuide'
+import { getVideoEmbedUrl, resolvePatientGuide } from '../../utils/patientGuide'
 
 const stepIcons = [BookOpenCheck, Upload, Video, FileText]
 
 function PatientHelp() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const [isLoading, setIsLoading] = useState(true)
-  const [guideConfig, setGuideConfig] = useState(() => mergePatientGuideConfig())
+  // The raw CMS payload is kept as-is and resolved per render, so switching
+  // language re-picks the matching locale block without a refetch.
+  const [storedGuide, setStoredGuide] = useState(null)
+  const guideConfig = useMemo(
+    () => resolvePatientGuide(t, storedGuide, i18n.language),
+    [t, storedGuide, i18n.language],
+  )
 
   const isWelcome = useMemo(() => new URLSearchParams(location.search).get('welcome') === '1', [location.search])
   const activeSteps = useMemo(
@@ -41,7 +47,7 @@ function PatientHelp() {
       try {
         const response = await contentAPI.getPatientGuide()
         const { data } = normalizeResponse(response)
-        if (isActive) setGuideConfig(mergePatientGuideConfig(data?.patientGuideConfig))
+        if (isActive) setStoredGuide(data?.patientGuideConfig ?? null)
       } catch (error) {
         console.error('Error loading patient guide:', error)
       } finally {

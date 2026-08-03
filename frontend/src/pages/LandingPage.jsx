@@ -62,7 +62,13 @@ import StoriesRow from "../components/news/StoriesRow";
 import NewsKindBadge from "../components/news/NewsKindBadge";
 import { getNewsKindStyle } from "../components/news/newsKind";
 import { heroPosterLqip } from "../assets/heroPosterLqip";
-import { DEFAULT_HERO_VARIANT, resolveHeroVariant } from "../config/heroVariants";
+import { resolveHeroVariant } from "../config/heroVariants";
+import {
+    buildDefaultLandingConfig,
+    mergeLandingConfig,
+    pickLocaleOverrides,
+    readStoredLandingConfig,
+} from "../config/landingContent";
 import useHeroThemeStore from "../stores/heroThemeStore";
 import { useReveal } from "../hooks/useReveal";
 import { cn, formatDate, getInitials, isDoctorOnline, getSpecName } from "../utils/helpers";
@@ -2157,99 +2163,7 @@ function LandingPage() {
     const [stories, setStories] = useState([]);
     const [videoTestimonials, setVideoTestimonials] = useState([]);
 
-    const defaultLandingConfig = useMemo(() => ({
-        heroVariant: DEFAULT_HERO_VARIANT,
-        hero: {
-            badge: t('landing.hero.badge'),
-            titlePrefix: t('landing.hero.title_prefix'),
-            titleHighlight: t('landing.hero.title_highlight'),
-            description: t('landing.hero.description'),
-            primaryButtonLabel: t('landing.hero.find_doctor'),
-            secondaryButtonLabel: t('landing.hero.register'),
-        },
-        heroCard: {
-            title: t('landing.hero_card.title'),
-            subtitle: t('landing.hero_card.subtitle'),
-            items: [
-                { title: t('landing.hero_card.item_0_title'), description: t('landing.hero_card.item_0_desc') },
-                { title: t('landing.hero_card.item_1_title'), description: t('landing.hero_card.item_1_desc') },
-                { title: t('landing.hero_card.item_2_title'), description: t('landing.hero_card.item_2_desc') },
-            ],
-            buttonLabel: t('landing.hero_card.book_now'),
-        },
-        stats: [
-            { value: "1100+", label: t('landing.stats.consultations') },
-            { value: "6+", label: t('landing.stats.doctors') },
-            { value: "4.9", label: t('landing.stats.avg_rating') },
-            { value: "98%", label: t('landing.stats.satisfaction') },
-        ],
-        featuresSection: {
-            badge: t('landing.features.badge'),
-            title: t('landing.features.title'),
-            subtitle: t('landing.features.subtitle'),
-            cards: [
-                { title: t('landing.features.card_0_title'), description: t('landing.features.card_0_desc') },
-                { title: t('landing.features.card_1_title'), description: t('landing.features.card_1_desc') },
-                { title: t('landing.features.card_2_title'), description: t('landing.features.card_2_desc') },
-                { title: t('landing.features.card_3_title'), description: t('landing.features.card_3_desc') },
-            ],
-        },
-        stepsSection: {
-            badge: t('landing.steps.badge'),
-            title: t('landing.steps.title'),
-            subtitle: t('landing.steps.subtitle'),
-            steps: [
-                { title: t('landing.steps.step_0_title'), description: t('landing.steps.step_0_desc') },
-                { title: t('landing.steps.step_1_title'), description: t('landing.steps.step_1_desc') },
-                { title: t('landing.steps.step_2_title'), description: t('landing.steps.step_2_desc') },
-                { title: t('landing.steps.step_3_title'), description: t('landing.steps.step_3_desc') },
-            ],
-        },
-        aboutSection: {
-            badge: t('landing.about.badge'),
-            title: t('landing.about.title'),
-            description: t('landing.about.description'),
-            bullets: [
-                t('landing.about.bullet_0'),
-                t('landing.about.bullet_1'),
-                t('landing.about.bullet_2'),
-                t('landing.about.bullet_3'),
-            ],
-            buttonLabel: t('landing.about.join'),
-        },
-        contactSection: {
-            badge: t('landing.contact.badge'),
-            title: t('landing.contact.title'),
-            subtitle: t('landing.contact.subtitle'),
-            phone: {
-                title: t('landing.contact.phone_title'),
-                note: t('landing.contact.phone_note'),
-                value: "+7 (717) 270-12-34",
-            },
-            email: {
-                title: t('landing.contact.email_title'),
-                note: t('landing.contact.email_note'),
-                value: "info@medconnect.kz",
-            },
-            address: {
-                title: t('landing.contact.address_title'),
-                note: t('landing.contact.address_note'),
-                value: t('footer.address'),
-            },
-            quickCard: {
-                title: t('landing.contact.quick_title'),
-                description: t('landing.contact.quick_desc'),
-                bullets: [
-                    t('landing.contact.quick_bullet_0'),
-                    t('landing.contact.quick_bullet_1'),
-                    t('landing.contact.quick_bullet_2'),
-                ],
-                buttonLabel: t('landing.contact.quick_button'),
-            },
-            mapEmbedUrl:
-                "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2505.5!2d71.4926513!3d51.1492038!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4245817a521995c9%3A0xe653c982ba77912!2z0J3QsNGG0LjQvtC90LDQu9GM0L3Ri9C5INC90LDRg9GH0L3Ri9C5INC80LXQtNC40YbQuNC90YHQutC40Lkg0YbQtdC90YLRgA!5e0!3m2!1sru!2skz!4v1700000000000!5m2!1sru!2skz",
-        },
-    }), [t]);
+    const defaultLandingConfig = useMemo(() => buildDefaultLandingConfig(t), [t]);
 
     const testimonials = useMemo(() => [
         { name: "Айгерим К.", text: t('landing.testimonials.review_0'), rating: 5, avatar: "АК" },
@@ -2302,65 +2216,22 @@ function LandingPage() {
             .catch((error) => console.error("Error fetching video testimonials:", error));
     }, []);
 
-    // Merge CMS content with i18n defaults
-    const incomingConfig = landingContent?.landingConfig || {};
-    const config = useMemo(() => ({
-        ...defaultLandingConfig,
-        ...incomingConfig,
-        hero: { ...defaultLandingConfig.hero, ...(incomingConfig.hero || {}) },
-        heroCard: {
-            ...defaultLandingConfig.heroCard,
-            ...(incomingConfig.heroCard || {}),
-            items:
-                Array.isArray(incomingConfig.heroCard?.items) && incomingConfig.heroCard.items.length > 0
-                    ? incomingConfig.heroCard.items
-                    : defaultLandingConfig.heroCard.items,
-        },
-        stats:
-            Array.isArray(incomingConfig.stats) && incomingConfig.stats.length > 0
-                ? incomingConfig.stats
-                : defaultLandingConfig.stats,
-        featuresSection: {
-            ...defaultLandingConfig.featuresSection,
-            ...(incomingConfig.featuresSection || {}),
-            cards:
-                Array.isArray(incomingConfig.featuresSection?.cards) && incomingConfig.featuresSection.cards.length > 0
-                    ? incomingConfig.featuresSection.cards
-                    : defaultLandingConfig.featuresSection.cards,
-        },
-        stepsSection: {
-            ...defaultLandingConfig.stepsSection,
-            ...(incomingConfig.stepsSection || {}),
-            steps:
-                Array.isArray(incomingConfig.stepsSection?.steps) && incomingConfig.stepsSection.steps.length > 0
-                    ? incomingConfig.stepsSection.steps
-                    : defaultLandingConfig.stepsSection.steps,
-        },
-        aboutSection: {
-            ...defaultLandingConfig.aboutSection,
-            ...(incomingConfig.aboutSection || {}),
-            bullets:
-                Array.isArray(incomingConfig.aboutSection?.bullets) && incomingConfig.aboutSection.bullets.length > 0
-                    ? incomingConfig.aboutSection.bullets
-                    : defaultLandingConfig.aboutSection.bullets,
-        },
-        contactSection: {
-            ...defaultLandingConfig.contactSection,
-            ...(incomingConfig.contactSection || {}),
-            phone: { ...defaultLandingConfig.contactSection.phone, ...(incomingConfig.contactSection?.phone || {}) },
-            email: { ...defaultLandingConfig.contactSection.email, ...(incomingConfig.contactSection?.email || {}) },
-            address: { ...defaultLandingConfig.contactSection.address, ...(incomingConfig.contactSection?.address || {}) },
-            quickCard: {
-                ...defaultLandingConfig.contactSection.quickCard,
-                ...(incomingConfig.contactSection?.quickCard || {}),
-                bullets:
-                    Array.isArray(incomingConfig.contactSection?.quickCard?.bullets) &&
-                    incomingConfig.contactSection.quickCard.bullets.length > 0
-                        ? incomingConfig.contactSection.quickCard.bullets
-                        : defaultLandingConfig.contactSection.quickCard.bullets,
-            },
-        },
-    }), [defaultLandingConfig, incomingConfig]);
+    // Merge CMS content with i18n defaults. The override is keyed by locale, so
+    // a page the admin rewrote in Russian no longer pins Kazakh and English
+    // visitors to Russian copy: a locale with no override of its own simply
+    // keeps rendering its translation bundle.
+    const { heroVariant: storedHeroVariant, overrides } = useMemo(
+        () => readStoredLandingConfig(landingContent?.landingConfig),
+        [landingContent],
+    );
+
+    const config = useMemo(
+        () => ({
+            ...mergeLandingConfig(defaultLandingConfig, pickLocaleOverrides(overrides, i18n.language)),
+            heroVariant: storedHeroVariant,
+        }),
+        [defaultLandingConfig, overrides, storedHeroVariant, i18n.language],
+    );
 
     // Credentials for the marquee are assembled from copy that already exists
     // elsewhere on the page, so the strip never asserts anything new.

@@ -9,7 +9,10 @@ function LanguageSwitcher({ variant = 'light', dropUp = false }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
-  const current = LANGUAGES.find((l) => l.code === i18n.language) || LANGUAGES[0]
+  // `resolvedLanguage` is the bundle actually rendering, so a stored regional
+  // code like `kk-KZ` still highlights Қазақша instead of falling back to Рус.
+  const active = i18n.resolvedLanguage || i18n.language
+  const current = LANGUAGES.find((l) => l.code === active) || LANGUAGES[0]
 
   useEffect(() => {
     const handler = (e) => {
@@ -52,7 +55,7 @@ function LanguageSwitcher({ variant = 'light', dropUp = false }) {
               onClick={() => changeLanguage(lang.code)}
               className={cn(
                 'w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between',
-                i18n.language === lang.code
+                active === lang.code
                   ? 'bg-teal-50 text-teal-700 font-semibold'
                   : 'text-slate-700 hover:bg-slate-50'
               )}

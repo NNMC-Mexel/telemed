@@ -1,12 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Eye, Loader2, Plus, RefreshCcw, Save, Trash2, Video } from 'lucide-react'
+import { Eye, Globe2, Loader2, Plus, RefreshCcw, Save, Trash2, Video } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Textarea from '../../components/ui/Textarea'
 import { contentAPI, normalizeResponse } from '../../services/api'
-import { getVideoEmbedUrl, mergePatientGuideConfig } from '../../utils/patientGuide'
+import {
+  buildDefaultPatientGuideConfig,
+  getVideoEmbedUrl,
+  mergePatientGuideConfig,
+  readStoredPatientGuide,
+  writeStoredPatientGuide,
+} from '../../utils/patientGuide'
+import { CONTENT_LOCALES } from '../../config/contentLocales'
+import { LANGUAGES } from '../../i18n'
 import { useDialog } from '../../components/ui/Dialog'
 
 function createEmptyStep() {
@@ -19,19 +27,40 @@ function createEmptyStep() {
   }
 }
 
+/** Empty editor state: every locale pre-filled from its own translation
+ *  bundle, so opening the Kazakh tab shows Kazakh copy rather than Russian. */
+function buildLocaleGuides(i18n, stored) {
+  const overrides = readStoredPatientGuide(stored)
+  return Object.fromEntries(
+    CONTENT_LOCALES.map((locale) => [
+      locale,
+      mergePatientGuideConfig(buildDefaultPatientGuideConfig(i18n.getFixedT(locale)), overrides[locale]),
+    ]),
+  )
+}
+
 function AdminPatientHelp() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const dialog = useDialog()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [guideConfig, setGuideConfig] = useState(() => mergePatientGuideConfig())
+  // The guide is edited one language at a time; saving writes all three.
+  const [activeLocale, setActiveLocale] = useState(CONTENT_LOCALES[0])
+  const [localeGuides, setLocaleGuides] = useState(() => buildLocaleGuides(i18n, null))
+
+  const guideConfig = localeGuides[activeLocale]
+
+  const localeTabs = useMemo(
+    () => CONTENT_LOCALES.map((code) => LANGUAGES.find((lang) => lang.code === code) || { code, fullLabel: code }),
+    [],
+  )
 
   const loadGuide = async () => {
     setIsLoading(true)
     try {
       const response = await contentAPI.getGlobal()
       const { data } = normalizeResponse(response)
-      setGuideConfig(mergePatientGuideConfig(data?.patientGuideConfig))
+      setLocaleGuides(buildLocaleGuides(i18n, data?.patientGuideConfig))
     } catch (error) {
       console.error('Error loading patient guide:', error)
     } finally {
@@ -43,12 +72,17 @@ function AdminPatientHelp() {
     loadGuide()
   }, [])
 
+  /** Every editor mutation lands in the language tab currently open. */
+  const updateActive = (updater) => {
+    setLocaleGuides((prev) => ({ ...prev, [activeLocale]: updater(prev[activeLocale]) }))
+  }
+
   const setConfigValue = (key, value) => {
-    setGuideConfig((prev) => ({ ...prev, [key]: value }))
+    updateActive((prev) => ({ ...prev, [key]: value }))
   }
 
   const setStepValue = (index, key, value) => {
-    setGuideConfig((prev) => ({
+    updateActive((prev) => ({
       ...prev,
       steps: prev.steps.map((step, currentIndex) => (
         currentIndex === index ? { ...step, [key]: value } : step
@@ -57,42 +91,53 @@ function AdminPatientHelp() {
   }
 
   const addStep = () => {
-    setGuideConfig((prev) => ({ ...prev, steps: [...prev.steps, createEmptyStep()] }))
+    updateActive((prev) => ({ ...prev, steps: [...prev.steps, createEmptyStep()] }))
   }
 
   const removeStep = (index) => {
-    setGuideConfig((prev) => ({ ...prev, steps: prev.steps.filter((_, currentIndex) => currentIndex !== index) }))
+    updateActive((prev) => ({ ...prev, steps: prev.steps.filter((_, currentIndex) => currentIndex !== index) }))
   }
 
-  const handleSave = async () => {
-    if (!guideConfig.title.trim()) {
-      dialog.alert(t('admin_patient_help.err_title'))
-      return
-    }
+  const trimGuide = (guide) => ({
+    ...guide,
+    title: guide.title.trim(),
+    subtitle: guide.subtitle.trim(),
+    welcomeTitle: guide.welcomeTitle.trim(),
+    welcomeDescription: guide.welcomeDescription.trim(),
+    steps: guide.steps.map((step) => ({
+      ...step,
+      title: step.title.trim(),
+      description: step.description.trim(),
+      videoUrl: step.videoUrl.trim(),
+      duration: step.duration.trim(),
+    })),
+  })
 
-    const activeSteps = guideConfig.steps.filter((step) => step.isActive !== false)
-    if (activeSteps.some((step) => !step.title.trim())) {
-      dialog.alert(t('admin_patient_help.err_step_title'))
-      return
+  const handleSave = async () => {
+    // Saving writes every language at once, so every language has to be valid —
+    // and the offending tab is opened so the admin can see what is wrong.
+    for (const locale of CONTENT_LOCALES) {
+      const guide = localeGuides[locale]
+      const activeSteps = guide.steps.filter((step) => step.isActive !== false)
+      const error = !guide.title.trim()
+        ? 'admin_patient_help.err_title'
+        : activeSteps.some((step) => !step.title.trim())
+          ? 'admin_patient_help.err_step_title'
+          : null
+
+      if (error) {
+        setActiveLocale(locale)
+        dialog.alert(t(error))
+        return
+      }
     }
 
     setIsSaving(true)
     try {
       await contentAPI.updateGlobal({
-        patientGuideConfig: {
-          ...guideConfig,
-          title: guideConfig.title.trim(),
-          subtitle: guideConfig.subtitle.trim(),
-          welcomeTitle: guideConfig.welcomeTitle.trim(),
-          welcomeDescription: guideConfig.welcomeDescription.trim(),
-          steps: guideConfig.steps.map((step) => ({
-            ...step,
-            title: step.title.trim(),
-            description: step.description.trim(),
-            videoUrl: step.videoUrl.trim(),
-            duration: step.duration.trim(),
-          })),
-        },
+        patientGuideConfig: writeStoredPatientGuide(
+          Object.fromEntries(CONTENT_LOCALES.map((locale) => [locale, trimGuide(localeGuides[locale])])),
+        ),
       })
       await loadGuide()
       dialog.alert(t('admin_patient_help.saved'), { variant: 'success' })
@@ -128,6 +173,35 @@ function AdminPatientHelp() {
           </Button>
         </div>
       </div>
+
+      {/* The guide is stored per language, so the tab makes it obvious which
+          version is being edited. */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('admin_content.language_title')}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-slate-600">{t('admin_content.language_hint')}</p>
+          <div className="flex flex-wrap gap-2">
+            {localeTabs.map((lang) => (
+              <button
+                key={lang.code}
+                type="button"
+                onClick={() => setActiveLocale(lang.code)}
+                aria-pressed={activeLocale === lang.code}
+                className={
+                  activeLocale === lang.code
+                    ? 'flex items-center gap-2 rounded-xl border border-teal-500 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700'
+                    : 'flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50'
+                }
+              >
+                <Globe2 className="w-4 h-4" />
+                {lang.fullLabel}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
