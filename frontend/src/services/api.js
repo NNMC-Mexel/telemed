@@ -287,7 +287,22 @@ export const uploadFile = async (file, options = {}) => {
         },
     });
 
-    return response.data[0];
+    const uploaded = response.data[0];
+
+    // Файл становится публичным только после привязки к записи, поэтому до
+    // сохранения формы превью берётся из локального блоба: <img>/<video> не
+    // умеют слать Authorization и получили бы 401 от /api/file-proxy.
+    const previewUrl = URL.createObjectURL(safeFile);
+    const formats = uploaded?.formats
+        ? Object.fromEntries(
+              Object.entries(uploaded.formats).map(([name, format]) => [
+                  name,
+                  { ...format, previewUrl },
+              ])
+          )
+        : uploaded?.formats;
+
+    return { ...uploaded, previewUrl, formats };
 };
 
 export const deleteFile = async (fileId) => {
@@ -305,6 +320,9 @@ export const getMediaUrl = (media) => {
     if (typeof media === "string") {
         return media.startsWith("http") ? media : `${API_URL}${media}`;
     }
+
+    // Локальный блоб только что загруженного файла (см. uploadFile)
+    if (media.previewUrl) return media.previewUrl;
 
     // Strapi формат
     const url = media.url;

@@ -1,6 +1,31 @@
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
-const SAFE_PUBLIC_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const SAFE_PUBLIC_MIMES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'video/mp4',
+  'video/webm',
+]);
+
+// Media attached to these content-type fields is site content (marketing,
+// editorial, public catalogue), so it must render in plain <img>/<video> tags
+// that cannot send an Authorization header. Everything else — medical
+// documents, chat attachments, user avatars — stays behind the token check.
+const PUBLIC_MEDIA_FIELDS: Record<string, string[]> = {
+  'api::story.story': ['poster', 'media'],
+  'api::news-post.news-post': ['cover', 'video'],
+  'api::video-testimonial.video-testimonial': ['poster', 'video'],
+  'api::specialization.specialization': ['image'],
+  'api::promotion.promotion': ['image', 'cover'],
+  'api::article.article': ['cover'],
+  'api::author.author': ['avatar'],
+  'api::global.global': ['favicon'],
+  'shared.media': ['file'],
+  'shared.slider': ['files'],
+  'shared.seo': ['shareImage'],
+};
 
 const getBearerToken = (ctx: any) => {
   const header = String(ctx.request?.headers?.authorization || '');
@@ -166,7 +191,30 @@ const isPublicDoctorPhoto = async (file: any) => {
 };
 
 const isSafePublicImage = (file: any) =>
-  SAFE_PUBLIC_IMAGE_MIMES.has(String(file?.mime || '').toLowerCase());
+  SAFE_PUBLIC_MIMES.has(String(file?.mime || '').toLowerCase());
+
+// Strapi keeps every media link in the `files_related_mph` morph table, so one
+// query tells us every place a file is used. A file counts as public only when
+// *all* of its links are public site fields — a file reused by a medical
+// document stays private even if it is also referenced by an article.
+const isPublicSiteMedia = async (file: any) => {
+  if (!file?.id) return false;
+
+  try {
+    const relations = await strapi.db
+      .connection('files_related_mph')
+      .select('related_type', 'field')
+      .where('file_id', file.id);
+
+    if (!relations?.length) return false;
+
+    return relations.every((relation: any) =>
+      (PUBLIC_MEDIA_FIELDS[relation.related_type] || []).includes(relation.field),
+    );
+  } catch {
+    return false;
+  }
+};
 
 const canAccessUserAvatar = async (user: any, file: any) => {
   if (!file?.id || !user?.id) return false;
@@ -198,9 +246,10 @@ export default {
         return;
       }
 
-      const publicDoctorPhoto = await isPublicDoctorPhoto(file);
-      const safePublicDoctorPhoto = publicDoctorPhoto && isSafePublicImage(file);
-      if (!safePublicDoctorPhoto) {
+      const publicMedia =
+        isSafePublicImage(file) &&
+        ((await isPublicDoctorPhoto(file)) || (await isPublicSiteMedia(file)));
+      if (!publicMedia) {
         const user = await getUserFromRequest(ctx);
         if (!user) {
           ctx.status = 401;
@@ -219,16 +268,21 @@ export default {
       }
 
       const s3 = getS3Client();
+      // Safari (iOS especially) refuses to play a video that does not answer
+      // byte-range requests, so the range header is passed straight through.
+      const rangeHeader = String(ctx.request?.headers?.range || '') || undefined;
       const command = new GetObjectCommand({
         Bucket: process.env.MINIO_BUCKET,
         Key: key,
+        Range: rangeHeader,
       });
 
       const response = await s3.send(command);
 
       ctx.set('X-Content-Type-Options', 'nosniff');
+      ctx.set('Accept-Ranges', 'bytes');
 
-      if (safePublicDoctorPhoto) {
+      if (publicMedia) {
         ctx.set('Content-Type', response.ContentType || 'application/octet-stream');
       } else {
         ctx.set('Content-Type', 'application/octet-stream');
@@ -237,10 +291,11 @@ export default {
       if (response.ContentLength) {
         ctx.set('Content-Length', String(response.ContentLength));
       }
-      ctx.set(
-        'Cache-Control',
-        safePublicDoctorPhoto ? 'public, max-age=86400' : 'private, no-store',
-      );
+      if (response.ContentRange) {
+        ctx.set('Content-Range', response.ContentRange);
+        ctx.status = 206;
+      }
+      ctx.set('Cache-Control', publicMedia ? 'public, max-age=86400' : 'private, no-store');
 
       ctx.body = response.Body as any;
     } catch {
