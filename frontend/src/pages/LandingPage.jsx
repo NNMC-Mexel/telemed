@@ -38,7 +38,6 @@ import {
     ChevronRight,
     Play,
     Send,
-    ExternalLink,
     Quote,
     ShieldCheck,
     Sparkles,
@@ -1950,17 +1949,58 @@ function ImpactSection({ section, stats }) {
 /*  Contact                                                                    */
 /* -------------------------------------------------------------------------- */
 
+// The three channels differ only inside the brandbook ramps — navy, green,
+// sand. At rest each tile is a soft tint with a hairline ring; the saturated
+// gradient is held back for hover, so the row stays calm until it is touched.
 const contactAccents = [
-    { tile: "bg-gradient-to-br from-teal-500 to-emerald-500", value: "text-teal-700", border: "hover:border-teal-200" },
-    { tile: "bg-gradient-to-br from-sky-500 to-cyan-500", value: "text-sky-700", border: "hover:border-sky-200" },
-    { tile: "bg-gradient-to-br from-violet-500 to-purple-500", value: "text-violet-700", border: "hover:border-violet-200" },
+    {
+        tile: "bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-700/10",
+        fill: "from-teal-700 to-teal-500",
+        border: "hover:border-teal-300",
+        shadow: "hover:shadow-teal-900/8",
+        focus: "focus-visible:outline-teal-600",
+    },
+    {
+        tile: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-700/10",
+        fill: "from-sky-700 to-sky-500",
+        border: "hover:border-sky-300",
+        shadow: "hover:shadow-sky-900/8",
+        focus: "focus-visible:outline-sky-600",
+    },
+    {
+        tile: "bg-sand-100 text-sand-700 ring-1 ring-inset ring-sand-700/12",
+        fill: "from-sand-600 to-sand-400",
+        border: "hover:border-sand-300",
+        shadow: "hover:shadow-sand-900/8",
+        focus: "focus-visible:outline-sand-600",
+    },
 ];
 
 function ContactSection({ section }) {
+    const phoneDigits = (section.phone.value || "").replace(/[^\d+]/g, "");
+    const addressQuery = (section.address.value || "").trim();
+
     const channels = [
-        { ...section.phone, Icon: Phone, href: `tel:${(section.phone.value || "").replace(/[^\d+]/g, "")}` },
-        { ...section.email, Icon: Mail, href: `mailto:${section.email.value}` },
-        { ...section.address, Icon: MapPin, href: null },
+        {
+            ...section.phone,
+            Icon: Phone,
+            href: phoneDigits ? `tel:${phoneDigits}` : null,
+        },
+        {
+            ...section.email,
+            Icon: Mail,
+            href: section.email.value ? `mailto:${section.email.value}` : null,
+        },
+        {
+            ...section.address,
+            Icon: MapPin,
+            // The address tile used to be the one dead card in the row. It now
+            // opens the place on Google Maps, where "directions" is one tap away.
+            href: addressQuery
+                ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`
+                : null,
+            external: true,
+        },
     ];
 
     return (
@@ -1983,41 +2023,61 @@ function ContactSection({ section }) {
                     {channels.map((channel, idx) => {
                         const accent = contactAccents[idx % contactAccents.length];
                         const { Icon } = channel;
+                        // Whole card is the target when there is somewhere to go —
+                        // a 300px hit area instead of a line of text.
+                        const Shell = channel.href ? "a" : "div";
                         return (
-                            <div
+                            <Shell
                                 key={channel.title}
+                                href={channel.href || undefined}
+                                {...(channel.href && channel.external
+                                    ? { target: "_blank", rel: "noopener noreferrer" }
+                                    : {})}
                                 data-reveal
                                 style={delay(90 * idx)}
                                 onMouseMove={trackSpotlight}
                                 className={cn(
-                                    "spotlight lift elevate-sm group relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-8 hover:shadow-2xl hover:shadow-teal-900/5",
+                                    "spotlight lift elevate-sm group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-7 hover:shadow-2xl focus-visible:outline-2 focus-visible:outline-offset-2 sm:p-8",
                                     accent.border,
+                                    accent.shadow,
+                                    accent.focus,
                                 )}>
-                                <div
-                                    className={cn(
-                                        "flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-lg transition-transform duration-500 group-hover:scale-105",
-                                        accent.tile,
-                                    )}>
-                                    <Icon className='h-7 w-7' />
-                                </div>
-                                <h3 className='mt-6 text-lg font-semibold text-slate-900'>{channel.title}</h3>
-                                <p className='mt-1.5 text-sm text-slate-500'>{channel.note}</p>
-                                {channel.href ? (
-                                    <a
-                                        href={channel.href}
+                                <div className='flex items-center gap-3.5'>
+                                    <span
                                         className={cn(
-                                            "mt-4 inline-flex items-center gap-2 text-lg font-semibold transition-colors",
-                                            accent.value,
+                                            "relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl transition-colors duration-500 group-hover:text-white",
+                                            accent.tile,
                                         )}>
-                                        {channel.value}
-                                        <ExternalLink className='h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100' />
-                                    </a>
-                                ) : (
-                                    <p className={cn("mt-4 text-lg font-semibold", accent.value)}>
-                                        {channel.value}
-                                    </p>
-                                )}
-                            </div>
+                                        <span
+                                            aria-hidden='true'
+                                            className={cn(
+                                                "absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-500 group-hover:opacity-100",
+                                                accent.fill,
+                                            )}
+                                        />
+                                        <Icon className='relative h-5 w-5' />
+                                    </span>
+                                    <h3 className='text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-slate-500'>
+                                        {channel.title}
+                                    </h3>
+                                    {channel.href && (
+                                        <ArrowUpRight
+                                            aria-hidden='true'
+                                            className='ml-auto h-4 w-4 shrink-0 translate-y-0.5 text-slate-400 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:text-slate-600 group-hover:opacity-100'
+                                        />
+                                    )}
+                                </div>
+
+                                {/* The value is what the visitor came for, so it — not the
+                                    icon — carries the weight in the card. */}
+                                <p className='mt-6 text-balance text-xl font-semibold leading-snug tracking-[-0.01em] text-slate-950 sm:text-[1.375rem]'>
+                                    {channel.value}
+                                </p>
+
+                                <p className='mt-auto border-t border-slate-100 pt-5 text-sm leading-relaxed text-slate-500'>
+                                    {channel.note}
+                                </p>
+                            </Shell>
                         );
                     })}
                 </div>
