@@ -76,6 +76,16 @@ const MINI_CALL_MOBILE_WIDTH = 224
 const MINI_CALL_MOBILE_HEIGHT = 172
 const MINI_CALL_MOBILE_BOTTOM_RESERVE = 96
 const SHOW_STRUCTURED_NOTES = false
+// Как часто врач перечитывает документы пациента во время звонка. Пациент может
+// загрузить файл из личного кабинета — там сокета консультации нет, и без опроса
+// врач увидел бы документ только после завершения звонка.
+const DOCS_POLL_INTERVAL_MS = 20000
+
+const formatAttachmentSize = (bytes, t) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return ''
+  const kb = Math.round(bytes / 1024)
+  return kb > 1024 ? `${(kb / 1024).toFixed(1)} ${t('video.size_mb')}` : `${kb} ${t('video.size_kb')}`
+}
 
 const getMiniCallBottomReserve = () => {
   if (typeof window === 'undefined') return 0
@@ -210,6 +220,8 @@ function VideoConsultation({
   // Track existing document IDs to update instead of create duplicates
   const [existingDocIds, setExistingDocIds] = useState({ certificate: null, other: null, prescription: null })
   const [patientDocuments, setPatientDocuments] = useState([])
+  // Снимок id уже показанных документов — по нему опрос отличает новый файл от старого
+  const knownDocumentIdsRef = useRef(new Set())
   const [isLoadingDocs, setIsLoadingDocs] = useState(false)
   const [documentsUpdatedNotice, setDocumentsUpdatedNotice] = useState(false)
 
@@ -223,6 +235,8 @@ function VideoConsultation({
   // Chat file upload state (patient attaches docs during consultation)
   const [isUploadingChatFile, setIsUploadingChatFile] = useState(false)
   const chatFileInputRef = useRef(null)
+  // documentId вложения, которое сейчас скачивается — чтобы показать спиннер на кнопке
+  const [downloadingAttachment, setDownloadingAttachment] = useState(null)
 
   // Force complete state (doctor)
   const [isCompletingCall, setIsCompletingCall] = useState(false)
@@ -524,6 +538,7 @@ function VideoConsultation({
       const response = await documentsAPI.getAll({ userId: currentAppointment.patient.id })
       const docs = response.data?.data || []
       setPatientDocuments(docs)
+      knownDocumentIdsRef.current = new Set(docs.map(doc => String(doc.documentId || doc.id)))
       if (hydrateNotes) hydrateDoctorNotes(docs, currentAppointment)
       return docs
     } catch (err) {
@@ -531,6 +546,38 @@ function VideoConsultation({
       return []
     } finally {
       if (showLoader) setIsLoadingDocs(false)
+    }
+  }
+
+  // Скачивание вложения из чата. По сокету приходит только documentId, поэтому
+  // сам файл всегда забираем через авторизованный API: сперва из уже загруженного
+  // списка врача, иначе — точечным запросом (актуально для пациента и для врача,
+  // который открыл чат раньше, чем подтянулся список документов).
+  const downloadChatAttachment = async (attachment) => {
+    if (!attachment?.documentId) return
+    setDownloadingAttachment(attachment.documentId)
+    try {
+      const known = patientDocuments.find(
+        (doc) => String(doc.documentId || doc.id) === String(attachment.documentId)
+      )
+      let file = known?.file
+      if (!file) {
+        const response = await documentsAPI.getOne(attachment.documentId)
+        file = response.data?.data?.file
+      }
+      if (!file) throw new Error('Attachment file is unavailable')
+      await downloadMedia(file, attachment.name || t('video.doc_label'))
+    } catch (err) {
+      console.error('Error downloading chat attachment:', err)
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        sender: 'system',
+        senderName: t('video.system'),
+        text: t('video.attachment_download_error', { name: attachment.name || '' }),
+        time: new Date(),
+      }])
+    } finally {
+      setDownloadingAttachment(null)
     }
   }
 
@@ -549,6 +596,27 @@ function VideoConsultation({
   useEffect(() => {
     refreshPatientDocuments({ showLoader: true, hydrateNotes: true })
   }, [appointment?.patient?.id, appointment?.documentId, isDoctor])
+
+  // Пациент может загрузить документ и мимо консультации — из личного кабинета,
+  // с телефона, другой вкладкой. Там сокета комнаты нет, поэтому событие
+  // 'document-uploaded' не придёт, и раньше врач видел такой файл только после
+  // завершения звонка. Пока идёт консультация — периодически перечитываем список.
+  useEffect(() => {
+    if (!isDoctor || !appointment?.patient?.id) return
+
+    const timer = setInterval(async () => {
+      if (document.hidden) return
+      const before = knownDocumentIdsRef.current
+      const docs = await refreshPatientDocuments({ showLoader: false, hydrateNotes: false })
+      const hasNew = docs.some(doc => !before.has(String(doc.documentId || doc.id)))
+      if (hasNew && before.size > 0) {
+        setDocumentsUpdatedNotice(true)
+        setTimeout(() => setDocumentsUpdatedNotice(false), 4000)
+      }
+    }, DOCS_POLL_INTERVAL_MS)
+
+    return () => clearInterval(timer)
+  }, [isDoctor, appointment?.patient?.id])
 
   const getParticipantInfo = () => {
     if (!appointment) {
@@ -723,6 +791,7 @@ function VideoConsultation({
             id: data.id,
             sender: data.userId != null && String(data.userId) === currentUserId ? 'me' : 'other',
             text: data.message,
+            attachment: data.attachment || null,
             senderName: data.senderName,
             time: new Date(data.timestamp),
           })))
@@ -734,6 +803,7 @@ function VideoConsultation({
             id: data.id,
             sender: (data.userId != null && String(data.userId) === currentUserId) ? 'me' : 'other',
             text: data.message,
+            attachment: data.attachment || null,
             senderName: data.senderName,
             time: new Date(data.timestamp),
           }])
@@ -1069,8 +1139,19 @@ function VideoConsultation({
       const sizeKb = Math.round(file.size / 1024)
       const sizeStr = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} ${t('video.size_mb')}` : `${sizeKb} ${t('video.size_kb')}`
 
+      const attachmentDocId = createdDoc?.documentId || createdDoc?.id || null
+
       socketRef.current?.emit('chat-message', {
         message: t('video.file_attached', { icon: fileIcon, name: file.name, size: sizeStr }),
+        // Только метаданные — собеседник скачает файл через авторизованный API.
+        attachment: attachmentDocId
+          ? {
+              documentId: String(attachmentDocId),
+              name: file.name,
+              size: file.size,
+              mime: file.type || null,
+            }
+          : null,
       })
       socketRef.current?.emit('document-uploaded', {
         documentId: createdDoc?.documentId || createdDoc?.id || null,
@@ -1786,7 +1867,47 @@ function VideoConsultation({
                       {msg.sender !== 'me' && (
                         <p className="text-xs font-medium text-slate-500 mb-1">{msg.senderName}</p>
                       )}
-                      <p className="text-sm">{msg.text}</p>
+                      {msg.attachment ? (
+                        <button
+                          type="button"
+                          onClick={() => downloadChatAttachment(msg.attachment)}
+                          disabled={downloadingAttachment === msg.attachment.documentId}
+                          title={t('video.download_attachment')}
+                          className={cn(
+                            'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors',
+                            msg.sender === 'me'
+                              ? 'bg-white/15 hover:bg-white/25'
+                              : 'bg-white hover:bg-slate-50 border border-slate-200'
+                          )}
+                        >
+                          <span className={cn(
+                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                            msg.sender === 'me' ? 'bg-white/20' : 'bg-teal-50'
+                          )}>
+                            <FileText className={cn(
+                              'h-4 w-4',
+                              msg.sender === 'me' ? 'text-white' : 'text-teal-600'
+                            )} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">
+                              {msg.attachment.name || t('video.doc_label')}
+                            </span>
+                            <span className={cn(
+                              'block text-xs',
+                              msg.sender === 'me' ? 'text-teal-100' : 'text-slate-500'
+                            )}>
+                              {formatAttachmentSize(msg.attachment.size, t)}
+                            </span>
+                          </span>
+                          {downloadingAttachment === msg.attachment.documentId
+                            ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                            : <Download className="h-4 w-4 shrink-0" />
+                          }
+                        </button>
+                      ) : (
+                        <p className="text-sm">{msg.text}</p>
+                      )}
                       <p className={cn(
                         'text-xs mt-1',
                         msg.sender === 'me' ? 'text-teal-100' : 'text-slate-400'

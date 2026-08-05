@@ -38,7 +38,6 @@ function DoctorProfile() {
         education: "",
         experience: 0,
         price: 0,
-        consultationDuration: 30,
         languages: [],
         i18n: {},
     });
@@ -84,7 +83,6 @@ function DoctorProfile() {
                     education: doctorData.education || "",
                     experience: doctorData.experience || 0,
                     price: doctorData.price || 0,
-                    consultationDuration: doctorData.consultationDuration || 30,
                     languages: doctorData.languages?.length ? doctorData.languages : ["ru"],
                     i18n: doctorData.i18n || {},
                 });
@@ -98,7 +96,6 @@ function DoctorProfile() {
                     education: "",
                     experience: 0,
                     price: 8000,
-                    consultationDuration: 30,
                     languages: ["ru"],
                     i18n: {},
                 });
@@ -155,7 +152,6 @@ function DoctorProfile() {
                         education: formData.education,
                         experience: parseInt(formData.experience) || 0,
                         price: parseInt(formData.price) || 0,
-                        consultationDuration: parseInt(formData.consultationDuration) || 30,
                         languages: formData.languages || [],
                         i18n: formData.i18n || {},
                     },
@@ -380,6 +376,8 @@ function DoctorProfile() {
                                         placeholder={t('doctor_profile.education_placeholder')}
                                     />
                                 </div>
+                                {/* Длительность приёма задаётся в «Расписании» — там она
+                                    же управляет шагом слотов, поэтому второго поля здесь нет. */}
                                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                                     <div>
                                         <label className='block text-sm font-medium text-slate-700 mb-1'>
@@ -392,22 +390,6 @@ function DoctorProfile() {
                                             onChange={handleChange}
                                             min='0'
                                             step='500'
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className='block text-sm font-medium text-slate-700 mb-1'>
-                                            {t('doctor_profile.duration')}
-                                        </label>
-                                        <Input
-                                            type='number'
-                                            name='consultationDuration'
-                                            value={
-                                                formData.consultationDuration
-                                            }
-                                            onChange={handleChange}
-                                            min='15'
-                                            max='120'
-                                            step='15'
                                         />
                                     </div>
                                 </div>

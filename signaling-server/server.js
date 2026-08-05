@@ -2039,9 +2039,25 @@ const rooms = new Map()
 // {
 //   id: string,
 //   participants: Map<socketId, { id, name, role }>,
-//   messages: [{ id, message, senderName, userId, senderId, timestamp }]
+//   messages: [{ id, message, attachment, senderName, userId, senderId, timestamp }]
 // }
 const MAX_CHAT_HISTORY = 200
+
+// Вложение в чате переносится ТОЛЬКО как метаданные: ссылки на файл здесь нет
+// и быть не должно — получатель обязан забрать документ через авторизованный
+// Strapi API по documentId. Тот же контракт, что и у 'document-uploaded'.
+const MAX_ATTACHMENT_NAME = 260
+const sanitizeAttachment = (attachment) => {
+  if (!attachment || typeof attachment !== 'object') return null
+  const documentId = typeof attachment.documentId === 'string' ? attachment.documentId : null
+  if (!documentId) return null
+  return {
+    documentId,
+    name: typeof attachment.name === 'string' ? attachment.name.slice(0, MAX_ATTACHMENT_NAME) : null,
+    size: Number.isFinite(attachment.size) ? attachment.size : null,
+    mime: typeof attachment.mime === 'string' ? attachment.mime.slice(0, 120) : null,
+  }
+}
 
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`)
@@ -2215,7 +2231,7 @@ io.on('connection', (socket) => {
   })
 
   // Чат в комнате — имя и id берём из серверного состояния, не с клиента
-  socket.on('chat-message', ({ message }) => {
+  socket.on('chat-message', ({ message, attachment }) => {
     const ctx = getJoinedRoom()
     if (!ctx) return
     if (typeof message !== 'string' || !message.trim()) return
@@ -2223,6 +2239,7 @@ io.on('connection', (socket) => {
     const msgData = {
       id: Date.now(),
       message,
+      attachment: sanitizeAttachment(attachment),
       senderName: participant.name,
       senderId: socket.id,
       userId: participant.id,
