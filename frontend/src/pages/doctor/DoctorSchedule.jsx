@@ -357,6 +357,10 @@ function DoctorSchedule() {
                     workStartTime: firstInterval.start,
                     workEndTime: lastInterval.end,
                     slotDuration: workingHours.slotDuration,
+                    // Длительность приёма задаётся только здесь (в профиле поля больше
+                    // нет), поэтому отсюда же обновляем окно консультации — иначе оно
+                    // навсегда осталось бы на старом значении.
+                    consultationDuration: workingHours.slotDuration,
                     breakStart: firstGap?.start || "",
                     breakEnd: firstGap?.end || "",
                     workingDays: workingDays.join(","),
