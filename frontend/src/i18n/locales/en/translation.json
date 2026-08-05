@@ -1121,6 +1121,8 @@
     "size_mb": "MB",
     "size_kb": "KB",
     "file_upload_error": "Error uploading file \"{{name}}\". Please try again.",
+    "download_attachment": "Download document",
+    "attachment_download_error": "Could not download \"{{name}}\". Please try again.",
     "doc_conclusion": "Doctor's conclusion",
     "doc_plan": "Examination plan",
     "doc_prescriptions": "Prescriptions",

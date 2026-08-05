@@ -175,6 +175,48 @@ export default factories.createCoreController('api::medical-document.medical-doc
     };
   },
 
+  /**
+   * Точечное чтение документа. Раньше метод не переопределялся и уходил в
+   * дефолтный core-controller без проверки владельца — то есть любой
+   * авторизованный пользователь мог прочитать чужой медицинский документ по id.
+   * Правила доступа здесь те же, что и в find():
+   *   admin   — всё;
+   *   doctor  — свои документы и расшаренные ему;
+   *   patient — только свои.
+   */
+  async findOne(ctx) {
+    const user = ctx.state.user;
+    if (!user) return ctx.forbidden('Not authenticated');
+
+    const { id } = ctx.params;
+    const doc = await strapi.documents('api::medical-document.medical-document').findOne({
+      documentId: String(id),
+      populate: ['file', 'user', 'doctor', 'appointment', 'sharedWithDoctors'] as any,
+    });
+
+    if (!doc) return ctx.notFound('Document not found');
+
+    if (!isUserAdmin(user)) {
+      if (isUserDoctor(user)) {
+        const doctorRecord = await getDoctorForUser(user.id);
+        if (!doctorRecord) return ctx.forbidden('Not allowed to read this document');
+
+        const isOwn =
+          (doc as any).doctor?.id === doctorRecord.id ||
+          (doc as any).doctor?.documentId === doctorRecord.documentId;
+        const isShared = (doc as any).sharedWithDoctors?.some(
+          (d: any) => d.id === doctorRecord.id || d.documentId === doctorRecord.documentId
+        );
+
+        if (!isOwn && !isShared) return ctx.forbidden('Not allowed to read this document');
+      } else if (String((doc as any).user?.id) !== String(user.id)) {
+        return ctx.forbidden('Not allowed to read this document');
+      }
+    }
+
+    return { data: doc };
+  },
+
   async create(ctx) {
     const user = ctx.state.user;
     if (!user) return ctx.forbidden('Not authenticated');
